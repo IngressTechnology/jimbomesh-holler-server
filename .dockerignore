@@ -1,0 +1,39 @@
+.git
+.env
+.env.*
+*.md
+.claude/
+.gitignore
+.gitattributes
+
+# Secrets / TLS
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Database files
+*.db
+*.db-wal
+*.db-shm
+
+# Runtime data
+keys.json
+auth0-config.json
+data/
+.setup-config.json
+SESSION_SUMMARY.md
+
+# Dependencies (rebuilt inside image)
+node_modules/
+
+# IDE / editor
+.vscode/
+.cursor/
+.idea/
+
+# Build artifacts
+docker-compose*.yml
+setup.sh
+setup.ps1

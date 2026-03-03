@@ -1,0 +1,309 @@
+# Admin UI Customization Guide
+
+The Holler Server admin panel (`/admin`) supports full visual customization through CSS variables, logo replacement, and environment variables. No code editing required.
+
+## Overview
+
+The admin UI loads styles in this order:
+
+1. `admin/style.css` — Default JimboMesh theme (do not edit)
+2. `admin/assets/theme.css` — Your custom overrides (edit this)
+
+Anything in `theme.css` takes precedence over the defaults.
+
+## Quick Start
+
+```bash
+# 1. Edit the theme file
+vi admin/assets/theme.css
+
+# 2. Optionally set a custom server name in .env
+echo 'HOLLER_SERVER_NAME=My GPU Farm' >> .env
+
+# 3. Restart
+docker compose restart
+```
+
+## CSS Variable Reference
+
+Override any of these in `admin/assets/theme.css`:
+
+### Brand Colors
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--accent` | `#0d9488` | Primary brand color — buttons, links, active tabs, focus rings |
+| `--accent-hover` | `#14b8a6` | Hover/active state for accent elements |
+| `--accent-glow` | `rgba(13,148,136,0.15)` | Glow and box-shadow effect color |
+| `--secondary` | `#f97316` | Secondary highlight (not widely used in defaults) |
+| `--secondary-hover` | `#fb923c` | Hover state for secondary |
+
+### Backgrounds
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--bg-primary` | `#0f172a` | Page/body background |
+| `--bg-secondary` | `#1e293b` | Cards, panels, header, login card |
+| `--bg-tertiary` | `#273548` | Hover states, active backgrounds |
+
+### Borders
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--border` | `#334155` | Standard border color |
+| `--border-light` | `#475569` | Lighter border for hover states |
+
+### Text
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--text-primary` | `#f8fafc` | Main content text |
+| `--text-secondary` | `#94a3b8` | Labels, descriptions, muted text |
+| `--text-muted` | `#64748b` | Very muted text (stat labels, timestamps) |
+
+### Status Colors
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--success` | `#22c55e` | Healthy indicators, success badges |
+| `--warning` | `#eab308` | Warning badges, medium latency |
+| `--error` | `#ef4444` | Error badges, unhealthy indicators |
+
+### Status Backgrounds
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--red-bg` | `rgba(239,68,68,0.1)` | Error background tint |
+| `--green-bg` | `rgba(34,197,94,0.1)` | Success background tint |
+| `--yellow-bg` | `rgba(234,179,8,0.1)` | Warning background tint |
+| `--blue-bg` | `rgba(13,148,136,0.1)` | Accent background tint |
+
+### Layout
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `--radius` | `8px` | Border radius for cards, inputs, buttons |
+| `--font-mono` | System monospace stack | Code, values, stats |
+| `--font-sans` | System sans-serif stack | Body text, labels |
+
+## Logo Replacement
+
+Replace the SVG files in `admin/assets/`:
+
+| File | Purpose | Recommended Size |
+|------|---------|-----------------|
+| `logo.svg` | Login page logo | Max height 48px, width auto |
+| `favicon.svg` | Browser tab icon + header icon | 32×32px square |
+
+SVG is preferred because it stays crisp at all display sizes. PNG files also work — just match the filenames.
+
+The logo appears on the login page. The favicon appears in the browser tab and next to the server name in the header.
+
+## Environment Variables
+
+These environment variables control the text branding without editing any files:
+
+| Variable | Default | Where it appears |
+|----------|---------|-----------------|
+| `HOLLER_SERVER_NAME` | `Holler Server` | Login page title, header brand text |
+| `HOLLER_ADMIN_TITLE` | `JimboMesh Holler Server — Admin` | Browser tab title |
+
+Set them in your `.env` file:
+
+```env
+HOLLER_SERVER_NAME=My GPU Farm
+HOLLER_ADMIN_TITLE=My GPU Farm — Admin
+```
+
+The admin UI fetches these values from `/admin/api/branding` (unauthenticated) at page load, so the login page shows your custom name even before authentication.
+
+## Theme Examples
+
+### Corporate Blue
+
+```css
+:root {
+  --accent: #3b82f6;
+  --accent-hover: #60a5fa;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --secondary: #a855f7;
+}
+```
+
+### Green Terminal
+
+```css
+:root {
+  --accent: #22c55e;
+  --accent-hover: #4ade80;
+  --accent-glow: rgba(34, 197, 94, 0.15);
+  --bg-primary: #0a0f0d;
+  --bg-secondary: #131b16;
+  --bg-tertiary: #1a2620;
+  --border: #1e3a2a;
+}
+```
+
+### Warm Orange
+
+```css
+:root {
+  --accent: #f97316;
+  --accent-hover: #fb923c;
+  --accent-glow: rgba(249, 115, 22, 0.15);
+  --bg-primary: #1c1210;
+  --bg-secondary: #2a1f1a;
+}
+```
+
+### Light Mode (experimental)
+
+```css
+:root {
+  --bg-primary: #f8fafc;
+  --bg-secondary: #ffffff;
+  --bg-tertiary: #f1f5f9;
+  --border: #e2e8f0;
+  --border-light: #cbd5e1;
+  --text-primary: #0f172a;
+  --text-secondary: #475569;
+  --text-muted: #94a3b8;
+  --accent: #0d9488;
+  --accent-hover: #0f766e;
+  --accent-glow: rgba(13, 148, 136, 0.1);
+  --red-bg: rgba(239, 68, 68, 0.08);
+  --green-bg: rgba(34, 197, 94, 0.08);
+  --yellow-bg: rgba(234, 179, 8, 0.08);
+  --blue-bg: rgba(13, 148, 136, 0.08);
+}
+```
+
+## Internationalization (i18n)
+
+The admin panel supports multiple languages. All user-facing strings are stored in JSON locale files and swapped at runtime.
+
+### Available Languages
+
+| Code | Name | Flag | File |
+|------|------|------|------|
+| `en` | English | 🇺🇸 | `admin/locales/en.json` |
+| `hillbilly` | Hillbilly | 🤠 | `admin/locales/hillbilly.json` |
+| `es` | Español | 🇪🇸 | `admin/locales/es.json` |
+
+### How It Works
+
+- A language selector dropdown appears in the header toolbar (right side, before Sign Out) and on the login page
+- Selecting a language instantly updates all text across the UI without a page reload
+- The selection is saved to `localStorage` under the key `holler-lang`
+- Default language is English (`en`) when no preference is saved
+
+### Adding a New Language
+
+1. Copy `admin/locales/en.json` to `admin/locales/<code>.json`
+2. Translate all string values (keep the key structure identical)
+3. Update the `meta` block with the new language name, flag, and code
+4. Add the new code to the `AVAILABLE` array in `admin/i18n.js`
+5. Add a flag entry in the `LANG_FLAGS` map in `admin/app.js` (inline SVG or emoji)
+
+### Locale File Structure
+
+Each locale file is a flat JSON object organized by section:
+
+```json
+{
+  "meta": { "name": "English", "flag": "🇺🇸", "code": "en" },
+  "nav": { "dashboard": "Dashboard", "models": "Models", ... },
+  "login": { "signIn": "Sign In", "prompt": "Enter your API key...", ... },
+  "dashboard": { "serverHealth": "Server Health", ... },
+  "models": { "pull": "Pull", "delete": "Delete", ... },
+  "playground": { "title": "Chat", "send": "Send", ... },
+  "configuration": { "save": "Save", ... },
+  "activity": { "title": "Activity Log", ... },
+  "status": { "loading": "Loading…", "error": "Error", ... },
+  "footer": { "createdWith": "Created with ❤️ by" },
+  "language": { "selectorLabel": "Language" }
+}
+```
+
+Strings support `{placeholder}` interpolation — for example, `"Showing {start}–{end} of {total}"` is populated with runtime values.
+
+### Translation Key Lookup
+
+In `app.js`, strings are accessed via the `t()` function with dot-separated keys:
+
+```javascript
+t('nav.dashboard')                          // → "Dashboard"
+t('models.detailsTitle', { name: 'llama3.1:8b' })  // → "Details: llama3.1:8b"
+t('activity.pageOf', { current: 1, total: 5 })     // → "Page 1 of 5"
+```
+
+If a key is missing in the current locale, it falls back to English. If missing there too, the raw key string is returned.
+
+## Key Management in the Admin UI
+
+The Configuration > Security section provides management for API keys with
+clipboard integration designed for direct `.env` editing.
+
+### API Key
+
+- **Masked display** — shows first 4 + last 4 characters of the current key
+- **Copy button** — copies `JIMBOMESH_HOLLER_API_KEY=<full-key>` to clipboard (paste-ready for `.env`)
+- **Regenerate** — generates a new 64-char hex key, requires typing "hellyeah" to confirm. New key takes effect immediately (stored in SQLite, no restart needed). A dialog shows the new key with a copy button (also `.env`-prefixed)
+
+### Qdrant Key
+
+When `QDRANT_API_KEY` is set in the container environment, the Security section shows:
+
+- **Masked display** — same first-4/last-4 format
+- **Copy button** — copies `QDRANT_API_KEY=<full-key>` to clipboard
+
+If the Qdrant key is not configured, only a "No" badge is shown.
+
+### Backend Endpoints
+
+| Endpoint | Method | Returns |
+|----------|--------|---------|
+| `/admin/api/apikey` | GET | `{ masked }` |
+| `/admin/api/apikey/regenerate` | POST | `{ success, key, masked }` (requires `{ confirm: "hellyeah" }`) |
+| `/admin/api/qdrantkey` | GET | `{ set, masked, key }` |
+
+## Activity Tab Controls
+
+The Activity tab supports both periodic and manual refresh:
+
+- **Auto-refresh** — updates every 5 seconds
+- **Refresh button** — fetches the latest activity immediately
+- **Clear Log** — removes all entries after confirmation
+
+## Architecture
+
+The theming system is intentionally simple:
+
+- **No build step** — edit CSS, refresh the page
+- **No framework** — vanilla HTML/CSS/JS
+- **Cascade-based** — `theme.css` loads after `style.css`, so any `:root` variables in `theme.css` win
+- **Env-based branding** — server name and title come from environment variables, no code editing needed
+
+### File Loading Order
+
+```
+index.html
+  ├── style.css          (default theme — don't edit)
+  ├── assets/theme.css   (your overrides — edit this)
+  ├── i18n.js            (loads locale JSON, provides t() function)
+  └── app.js             (fetches branding + locales, renders UI)
+        └── locales/     (en.json, hillbilly.json, es.json — fetched at boot)
+```
+
+### Branding API
+
+`GET /admin/api/branding` (no authentication required)
+
+```json
+{
+  "serverName": "Holler Server",
+  "adminTitle": "JimboMesh Holler Server — Admin"
+}
+```
+
+Values come from `HOLLER_SERVER_NAME` and `HOLLER_ADMIN_TITLE` environment variables.

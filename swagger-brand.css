@@ -1,0 +1,590 @@
+/* ── JimboMesh Holler Server — Swagger UI Brand Theme ──────────
+ *
+ * Dark theme override for swagger-ui-dist, matching the admin panel.
+ * Loaded after swagger-ui.css via the custom index HTML.
+ *
+ * Brand palette:
+ *   Primary teal:   #089484
+ *   Primary orange:  #FC6806
+ *   Dark bg:         #1a1a2e
+ *   Card/surface:    #16213e
+ *   Text:            #e0e0e0
+ *   Code blocks:     #0f3460
+ *   Success:         #00c853
+ *   Error:           #ff5252
+ *   Warning:         #ffd600
+ * ────────────────────────────────────────────────────────────── */
+
+/* ── Base / Body ──────────────────────────────────────────────── */
+
+html {
+  background: #1a1a2e;
+}
+
+body {
+  margin: 0;
+  background: #1a1a2e;
+  color: #e0e0e0;
+}
+
+.swagger-ui {
+  color: #e0e0e0;
+}
+
+/* ── Top Bar ──────────────────────────────────────────────────── */
+
+.swagger-ui .topbar {
+  background: #0f0f23;
+  border-bottom: 2px solid #089484;
+  padding: 8px 0;
+}
+
+.swagger-ui .topbar .wrapper {
+  max-width: 1460px;
+}
+
+/* Replace Swagger logo with JimboMesh branding */
+.swagger-ui .topbar-wrapper .link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  font-size: 0;
+}
+
+/* Hide the default Swagger logo image */
+.swagger-ui .topbar-wrapper img {
+  display: none;
+}
+
+/* Show our brand text via ::after pseudo-element */
+.swagger-ui .topbar-wrapper .link::before {
+  content: "\1F943";
+  font-size: 24px;
+}
+
+.swagger-ui .topbar-wrapper .link::after {
+  content: "JimboMesh Holler Server";
+  font-size: 18px;
+  font-weight: 700;
+  color: #f8fafc;
+  letter-spacing: 1px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+/* Hide the Explore bar (URL input + Explore button) */
+.swagger-ui .topbar .download-url-wrapper {
+  display: none !important;
+}
+
+/* ── Info Section ─────────────────────────────────────────────── */
+
+.swagger-ui .info {
+  margin: 30px 0 20px;
+}
+
+.swagger-ui .info .title {
+  color: #f8fafc;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.swagger-ui .info .title small {
+  background: #089484;
+  border-radius: 4px;
+  padding: 2px 8px;
+}
+
+.swagger-ui .info .title small pre {
+  color: #f8fafc;
+}
+
+.swagger-ui .info .description,
+.swagger-ui .info .description p {
+  color: #c0c0c0;
+}
+
+.swagger-ui .info a {
+  color: #089484;
+}
+
+.swagger-ui .info a:hover {
+  color: #0ab89e;
+}
+
+.swagger-ui .info .base-url {
+  color: #a0a0a0;
+}
+
+/* ── Scheme Container ─────────────────────────────────────────── */
+
+.swagger-ui .scheme-container {
+  background: #16213e;
+  border-bottom: 1px solid #2a2a4a;
+  box-shadow: none;
+}
+
+.swagger-ui .scheme-container .schemes > label {
+  color: #e0e0e0;
+}
+
+/* ── Authorize Button ─────────────────────────────────────────── */
+
+.swagger-ui .btn.authorize {
+  color: #089484;
+  border-color: #089484;
+}
+
+.swagger-ui .btn.authorize:hover {
+  background: rgba(8, 148, 132, 0.1);
+}
+
+.swagger-ui .btn.authorize svg {
+  fill: #089484;
+}
+
+/* ── Tag Groups / Sections ────────────────────────────────────── */
+
+.swagger-ui .opblock-tag-section {
+  margin-bottom: 4px;
+}
+
+.swagger-ui .opblock-tag {
+  color: #e0e0e0;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.swagger-ui .opblock-tag:hover {
+  background: rgba(8, 148, 132, 0.05);
+}
+
+.swagger-ui .opblock-tag small {
+  color: #a0a0a0;
+}
+
+/* ── Operation Blocks ─────────────────────────────────────────── */
+
+/* GET — teal */
+.swagger-ui .opblock.opblock-get {
+  background: rgba(8, 148, 132, 0.08);
+  border-color: #089484;
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary-method {
+  background: #089484;
+}
+
+.swagger-ui .opblock.opblock-get .opblock-summary {
+  border-color: #089484;
+}
+
+/* POST — orange */
+.swagger-ui .opblock.opblock-post {
+  background: rgba(252, 104, 6, 0.08);
+  border-color: #FC6806;
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary-method {
+  background: #FC6806;
+}
+
+.swagger-ui .opblock.opblock-post .opblock-summary {
+  border-color: #FC6806;
+}
+
+/* DELETE — red */
+.swagger-ui .opblock.opblock-delete {
+  background: rgba(255, 82, 82, 0.08);
+  border-color: #ff5252;
+}
+
+.swagger-ui .opblock.opblock-delete .opblock-summary-method {
+  background: #ff5252;
+}
+
+.swagger-ui .opblock.opblock-delete .opblock-summary {
+  border-color: #ff5252;
+}
+
+/* PUT — yellow */
+.swagger-ui .opblock.opblock-put {
+  background: rgba(255, 214, 0, 0.08);
+  border-color: #ffd600;
+}
+
+.swagger-ui .opblock.opblock-put .opblock-summary-method {
+  background: #b59a00;
+  color: #fff;
+}
+
+.swagger-ui .opblock.opblock-put .opblock-summary {
+  border-color: #ffd600;
+}
+
+/* PATCH — yellow (lighter) */
+.swagger-ui .opblock.opblock-patch {
+  background: rgba(255, 214, 0, 0.06);
+  border-color: #ffd600;
+}
+
+.swagger-ui .opblock.opblock-patch .opblock-summary-method {
+  background: #b59a00;
+  color: #fff;
+}
+
+.swagger-ui .opblock.opblock-patch .opblock-summary {
+  border-color: #ffd600;
+}
+
+/* Operation summary text */
+.swagger-ui .opblock .opblock-summary-path,
+.swagger-ui .opblock .opblock-summary-path__deprecated {
+  color: #e0e0e0;
+}
+
+.swagger-ui .opblock .opblock-summary-description {
+  color: #b0b0b0;
+}
+
+/* Expanded operation body */
+.swagger-ui .opblock-body {
+  background: transparent;
+}
+
+.swagger-ui .opblock-body pre.microlight {
+  background: #0f3460 !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+}
+
+/* ── Parameters / Request Body ────────────────────────────────── */
+
+.swagger-ui .parameters-col_description p,
+.swagger-ui .parameter__name,
+.swagger-ui .parameter__type,
+.swagger-ui .parameter__in {
+  color: #c0c0c0;
+}
+
+.swagger-ui .parameter__name.required::after {
+  color: #ff5252;
+}
+
+.swagger-ui .parameter__name.required span {
+  color: #ff5252;
+}
+
+.swagger-ui table thead tr th,
+.swagger-ui table thead tr td {
+  color: #c0c0c0;
+  border-bottom: 1px solid #2a2a4a;
+}
+
+.swagger-ui table tbody tr td {
+  color: #e0e0e0;
+  border-bottom: 1px solid #1e1e3a;
+}
+
+/* ── Models Section ───────────────────────────────────────────── */
+
+.swagger-ui section.models {
+  border: 1px solid #2a2a4a;
+  background: #16213e;
+}
+
+.swagger-ui section.models h4 {
+  color: #e0e0e0;
+  border-bottom-color: #2a2a4a;
+}
+
+.swagger-ui section.models .model-container {
+  background: #1a1a2e;
+  border-bottom-color: #2a2a4a;
+}
+
+.swagger-ui .model-title {
+  color: #e0e0e0;
+}
+
+.swagger-ui .model {
+  color: #c0c0c0;
+}
+
+.swagger-ui .prop-type {
+  color: #089484;
+}
+
+.swagger-ui .prop-format {
+  color: #a0a0a0;
+}
+
+/* ── Responses ────────────────────────────────────────────────── */
+
+.swagger-ui .responses-inner h4,
+.swagger-ui .responses-inner h5,
+.swagger-ui .response-col_status {
+  color: #e0e0e0;
+}
+
+.swagger-ui .response-col_description__inner p {
+  color: #c0c0c0;
+}
+
+.swagger-ui .response-col_links {
+  color: #a0a0a0;
+}
+
+.swagger-ui .responses-table thead td {
+  color: #a0a0a0;
+}
+
+/* Response code badges */
+.swagger-ui .responses-table .response-col_status {
+  font-weight: 600;
+}
+
+/* Live response section */
+.swagger-ui .live-responses-table .response-col_status {
+  color: #e0e0e0;
+}
+
+/* ── Tabs (inside expanded operations) ────────────────────────── */
+
+.swagger-ui .tab li {
+  color: #a0a0a0;
+}
+
+.swagger-ui .tab li.active {
+  color: #e0e0e0;
+}
+
+.swagger-ui .tab li:first-of-type::after {
+  background: #2a2a4a;
+}
+
+.swagger-ui .opblock-description-wrapper p,
+.swagger-ui .opblock-external-docs-wrapper p {
+  color: #c0c0c0;
+}
+
+/* ── Buttons ──────────────────────────────────────────────────── */
+
+.swagger-ui .btn {
+  color: #e0e0e0;
+  border-color: #3a3a5a;
+}
+
+.swagger-ui .btn:hover {
+  background: rgba(8, 148, 132, 0.1);
+}
+
+.swagger-ui .btn.execute {
+  background: #089484;
+  border-color: #089484;
+  color: #fff;
+}
+
+.swagger-ui .btn.execute:hover {
+  background: #06b89e;
+}
+
+.swagger-ui .btn.cancel {
+  color: #ff5252;
+  border-color: #ff5252;
+}
+
+.swagger-ui .try-out__btn {
+  color: #089484;
+  border-color: #089484;
+}
+
+.swagger-ui .try-out__btn:hover {
+  background: rgba(8, 148, 132, 0.1);
+}
+
+/* ── Inputs / Selects ─────────────────────────────────────────── */
+
+.swagger-ui input[type=text],
+.swagger-ui input[type=search],
+.swagger-ui input[type=email],
+.swagger-ui input[type=file],
+.swagger-ui input[type=password],
+.swagger-ui textarea,
+.swagger-ui select {
+  background: #0f3460;
+  color: #e0e0e0;
+  border: 1px solid #2a2a4a;
+  border-radius: 4px;
+}
+
+.swagger-ui input::placeholder,
+.swagger-ui textarea::placeholder {
+  color: #707090;
+}
+
+.swagger-ui select {
+  background: #0f3460;
+  color: #e0e0e0;
+}
+
+.swagger-ui .body-param__text {
+  background: #0f3460 !important;
+  color: #e0e0e0 !important;
+  border: 1px solid #2a2a4a;
+}
+
+/* ── Code / Syntax ────────────────────────────────────────────── */
+
+.swagger-ui .highlight-code,
+.swagger-ui .example {
+  background: #0f3460;
+}
+
+.swagger-ui .highlight-code .microlight {
+  background: #0f3460 !important;
+  color: #e0e0e0 !important;
+}
+
+.swagger-ui .renderedMarkdown code,
+.swagger-ui code {
+  background: #0f3460;
+  color: #e0e0e0;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+
+/* ── Copy-to-clipboard button ─────────────────────────────────── */
+
+.swagger-ui .copy-to-clipboard {
+  background: #0f3460;
+  border: none;
+}
+
+.swagger-ui .copy-to-clipboard button {
+  background: transparent;
+}
+
+/* ── Expand/Collapse Arrows ───────────────────────────────────── */
+
+.swagger-ui .expand-operation svg,
+.swagger-ui .models-control svg,
+.swagger-ui .model-box-control svg,
+.swagger-ui .expand-methods svg {
+  fill: #a0a0a0;
+}
+
+/* ── Auth Dialog ──────────────────────────────────────────────── */
+
+.swagger-ui .dialog-ux .modal-ux {
+  background: #16213e;
+  border: 1px solid #2a2a4a;
+}
+
+.swagger-ui .dialog-ux .modal-ux-header {
+  border-bottom-color: #2a2a4a;
+}
+
+.swagger-ui .dialog-ux .modal-ux-header h3 {
+  color: #f8fafc;
+}
+
+.swagger-ui .dialog-ux .modal-ux-content p,
+.swagger-ui .dialog-ux .modal-ux-content label {
+  color: #c0c0c0;
+}
+
+.swagger-ui .dialog-ux .backdrop-ux {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* ── Loading ──────────────────────────────────────────────────── */
+
+.swagger-ui .loading-container .loading::after {
+  color: #089484;
+}
+
+/* ── Filter (if present) ──────────────────────────────────────── */
+
+.swagger-ui .filter .operation-filter-input {
+  background: #0f3460;
+  color: #e0e0e0;
+  border: 1px solid #2a2a4a;
+}
+
+/* ── Content-Type Selector ────────────────────────────────────── */
+
+.swagger-ui .response-control-media-type--accept-controller select,
+.swagger-ui .response-control-media-type__accept-message {
+  color: #c0c0c0;
+}
+
+/* ── Server dropdown ──────────────────────────────────────────── */
+
+.swagger-ui .servers > label {
+  color: #c0c0c0;
+}
+
+.swagger-ui .servers > label select {
+  background: #0f3460;
+  color: #e0e0e0;
+  border-color: #2a2a4a;
+}
+
+/* ── Markdown content ─────────────────────────────────────────── */
+
+.swagger-ui .renderedMarkdown p,
+.swagger-ui .renderedMarkdown li {
+  color: #c0c0c0;
+}
+
+.swagger-ui .renderedMarkdown a {
+  color: #089484;
+}
+
+/* ── Version stamp (small badge in info) ──────────────────────── */
+
+.swagger-ui .info hgroup.main a {
+  color: #089484;
+}
+
+/* ── Custom scrollbar ─────────────────────────────────────────── */
+
+.swagger-ui ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.swagger-ui ::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb {
+  background: #3a3a5a;
+  border-radius: 4px;
+}
+
+.swagger-ui ::-webkit-scrollbar-thumb:hover {
+  background: #4a4a6a;
+}
+
+/* ── Footer (injected via swagger-brand.js) ───────────────────── */
+
+.jimbomesh-footer {
+  text-align: center;
+  padding: 24px 16px 32px;
+  color: #707090;
+  font-size: 13px;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  border-top: 1px solid #2a2a4a;
+  margin-top: 40px;
+}
+
+.jimbomesh-footer a {
+  color: #089484;
+  text-decoration: none;
+}
+
+.jimbomesh-footer a:hover {
+  color: #0ab89e;
+  text-decoration: underline;
+}

@@ -1,0 +1,47 @@
+# Environment & secrets
+.env
+.env.*
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Runtime data & credentials
+.setup-config.json
+keys.json
+auth0-config.json
+data/
+
+# Claude Code
+.claude/
+
+# OS files
+Thumbs.db
+Desktop.ini
+.DS_Store
+._*
+
+# Docker
+docker-compose.override.yml
+
+# Editor / IDE
+.vscode/*
+!.vscode/launch.json
+!.vscode/tasks.json
+.idea/
+.cursor/
+*.swp
+*.swo
+*~
+
+# Node.js
+node_modules/
+
+# SQLite
+*.db
+*.db-wal
+*.db-shm
+
+# Logs
+*.log

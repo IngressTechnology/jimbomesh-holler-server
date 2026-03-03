@@ -1,0 +1,40 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Docker: Build & Up",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose up --build -d && echo '--- Holler Server running at http://localhost:11434 ---' && echo 'Admin UI: http://localhost:11434/admin' && docker compose logs -f jimbomesh-still",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docker: Down",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose down",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docker: Rebuild (no cache)",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose down && docker compose build --no-cache && docker compose up -d && docker compose logs -f jimbomesh-still",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docker: Deploy Code",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose build jimbomesh-still && docker compose up -d --force-recreate --no-deps jimbomesh-still && echo '--- Holler Server running at http://localhost:11434 ---' && echo 'Admin UI: http://localhost:11434/admin' && docker compose logs -f jimbomesh-still",
+      "cwd": "${workspaceFolder}"
+    },
+    {
+      "name": "Docker: Logs",
+      "type": "node-terminal",
+      "request": "launch",
+      "command": "docker compose logs -f jimbomesh-still",
+      "cwd": "${workspaceFolder}"
+    }
+  ]
+}

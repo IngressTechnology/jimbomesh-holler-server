@@ -1,0 +1,128 @@
+# JimboMesh Holler Server — On-Prem Embeddings & LLM Stack
+name: jimbomesh-holler
+
+# Services:
+#   jimbomesh-still    — Ollama server (embeddings + optional LLM)
+#   jimbomesh-qdrant   — Qdrant vector database (mirrors production schema)
+#   init-qdrant        — One-shot initializer for Qdrant collections
+#
+# Usage:
+#   docker compose up -d --build                          # CPU (default)
+#   docker compose down                                   # Stop everything
+#   docker compose --profile qdrant up -d                 # With Qdrant
+#
+# GPU: Set COMPOSE_FILE in .env — see .env.example for details.
+
+services:
+  jimbomesh-still:
+    build: .
+    image: jimbomesh-still:latest
+    container_name: jimbomesh-still
+    restart: unless-stopped
+    volumes:
+      - ollama_models:/root/.ollama
+      - holler_data:/opt/jimbomesh-still/data
+    ports:
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-11434}:11434"
+      - "127.0.0.1:${HEALTH_HOST_PORT:-9090}:9090"
+    environment:
+      # API Authentication
+      - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-}
+      # API Gateway
+      - GATEWAY_PORT=${GATEWAY_PORT:-11434}
+      - OLLAMA_INTERNAL_PORT=${OLLAMA_INTERNAL_PORT:-11435}
+      - RATE_LIMIT_PER_MIN=${RATE_LIMIT_PER_MIN:-60}
+      - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}
+      - SHUTDOWN_TIMEOUT_MS=${SHUTDOWN_TIMEOUT_MS:-10000}
+      # Request limits
+      - MAX_REQUEST_BODY_BYTES=${MAX_REQUEST_BODY_BYTES:-1048576}
+      - MAX_BATCH_SIZE=${MAX_BATCH_SIZE:-100}
+      - OLLAMA_TIMEOUT_MS=${OLLAMA_TIMEOUT_MS:-120000}
+      - MAX_CONCURRENT_REQUESTS=${MAX_CONCURRENT_REQUESTS:-4}
+      - MAX_QUEUE_SIZE=${MAX_QUEUE_SIZE:-50}
+      # Admin UI
+      - ADMIN_ENABLED=${ADMIN_ENABLED:-true}
+      - HOLLER_SERVER_NAME=${HOLLER_SERVER_NAME:-Holler Server}
+      - HOLLER_ADMIN_TITLE=${HOLLER_ADMIN_TITLE:-JimboMesh Holler Server — Admin}
+      # SQLite Database
+      - SQLITE_DB_PATH=${SQLITE_DB_PATH:-/opt/jimbomesh-still/data/holler.db}
+      - LOG_RETENTION_DAYS=${LOG_RETENTION_DAYS:-30}
+      # Models
+      - HOLLER_MODELS=${HOLLER_MODELS:-nomic-embed-text,llama3.1:8b}
+      - OLLAMA_EMBED_MODEL=${OLLAMA_EMBED_MODEL:-nomic-embed-text}
+      # Performance tuning
+      - OLLAMA_NUM_PARALLEL=${OLLAMA_NUM_PARALLEL:-4}
+      - OLLAMA_MAX_LOADED_MODELS=${OLLAMA_MAX_LOADED_MODELS:-2}
+      - OLLAMA_KEEP_ALIVE=${OLLAMA_KEEP_ALIVE:-5m}
+      # Health server
+      - HEALTH_PORT=${HEALTH_PORT:-9090}
+      - HEALTH_WARMUP=${HEALTH_WARMUP:-false}
+      # Qdrant (passed through so Admin UI can report key status)
+      - QDRANT_API_KEY=${QDRANT_API_KEY:-}
+      - QDRANT_URL=${QDRANT_URL:-http://jimbomesh-holler-qdrant:6333}
+      # Document RAG Pipeline
+      - DOCUMENTS_COLLECTION=${DOCUMENTS_COLLECTION:-documents}
+      - MAX_UPLOAD_SIZE_BYTES=${MAX_UPLOAD_SIZE_BYTES:-52428800}
+      - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
+      # Enhanced Security (Bearer Tokens — Tier 2 auth)
+      - ENHANCED_SECURITY_ENABLED=${ENHANCED_SECURITY_ENABLED:-false}
+      # Mesh connection (registers with SaaS, shares GPU, earns Moonshine)
+      - JIMBOMESH_API_KEY=${JIMBOMESH_API_KEY:-}
+      - JIMBOMESH_MESH_URL=${JIMBOMESH_MESH_URL:-https://api.jimbomesh.ai}
+      - JIMBOMESH_COORDINATOR_URL=${JIMBOMESH_COORDINATOR_URL:-}
+      - JIMBOMESH_HOLLER_NAME=${JIMBOMESH_HOLLER_NAME:-}
+      - JIMBOMESH_HOLLER_ENDPOINT=${JIMBOMESH_HOLLER_ENDPOINT:-http://127.0.0.1:11435}
+      - JIMBOMESH_AUTO_CONNECT=${JIMBOMESH_AUTO_CONNECT:-true}
+      - MAX_PEER_CONNECTIONS=${MAX_PEER_CONNECTIONS:-10}
+      # GitHub integration (optional — enables Feedback tab in Admin UI)
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+    healthcheck:
+      test: ["CMD", "curl", "-sf", "http://localhost:9090/readyz"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 120s
+
+  jimbomesh-qdrant:
+    image: qdrant/qdrant:v1.13.2
+    container_name: jimbomesh-holler-qdrant
+    restart: unless-stopped
+    profiles:
+      - qdrant
+    ports:
+      - "127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333"
+      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    environment:
+      - QDRANT__SERVICE__GRPC_PORT=6334
+      - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  init-qdrant:
+    image: curlimages/curl:8.12.1
+    container_name: jimbomesh-holler-init-qdrant
+    profiles:
+      - qdrant
+    depends_on:
+      jimbomesh-qdrant:
+        condition: service_healthy
+    volumes:
+      - ./scripts/init-qdrant.sh:/opt/init-qdrant.sh:ro
+    environment:
+      - QDRANT_URL=http://jimbomesh-holler-qdrant:6333
+      - QDRANT_API_KEY=${QDRANT_API_KEY}
+      - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
+    entrypoint: ["sh", "/opt/init-qdrant.sh"]
+    restart: "no"
+
+volumes:
+  ollama_models:
+  holler_data:
+  qdrant_storage:

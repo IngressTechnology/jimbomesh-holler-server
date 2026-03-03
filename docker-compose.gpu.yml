@@ -1,0 +1,20 @@
+# JimboMesh Holler Server — GPU Override
+#
+# Adds NVIDIA GPU passthrough to the jimbomesh-still service.
+#
+# Usage (one-time setup):
+#   Add to .env:  COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
+#   Then:         docker compose up -d --build
+#
+# Or pass directly:
+#   docker compose -f docker-compose.yml -f docker-compose.gpu.yml up -d --build
+
+services:
+  jimbomesh-still:
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: all
+              capabilities: [gpu]

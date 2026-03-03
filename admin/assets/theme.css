@@ -1,0 +1,24 @@
+/*
+ * JimboMesh Holler Server — Custom Theme
+ *
+ * This file is loaded AFTER the default styles and overrides them.
+ * Customize your Holler Server admin panel by editing this file.
+ *
+ * To change the brand colors, override the CSS variables below.
+ * To change the logo, replace logo.svg and favicon.svg in this directory.
+ *
+ * See docs/CUSTOMIZATION.md for the full theming guide.
+ */
+
+/* Uncomment and edit to customize:
+
+:root {
+  --accent: #0d9488;
+  --accent-hover: #14b8a6;
+  --accent-glow: rgba(13, 148, 136, 0.15);
+  --secondary: #f97316;
+  --bg-primary: #0f172a;
+  --bg-secondary: #1e293b;
+}
+
+*/

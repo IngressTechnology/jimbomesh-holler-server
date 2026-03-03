@@ -1,0 +1,62 @@
+# Default issue labels for JimboMesh Holler Server
+# Use with github-label-sync or as a reference for manual label creation
+
+- name: bug
+  color: "d73a4a"
+  description: "Something isn't working"
+
+- name: enhancement
+  color: "a2eeef"
+  description: "New feature or request"
+
+- name: triage
+  color: "fbca04"
+  description: "Needs investigation"
+
+- name: good first issue
+  color: "7057ff"
+  description: "Good for newcomers"
+
+- name: help wanted
+  color: "008672"
+  description: "Extra attention is needed"
+
+- name: documentation
+  color: "0075ca"
+  description: "Improvements or additions to documentation"
+
+- name: duplicate
+  color: "cfd3d7"
+  description: "This issue already exists"
+
+- name: wontfix
+  color: "ffffff"
+  description: "This will not be worked on"
+
+- name: model-management
+  color: "089484"
+  description: "Model Marketplace / Ollama integration"
+
+- name: rag
+  color: "089484"
+  description: "Document RAG pipeline"
+
+- name: api
+  color: "FC6806"
+  description: "API / OpenAI compatibility"
+
+- name: admin-ui
+  color: "FC6806"
+  description: "Admin dashboard"
+
+- name: security
+  color: "b60205"
+  description: "Security related"
+
+- name: performance
+  color: "e4e669"
+  description: "Performance improvements"
+
+- name: mesh
+  color: "089484"
+  description: "Mesh networking / multi-node"

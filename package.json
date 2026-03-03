@@ -1,0 +1,24 @@
+{
+  "name": "jimbomesh-holler-server",
+  "version": "1.1.0",
+  "private": true,
+  "license": "MIT",
+  "description": "On-prem AI inference node — Ollama API gateway with auth, rate limiting, and admin UI",
+  "main": "api-gateway.js",
+  "scripts": {
+    "start": "node api-gateway.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^11.8.1",
+    "busboy": "^1.6.0",
+    "jsonwebtoken": "^9.0.2",
+    "jwks-rsa": "^3.1.0",
+    "mammoth": "^1.8.0",
+    "pdfjs-dist": "^5.4.624",
+    "swagger-ui-dist": "^5.31.2",
+    "wrtc": "^0.4.7"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  }
+}

@@ -1,0 +1,60 @@
+name: 💡 Feature Request
+description: Suggest a new feature or enhancement
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Got an idea to make Holler better? We'd love to hear it! 🥃
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      options:
+        - Model Management (Marketplace, install, delete)
+        - Document RAG (upload, search, retrieval)
+        - API (chat completions, embeddings, OpenAI compat)
+        - Admin UI (dashboard, settings, monitoring)
+        - Authentication & Security
+        - IDE Integration (VS Code, JetBrains, etc.)
+        - Setup / Installation
+        - Performance / GPU
+        - Mesh Networking
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or Use Case
+      description: What problem does this solve? What's your use case?
+    validations:
+      required: true
+  - type: textarea
+    id: solution
+    attributes:
+      label: Proposed Solution
+      description: How would you like this to work?
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: Any workarounds or alternative approaches you've tried?
+  - type: dropdown
+    id: priority
+    attributes:
+      label: How important is this to you?
+      options:
+        - Nice to have
+        - Important — affects my workflow
+        - Critical — blocking my use case
+  - type: checkboxes
+    id: contrib
+    attributes:
+      label: Contribution
+      options:
+        - label: I would be willing to submit a PR for this feature
+          required: false

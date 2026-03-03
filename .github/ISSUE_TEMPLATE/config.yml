@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: ❓ Questions & Help
+    url: https://github.com/IngressTechnology/jimbomesh-holler-server/discussions
+    about: Ask questions and get help from the community
+  - name: 📖 Documentation
+    url: https://jimbomesh.ai/holler
+    about: Read the docs before filing an issue

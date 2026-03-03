@@ -1,0 +1,3419 @@
+openapi: 3.0.3
+info:
+  title: JimboMesh Holler Server API
+  version: 0.6.0
+  description: |
+    Full API surface for JimboMesh Holler Server.
+
+    - OpenAI-compatible endpoints (`/v1/*`)
+    - Native Ollama proxy endpoints (`/api/*`)
+    - Admin endpoints (`/admin/api/*`)
+    - Document RAG endpoints (admin + public)
+
+    Authentication:
+    - Inference/public endpoints accept `X-API-Key` or `Authorization: Bearer ...`.
+    - Admin endpoints require `X-API-Key` matching admin-effective key.
+    - `/health`, `/readyz`, and `/admin/api/branding` are unauthenticated.
+
+servers:
+  - url: http://localhost:11434
+    description: API gateway
+  - url: http://your-server-ip:11434
+    description: LAN gateway (replace with your server IP)
+  - url: http://localhost:9090
+    description: Health server (for /healthz and /status)
+
+tags:
+  - name: Health
+  - name: OpenAI
+  - name: Ollama Proxy
+  - name: Public Documents
+  - name: Admin Core
+  - name: Admin Stats
+  - name: Admin Models
+  - name: Admin Security
+  - name: Admin Marketplace
+  - name: Admin Documents
+  - name: Admin Collections
+  - name: Admin Tokens
+  - name: Admin Mesh
+
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Token or JWT
+
+  responses:
+    Unauthorized:
+      description: Missing or invalid auth credentials
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/StructuredError"
+          example:
+            error:
+              code: auth_required
+              message: Admin API key required
+              type: client_error
+    Forbidden:
+      description: Authenticated but not allowed for this action
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/StructuredError"
+
+  schemas:
+    StructuredError:
+      type: object
+      properties:
+        error:
+          type: object
+          required: [code, message, type]
+          properties:
+            code:
+              type: string
+              example: auth_required
+            message:
+              type: string
+              example: "Missing X-API-Key or Authorization: Bearer header"
+            type:
+              type: string
+              example: client_error
+            retry_after:
+              type: integer
+              nullable: true
+      required: [error]
+
+    HealthOk:
+      type: object
+      properties:
+        status:
+          type: string
+          example: ok
+        timestamp:
+          type: string
+          format: date-time
+
+    ReadyzShuttingDown:
+      type: object
+      properties:
+        status:
+          type: string
+          example: shutting_down
+
+    OpenAIEmbeddingsRequest:
+      type: object
+      required: [input]
+      properties:
+        model:
+          type: string
+          example: nomic-embed-text
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+      example:
+        model: nomic-embed-text
+        input:
+          - "First text"
+          - "Second text"
+
+    OpenAIEmbeddingsResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              object:
+                type: string
+                example: embedding
+              embedding:
+                type: array
+                items:
+                  type: number
+              index:
+                type: integer
+        model:
+          type: string
+          example: nomic-embed-text
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+
+    OpenAIModelListResponse:
+      type: object
+      properties:
+        object:
+          type: string
+          example: list
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: string
+                example: llama3.1:8b
+              object:
+                type: string
+                example: model
+              created:
+                type: integer
+              owned_by:
+                type: string
+                example: jimbomesh-holler
+
+    OpenAIChatRequest:
+      type: object
+      required: [messages]
+      properties:
+        model:
+          type: string
+          nullable: true
+          description: Optional. If omitted, server auto-selects default chat model.
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+                enum: [system, user, assistant]
+              content:
+                type: string
+        stream:
+          type: boolean
+          default: false
+        temperature:
+          type: number
+        top_p:
+          type: number
+        max_tokens:
+          type: integer
+        stop:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+        presence_penalty:
+          type: number
+        frequency_penalty:
+          type: number
+      example:
+        model: llama3.1:8b
+        stream: false
+        messages:
+          - role: system
+            content: "You are concise."
+          - role: user
+            content: "Explain vector embeddings in one paragraph."
+
+    OpenAIChatResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          example: chatcmpl-holler-123
+        object:
+          type: string
+          example: chat.completion
+        created:
+          type: integer
+        model:
+          type: string
+        choices:
+          type: array
+          items:
+            type: object
+            properties:
+              index:
+                type: integer
+              message:
+                type: object
+                properties:
+                  role:
+                    type: string
+                    example: assistant
+                  content:
+                    type: string
+              finish_reason:
+                type: string
+                example: stop
+        usage:
+          type: object
+          properties:
+            prompt_tokens:
+              type: integer
+            completion_tokens:
+              type: integer
+            total_tokens:
+              type: integer
+
+    OllamaEmbedRequest:
+      type: object
+      required: [model, input]
+      properties:
+        model:
+          type: string
+        input:
+          oneOf:
+            - type: string
+            - type: array
+              items:
+                type: string
+
+    OllamaEmbedResponse:
+      type: object
+      properties:
+        model:
+          type: string
+        embeddings:
+          type: array
+          items:
+            type: array
+            items:
+              type: number
+
+    OllamaGenerateRequest:
+      type: object
+      required: [model, prompt]
+      properties:
+        model:
+          type: string
+        prompt:
+          type: string
+        stream:
+          type: boolean
+          default: true
+        options:
+          type: object
+          additionalProperties: true
+
+    OllamaChatRequest:
+      type: object
+      required: [model, messages]
+      properties:
+        model:
+          type: string
+        messages:
+          type: array
+          items:
+            type: object
+            required: [role, content]
+            properties:
+              role:
+                type: string
+              content:
+                type: string
+        stream:
+          type: boolean
+          default: true
+        options:
+          type: object
+          additionalProperties: true
+
+    TagsResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            type: object
+            properties:
+              name:
+                type: string
+              model:
+                type: string
+              modified_at:
+                type: string
+                format: date-time
+              size:
+                type: integer
+              digest:
+                type: string
+              details:
+                type: object
+                additionalProperties: true
+
+    PsResponse:
+      type: object
+      properties:
+        models:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    PublicDocumentQueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        collection:
+          type: string
+          default: documents
+        limit:
+          type: integer
+          default: 5
+      example:
+        query: "What are the GPU requirements?"
+        collection: documents
+        limit: 5
+
+    PublicDocumentQueryResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              score:
+                type: number
+              payload:
+                type: object
+                additionalProperties: true
+
+    AdminStatusResponse:
+      type: object
+      properties:
+        healthy:
+          type: boolean
+        ollama_latency_ms:
+          type: integer
+        model_count:
+          type: integer
+        running_models:
+          type: integer
+        uptime_seconds:
+          type: integer
+        recent_requests:
+          type: integer
+        total_requests:
+          type: integer
+          nullable: true
+        db_size_bytes:
+          type: integer
+          nullable: true
+        error:
+          type: string
+          nullable: true
+
+    AdminConfigResponse:
+      type: object
+      properties:
+        server:
+          type: object
+          additionalProperties: true
+        ollama:
+          type: object
+          additionalProperties: true
+        health:
+          type: object
+          additionalProperties: true
+        security:
+          type: object
+          additionalProperties: true
+        branding:
+          type: object
+          additionalProperties: true
+
+    AdminActivityEntry:
+      type: object
+      properties:
+        timestamp:
+          type: string
+          format: date-time
+        method:
+          type: string
+        path:
+          type: string
+        status:
+          type: integer
+        ip:
+          type: string
+        duration_ms:
+          type: integer
+        auth_type:
+          type: string
+          nullable: true
+
+    AdminActivityResponse:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminActivityEntry"
+        total:
+          type: integer
+        limit:
+          type: integer
+        offset:
+          type: integer
+
+    SettingItem:
+      type: object
+      properties:
+        key:
+          type: string
+        value:
+          type: string
+        updated_at:
+          type: string
+
+    SettingsResponse:
+      type: object
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/SettingItem"
+
+    UpdateSettingRequest:
+      type: object
+      required: [key, value]
+      properties:
+        key:
+          type: string
+        value:
+          oneOf:
+            - type: string
+            - type: number
+            - type: boolean
+
+    UpdateSettingsBatchRequest:
+      type: object
+      required: [settings]
+      properties:
+        settings:
+          type: array
+          items:
+            $ref: "#/components/schemas/UpdateSettingRequest"
+
+    AdminApiKeyMaskedResponse:
+      type: object
+      properties:
+        masked:
+          type: string
+
+    AdminApiKeyRegenerateRequest:
+      type: object
+      required: [confirm]
+      properties:
+        confirm:
+          type: string
+          enum: [hellyeah]
+
+    AdminApiKeyRegenerateResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        key:
+          type: string
+        masked:
+          type: string
+
+    AdminQdrantKeyResponse:
+      type: object
+      properties:
+        set:
+          type: boolean
+        masked:
+          type: string
+
+    AdminStatsResponse:
+      type: object
+      properties:
+        global:
+          type: object
+          additionalProperties: true
+        models:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+        summary:
+          type: object
+          nullable: true
+          additionalProperties: true
+
+    AdminStatsModelResponse:
+      type: object
+      properties:
+        model:
+          type: string
+        stats:
+          type: object
+          additionalProperties: true
+        hourly:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    AdminStatsRequestsResponse:
+      type: object
+      properties:
+        requests:
+          type: array
+          items:
+            type: object
+            description: Request stats row (request_stats table). May include connection_type (webrtc|http) for Mesh jobs
+            additionalProperties: true
+
+    AdminStatsHourlyResponse:
+      type: object
+      properties:
+        hourly:
+          type: array
+          items:
+            type: object
+            additionalProperties: true
+
+    AdminStatsResetRequest:
+      type: object
+      properties:
+        model:
+          type: string
+          description: Optional model name. If omitted, reset all model stats.
+
+    AdminStatsPricingRequest:
+      type: object
+      required: [model, input_per_1k]
+      properties:
+        model:
+          type: string
+        input_per_1k:
+          type: number
+        output_per_1k:
+          type: number
+          nullable: true
+
+    AdminStatsPricingResponse:
+      type: object
+      properties:
+        pricing:
+          type: object
+          additionalProperties: true
+
+    AdminSystemResponse:
+      type: object
+      additionalProperties: true
+
+    AdminMeshStatusResponse:
+      type: object
+      properties:
+        state:
+          type: string
+          enum: [disconnected, connecting, connected, error, reconnecting]
+        connected:
+          type: boolean
+        connecting:
+          type: boolean
+        mode:
+          type: string
+          enum: [off-grid, connecting, mesh-contributor]
+        connectionMode:
+          type: string
+          enum: [HTTP Polling, WebSocket]
+          description: Active job transport path used by the connector
+        meshUrl:
+          type: string
+          format: uri
+        hollerName:
+          type: string
+          nullable: true
+        hollerId:
+          type: string
+          nullable: true
+        autoConnect:
+          type: boolean
+        hasStoredMeshKey:
+          type: boolean
+          description: Whether a mesh API key is persisted in SQLite for one-click reconnect
+        lastHeartbeat:
+          type: string
+          nullable: true
+        jobsProcessed:
+          type: integer
+        moonshineEarned:
+          type: number
+        errorMessage:
+          type: string
+          nullable: true
+        log:
+          type: array
+          items:
+            type: object
+            properties:
+              time:
+                type: integer
+                description: Unix timestamp (ms)
+              type:
+                type: string
+                enum: [info, success, warning, error]
+              message:
+                type: string
+        peerConnections:
+          type: object
+          nullable: true
+          properties:
+            activeConnections:
+              type: integer
+            maxConnections:
+              type: integer
+            jobs:
+              type: array
+              items:
+                type: object
+                properties:
+                  jobId:
+                    type: string
+                  model:
+                    type: string
+                  state:
+                    type: string
+                    enum: [signaling, connected, streaming, complete, closed]
+                  startedAt:
+                    type: integer
+                    description: Unix timestamp (ms)
+      additionalProperties: true
+
+    AdminRestartRequest:
+      type: object
+      properties:
+        target:
+          type: string
+          enum: [holler, ollama]
+          default: holler
+
+    AdminRestartResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        message:
+          type: string
+
+    AdminMeshConnectRequest:
+      type: object
+      required: [apiKey]
+      properties:
+        apiKey:
+          type: string
+        meshUrl:
+          type: string
+          format: uri
+          description: Coordinator URL (e.g. https://api.jimbomesh.ai). Maps to JIMBOMESH_COORDINATOR_URL
+        hollerName:
+          type: string
+        autoConnect:
+          type: boolean
+
+    AdminMeshSettingsRequest:
+      type: object
+      properties:
+        meshUrl:
+          type: string
+          format: uri
+          description: Coordinator URL. Saved for next connect
+        hollerName:
+          type: string
+        autoConnect:
+          type: boolean
+
+    AdminMeshAutoConnectRequest:
+      type: object
+      required: [enabled]
+      properties:
+        enabled:
+          type: boolean
+          description: Enable or disable mesh auto-connect on startup
+
+    AdminMeshAutoConnectResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        autoConnect:
+          type: boolean
+
+    AdminSuccessResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+
+    AdminGpuInfoResponse:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [cpu, nvidia, metal, metal-native]
+        system:
+          type: object
+          properties:
+            total_mb:
+              type: integer
+            free_mb:
+              type: integer
+        gpu:
+          type: object
+          nullable: true
+          properties:
+            name:
+              type: string
+            type:
+              type: string
+            vram_total_mb:
+              type: integer
+            vram_used_mb:
+              type: integer
+            vram_free_mb:
+              type: integer
+            offload_pct:
+              type: integer
+              nullable: true
+        ollama_gpu:
+          type: object
+          nullable: true
+          properties:
+            running_models:
+              type: integer
+            total_size_bytes:
+              type: integer
+            total_vram_bytes:
+              type: integer
+            gpu_offload_pct:
+              type: integer
+
+    AdminGitHubStatusResponse:
+      type: object
+      properties:
+        configured:
+          type: boolean
+
+    AdminGitHubIssueRequest:
+      type: object
+      required: [type, title]
+      properties:
+        type:
+          type: string
+          enum: [bug, feature]
+        title:
+          type: string
+        description:
+          type: string
+        steps:
+          type: string
+        expected:
+          type: string
+        actual:
+          type: string
+        useCase:
+          type: string
+
+    AdminGitHubIssueResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+        issue_number:
+          type: integer
+        url:
+          type: string
+          format: uri
+
+    PullRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          example: llama3.1:8b
+
+    ShowRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+
+    AdminAuthStatusResponse:
+      type: object
+      properties:
+        tier1:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+        tier2:
+          type: object
+          properties:
+            enabled:
+              type: boolean
+            token_count:
+              type: integer
+        tier3:
+          type: object
+          properties:
+            configured:
+              type: boolean
+            domain:
+              type: string
+              nullable: true
+            audience:
+              type: string
+              nullable: true
+
+    TokenCreateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        rpm:
+          type: integer
+        rph:
+          type: integer
+        expires_at:
+          type: string
+          nullable: true
+
+    TokenCreateResponse:
+      type: object
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        prefix:
+          type: string
+        permissions:
+          type: array
+          items:
+            type: string
+        rpm:
+          type: integer
+        rph:
+          type: integer
+        expires_at:
+          type: string
+          nullable: true
+        created_at:
+          type: string
+        raw:
+          type: string
+          description: Raw token value shown only at creation time.
+
+    AdminDocument:
+      type: object
+      additionalProperties: true
+
+    AdminDocumentListResponse:
+      type: object
+      properties:
+        documents:
+          type: array
+          items:
+            $ref: "#/components/schemas/AdminDocument"
+
+    AdminDocumentQueryRequest:
+      type: object
+      required: [query]
+      properties:
+        query:
+          type: string
+        collection:
+          type: string
+        limit:
+          type: integer
+        model:
+          type: string
+          description: Chat model for RAG Q&A (documents/ask). Defaults to llama3.1:8b
+
+    AdminDocumentQueryResponse:
+      type: object
+      properties:
+        results:
+          type: array
+          items:
+            type: object
+            properties:
+              score:
+                type: number
+              payload:
+                type: object
+                additionalProperties: true
+
+    CreateCollectionRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+        size:
+          type: integer
+          default: 768
+        distance:
+          type: string
+          default: Cosine
+
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Gateway liveness
+      security: []
+      responses:
+        "200":
+          description: Gateway is alive
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthOk"
+
+  /readyz:
+    get:
+      tags: [Health]
+      summary: Gateway readiness
+      security: []
+      responses:
+        "200":
+          description: Gateway is ready
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthOk"
+        "503":
+          description: Gateway is draining/shutting down
+          headers:
+            Retry-After:
+              schema:
+                type: string
+                example: "5"
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ReadyzShuttingDown"
+
+  /healthz:
+    get:
+      tags: [Health]
+      summary: Health-server liveness probe
+      security: []
+      responses:
+        "200":
+          description: Health check passed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /status:
+    get:
+      tags: [Health]
+      summary: Health-server status payload
+      security: []
+      responses:
+        "200":
+          description: Status payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /v1/embeddings:
+    post:
+      tags: [OpenAI]
+      summary: OpenAI-compatible embeddings
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenAIEmbeddingsRequest"
+      responses:
+        "200":
+          description: Embedding vectors
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenAIEmbeddingsResponse"
+        "400":
+          description: Invalid request / batch too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "429":
+          description: Rate limited or queue full
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "502":
+          description: Backend unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "504":
+          description: Backend timeout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /v1/models:
+    get:
+      tags: [OpenAI]
+      summary: OpenAI-compatible model list
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: OpenAI-style model list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenAIModelListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "503":
+          description: Model list unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /v1/chat/completions:
+    post:
+      tags: [OpenAI]
+      summary: OpenAI-compatible chat completions
+      description: |
+        If `stream=true`, response is `text/event-stream` with `data: ...` chunks and terminal `[DONE]`.
+        If `stream=false`, response is a standard JSON `chat.completion` object.
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OpenAIChatRequest"
+      responses:
+        "200":
+          description: Chat completion (JSON or stream)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OpenAIChatResponse"
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"id":"chatcmpl-holler-123","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}
+
+                  data: {"id":"chatcmpl-holler-123","object":"chat.completion.chunk","choices":[{"index":0,"delta":{"content":"Hello"},"finish_reason":null}]}
+
+                  data: {"id":"chatcmpl-holler-123","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
+
+                  data: [DONE]
+        "400":
+          description: Invalid request format
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          description: Requested model not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "413":
+          description: Payload too large
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "429":
+          description: Rate limited or queue full
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "502":
+          description: Backend unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "503":
+          description: Model list unavailable during validation
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "504":
+          description: Backend timeout
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /api/embed:
+    post:
+      tags: [Ollama Proxy]
+      summary: Native Ollama embed proxy
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OllamaEmbedRequest"
+      responses:
+        "200":
+          description: Ollama embed response
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/OllamaEmbedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/generate:
+    post:
+      tags: [Ollama Proxy]
+      summary: Native Ollama generate proxy
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OllamaGenerateRequest"
+      responses:
+        "200":
+          description: Generated text (streaming or single JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+            application/x-ndjson:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/chat:
+    post:
+      tags: [Ollama Proxy]
+      summary: Native Ollama chat proxy
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/OllamaChatRequest"
+      responses:
+        "200":
+          description: Chat response (streaming or single JSON)
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+            application/x-ndjson:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/tags:
+    get:
+      tags: [Ollama Proxy]
+      summary: List installed models
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Installed model list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /api/ps:
+    get:
+      tags: [Ollama Proxy]
+      summary: List running models
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      responses:
+        "200":
+          description: Running models
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /v1/documents/search:
+    post:
+      tags: [Public Documents]
+      summary: Search indexed documents
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicDocumentQueryRequest"
+      responses:
+        "200":
+          description: Ranked search results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicDocumentQueryResponse"
+        "400":
+          description: Missing query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Search execution failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "501":
+          description: Document pipeline not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /v1/documents/ask:
+    post:
+      tags: [Public Documents]
+      summary: Ask questions over indexed documents
+      description: |
+        Returns JSON when no relevant sources are found, otherwise returns SSE stream:
+        - `type: sources`
+        - `type: token`
+        - `type: done`
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicDocumentQueryRequest"
+      responses:
+        "200":
+          description: Answer as JSON or SSE stream
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  answer:
+                    type: string
+                  sources:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"type":"sources","sources":[{"filename":"guide.md","chunk_index":0,"score":0.91}]}
+
+                  data: {"type":"token","content":"Based on your documents, ..."}
+
+                  data: {"type":"done"}
+        "400":
+          description: Missing query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "500":
+          description: Ask pipeline failed
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "501":
+          description: Document pipeline not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/branding:
+    get:
+      tags: [Admin Core]
+      summary: Public branding metadata (login page)
+      security: []
+      responses:
+        "200":
+          description: Branding values
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  serverName:
+                    type: string
+                  adminTitle:
+                    type: string
+
+  /admin/api/status:
+    get:
+      tags: [Admin Core]
+      summary: Admin dashboard status
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Current status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/config:
+    get:
+      tags: [Admin Core]
+      summary: Effective runtime configuration snapshot
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Config groups
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminConfigResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/activity:
+    get:
+      tags: [Admin Core]
+      summary: Activity log entries
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 200
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        "200":
+          description: Activity records
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminActivityResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    delete:
+      tags: [Admin Core]
+      summary: Clear activity log
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Number of deleted rows
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/settings:
+    get:
+      tags: [Admin Core]
+      summary: List mutable settings
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Setting list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SettingsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: not_available
+                  message: SQLite not available
+                  type: client_error
+    post:
+      tags: [Admin Core]
+      summary: Update a single setting
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingRequest"
+      responses:
+        "200":
+          description: Updated setting
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  key:
+                    type: string
+                  value:
+                    type: string
+        "400":
+          description: Missing key/value
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/api/settings/batch:
+    post:
+      tags: [Admin Core]
+      summary: Update settings in bulk
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSettingsBatchRequest"
+      responses:
+        "200":
+          description: Batch save summary
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  saved:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        key:
+                          type: string
+                        value:
+                          type: string
+        "400":
+          description: Missing settings array
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+
+  /admin/api/stats:
+    get:
+      tags: [Admin Stats]
+      summary: Hourly and summary statistics
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Stats data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsResponse"
+              example:
+                global:
+                  total_requests: 2847
+                  total_errors: 19
+                  avg_latency_ms: 412
+                models:
+                  - model: nomic-embed-text
+                    requests: 2104
+                    errors: 5
+                    avg_latency_ms: 128
+                  - model: llama3.1:8b
+                    requests: 743
+                    errors: 14
+                    avg_latency_ms: 947
+                summary:
+                  today_total: 188
+                  today_embed: 129
+                  today_chat: 59
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Stats query failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: stats_query_failed
+                  message: database is locked
+                  type: server_error
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: not_available
+                  message: SQLite not available
+                  type: client_error
+
+  /admin/api/stats/models/{model}:
+    get:
+      tags: [Admin Stats]
+      summary: Model-specific aggregate and hourly statistics
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: model
+          required: true
+          schema:
+            type: string
+          description: URL-encoded model name
+        - in: query
+          name: since
+          schema:
+            type: integer
+          description: Unix timestamp (seconds) lower-bound filter
+      responses:
+        "200":
+          description: Per-model stats payload
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsModelResponse"
+              example:
+                model: llama3.1:8b
+                stats:
+                  requests: 743
+                  errors: 14
+                  avg_latency_ms: 947
+                hourly:
+                  - hour: "2026-03-01T14:00:00Z"
+                    requests: 18
+                    errors: 0
+                    avg_latency_ms: 902
+                  - hour: "2026-03-01T15:00:00Z"
+                    requests: 22
+                    errors: 1
+                    avg_latency_ms: 1017
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Stats query failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: stats_query_failed
+                  message: Failed to load model statistics
+                  type: server_error
+
+  /admin/api/stats/requests:
+    get:
+      tags: [Admin Stats]
+      summary: Recent request log for analytics
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: model
+          schema:
+            type: string
+          description: Optional model filter
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Recent requests
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsRequestsResponse"
+              example:
+                requests:
+                  - timestamp: "2026-03-01T15:41:28.121Z"
+                    model: llama3.1:8b
+                    path: /v1/chat/completions
+                    status: 200
+                    duration_ms: 1114
+                    connection_type: webrtc
+                  - timestamp: "2026-03-01T15:42:07.513Z"
+                    model: nomic-embed-text
+                    path: /v1/embeddings
+                    status: 200
+                    duration_ms: 86
+                    connection_type: http
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Stats query failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: stats_query_failed
+                  message: Failed to load recent requests
+                  type: server_error
+
+  /admin/api/stats/hourly:
+    get:
+      tags: [Admin Stats]
+      summary: Hourly rollups for charts
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: model
+          schema:
+            type: string
+          description: Optional model filter
+      responses:
+        "200":
+          description: Hourly usage buckets
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsHourlyResponse"
+              example:
+                hourly:
+                  - hour: "2026-03-01T13:00:00Z"
+                    requests: 37
+                    errors: 1
+                    avg_latency_ms: 505
+                  - hour: "2026-03-01T14:00:00Z"
+                    requests: 44
+                    errors: 0
+                    avg_latency_ms: 472
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Stats query failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: stats_query_failed
+                  message: Failed to load hourly stats
+                  type: server_error
+
+  /admin/api/stats/reset:
+    post:
+      tags: [Admin Stats]
+      summary: Reset stats globally or for one model
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminStatsResetRequest"
+            example:
+              model: llama3.1:8b
+      responses:
+        "200":
+          description: Reset result payload
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                success: true
+                reset_scope: model
+                model: llama3.1:8b
+                rows_deleted: 96
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Stats reset failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: stats_reset_failed
+                  message: Failed to reset stats
+                  type: server_error
+
+  /admin/api/stats/pricing:
+    get:
+      tags: [Admin Stats]
+      summary: List token pricing metadata by model
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Pricing map
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsPricingResponse"
+              example:
+                pricing:
+                  llama3.1:8b:
+                    model: llama3.1:8b
+                    input_per_1k: 0.0015
+                    output_per_1k: 0.002
+                  nomic-embed-text:
+                    model: nomic-embed-text
+                    input_per_1k: 0.0001
+                    output_per_1k: null
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Pricing query failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: pricing_query_failed
+                  message: Failed to load pricing
+                  type: server_error
+    post:
+      tags: [Admin Stats]
+      summary: Upsert model token pricing metadata
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminStatsPricingRequest"
+            example:
+              model: llama3.1:8b
+              input_per_1k: 0.0015
+              output_per_1k: 0.002
+      responses:
+        "200":
+          description: Saved pricing record
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminStatsPricingResponse"
+              example:
+                pricing:
+                  model: llama3.1:8b
+                  input_per_1k: 0.0015
+                  output_per_1k: 0.002
+        "400":
+          description: Missing or invalid pricing fields
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: invalid_request
+                  message: Missing model or input_per_1k
+                  type: client_error
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Pricing save failed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+              example:
+                error:
+                  code: pricing_save_failed
+                  message: Failed to save pricing
+                  type: server_error
+
+  /admin/api/system:
+    get:
+      tags: [Admin Core]
+      summary: System inventory and security posture
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Host, Docker, network, and security checks
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSystemResponse"
+              example:
+                hostname: holler-host
+                platform: linux
+                platformLabel: Linux
+                arch: x64
+                uptime: 248331
+                hollerVersion: 0.4.0
+                hardware:
+                  cpu:
+                    cores: 16
+                  memory:
+                    total_mb: 32768
+                    free_mb: 11342
+                network:
+                  isDocker: true
+                  localIp: 192.168.1.42
+                ports:
+                  gateway: 11434
+                  health: 9090
+                  qdrant: 6333
+                security:
+                  score: 89
+                  rating: Good
+                  checks:
+                    - key: admin_api_key
+                      status: pass
+                      message: Separate admin key configured
+                docker:
+                  containerized: true
+                  composeProject: jimbomesh-holler
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Failed to gather system info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+              example:
+                error:
+                  code: system_info_error
+                  message: "Failed to gather system info: timeout while collecting host data"
+                  type: server_error
+
+  /admin/api/models:
+    get:
+      tags: [Admin Models]
+      summary: List models
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Installed models
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TagsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/models/running:
+    get:
+      tags: [Admin Models]
+      summary: List running models
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Running models
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PsResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/models/show:
+    post:
+      tags: [Admin Models]
+      summary: Show model metadata
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ShowRequest"
+      responses:
+        "200":
+          description: Model details
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Missing model name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/models/pull:
+    post:
+      tags: [Admin Models]
+      summary: Pull model with progress stream
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PullRequest"
+      responses:
+        "200":
+          description: SSE progress
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"status":"pulling manifest"}
+
+                  data: {"status":"success","done":true}
+        "400":
+          description: Missing required field
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/models/{name}:
+    delete:
+      tags: [Admin Models]
+      summary: Delete model by name
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+          description: URL-encoded model name (for example `llama3.1%3A8b`)
+      responses:
+        "200":
+          description: Model removed
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                  message:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Model not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/apikey:
+    get:
+      tags: [Admin Security]
+      summary: Get masked active API key
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Masked key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminApiKeyMaskedResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/apikey/regenerate:
+    post:
+      tags: [Admin Security]
+      summary: Regenerate active API key
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminApiKeyRegenerateRequest"
+      responses:
+        "200":
+          description: New key generated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminApiKeyRegenerateResponse"
+        "400":
+          description: Confirmation missing/invalid
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/qdrantkey:
+    get:
+      tags: [Admin Security]
+      summary: Qdrant key status and values
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Qdrant key information
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminQdrantKeyResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/gpu-info:
+    get:
+      tags: [Admin Security]
+      summary: GPU/compute mode and memory telemetry
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: GPU and system info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGpuInfoResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: GPU detection error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/github/status:
+    get:
+      tags: [Admin Security]
+      summary: GitHub integration status
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Whether GitHub token is configured
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGitHubStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/github/issue:
+    post:
+      tags: [Admin Security]
+      summary: Create GitHub issue from admin feedback
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminGitHubIssueRequest"
+            example:
+              type: bug
+              title: "Upload fails for large DOCX"
+              description: "Uploading a 30MB DOCX stalls at 40%."
+              steps: "1. Open Documents tab\n2. Upload file\n3. Observe stall"
+              expected: "Upload completes"
+              actual: "Stream ends early with error"
+      responses:
+        "201":
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminGitHubIssueResponse"
+        "400":
+          description: Validation failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: GitHub integration disabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "502":
+          description: GitHub API failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/marketplace/ollama:
+    get:
+      tags: [Admin Marketplace]
+      summary: Curated Ollama marketplace catalog
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Catalog plus installed tag hints
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  cached_at:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Catalog load error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/marketplace/huggingface:
+    get:
+      tags: [Admin Marketplace]
+      summary: Search HuggingFace GGUF models
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: task
+          schema:
+            type: string
+        - in: query
+          name: sort
+          schema:
+            type: string
+            default: downloads
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 24
+            maximum: 100
+      responses:
+        "200":
+          description: HuggingFace model list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  models:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+                  cached_at:
+                    type: string
+                    format: date-time
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: HuggingFace upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/marketplace/huggingface/files:
+    get:
+      tags: [Admin Marketplace]
+      summary: List GGUF files for a HuggingFace repo
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: repo
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: GGUF files
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  files:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        filename:
+                          type: string
+                        size:
+                          type: integer
+        "400":
+          description: Missing repo parameter
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "502":
+          description: HuggingFace upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/models/import-hf:
+    post:
+      tags: [Admin Marketplace]
+      summary: Import HuggingFace GGUF into Ollama
+      description: Downloads GGUF and streams import progress via SSE.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [repo_id, filename, model_name]
+              properties:
+                repo_id:
+                  type: string
+                filename:
+                  type: string
+                model_name:
+                  type: string
+            example:
+              repo_id: "TheBloke/Llama-3.1-8B-Instruct-GGUF"
+              filename: "llama-3.1-8b-instruct.Q4_K_M.gguf"
+              model_name: "llama3.1:8b-hf"
+      responses:
+        "200":
+          description: SSE progress stream
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"phase":"download","status":"Starting download..."}
+
+                  data: {"phase":"download","status":"Downloading... 42%","completed":123456789,"total":290000000}
+
+                  data: {"phase":"import","status":"Registering model with Ollama..."}
+
+                  data: {"done":true}
+        "400":
+          description: Missing required fields
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/auth/status:
+    get:
+      tags: [Admin Tokens]
+      summary: Tiered auth status
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Tier status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAuthStatusResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/tokens:
+    get:
+      tags: [Admin Tokens]
+      summary: List bearer tokens
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Token list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tokens:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+    post:
+      tags: [Admin Tokens]
+      summary: Create bearer token
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TokenCreateRequest"
+      responses:
+        "201":
+          description: Token created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenCreateResponse"
+        "400":
+          description: Missing token name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: Token manager unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/tokens/{tokenId}:
+    delete:
+      tags: [Admin Tokens]
+      summary: Revoke token
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Revoked
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  revoked:
+                    type: boolean
+                  id:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "501":
+          description: Token manager unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+    patch:
+      tags: [Admin Tokens]
+      summary: Update token metadata/limits
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Updated token
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        "400":
+          description: Missing body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "501":
+          description: Token manager unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/tokens/{tokenId}/usage:
+    get:
+      tags: [Admin Tokens]
+      summary: Per-token usage history
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: tokenId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Hourly usage history
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  hourly_usage:
+                    type: array
+                    items:
+                      type: object
+                      additionalProperties: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Token not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "501":
+          description: Token manager unavailable
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/documents/upload:
+    post:
+      tags: [Admin Documents]
+      summary: Upload and index document
+      description: |
+        Accepts one file via `multipart/form-data` and streams progress via SSE.
+        Optional `collection` query parameter controls target collection.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: collection
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+      responses:
+        "200":
+          description: SSE upload/index progress
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"phase":"upload","status":"Checking file..."}
+
+                  data: {"phase":"embed","status":"Embedding chunks...","completed":12,"total":34}
+
+                  data: {"done":true,"document_id":"uuid","chunks":34}
+        "400":
+          description: Invalid content type or upload request
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/documents:
+    get:
+      tags: [Admin Documents]
+      summary: List indexed documents
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: query
+          name: collection
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document list
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDocumentListResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/documents/query:
+    post:
+      tags: [Admin Documents]
+      summary: Semantic document query
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDocumentQueryRequest"
+      responses:
+        "200":
+          description: Query results
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDocumentQueryResponse"
+        "400":
+          description: Missing query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Query execution error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/documents/ask:
+    post:
+      tags: [Admin Documents]
+      summary: Ask documents with streamed answer
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminDocumentQueryRequest"
+      responses:
+        "200":
+          description: SSE with sources + answer chunks
+          content:
+            text/event-stream:
+              schema:
+                type: string
+                example: |
+                  data: {"phase":"sources","hits":[{"filename":"guide.md","score":0.93}]}
+
+                  data: {"phase":"answer","message":{"role":"assistant","content":"..."},"done":false}
+
+                  data: {"done":true}
+        "400":
+          description: Missing query
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Ask execution error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/documents/{documentId}:
+    get:
+      tags: [Admin Documents]
+      summary: Get one document metadata record
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document metadata
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminDocument"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+    delete:
+      tags: [Admin Documents]
+      summary: Delete document and vectors
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deletion result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  id:
+                    type: string
+                  qdrant_warning:
+                    type: string
+                    nullable: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/documents/{documentId}/chunks:
+    get:
+      tags: [Admin Documents]
+      summary: Get stored chunks for one document
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Document and chunk list
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  document:
+                    $ref: "#/components/schemas/AdminDocument"
+                  chunks:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        id:
+                          type: string
+                        text:
+                          type: string
+                        chunk_index:
+                          type: integer
+                        total_chunks:
+                          type: integer
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Document not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/documents/{documentId}/reindex:
+    post:
+      tags: [Admin Documents]
+      summary: Reindex one document
+      description: Re-runs extraction/chunking/embedding and streams progress via SSE.
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: documentId
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: SSE reindex progress
+          content:
+            text/event-stream:
+              schema:
+                type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "404":
+          description: Document or file not found
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/collections:
+    get:
+      tags: [Admin Collections]
+      summary: List Qdrant collections
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Collection names
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  collections:
+                    type: array
+                    items:
+                      type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Qdrant error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+    post:
+      tags: [Admin Collections]
+      summary: Create collection
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateCollectionRequest"
+      responses:
+        "200":
+          description: Created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  created:
+                    type: boolean
+                  name:
+                    type: string
+        "400":
+          description: Missing collection name
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Qdrant error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/collections/{name}:
+    delete:
+      tags: [Admin Collections]
+      summary: Delete collection
+      security:
+        - ApiKeyAuth: []
+      parameters:
+        - in: path
+          name: name
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  deleted:
+                    type: boolean
+                  name:
+                    type: string
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "500":
+          description: Qdrant error
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/mesh/status:
+    get:
+      tags: [Admin Mesh]
+      summary: Mesh connector status
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Current mesh connectivity status
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMeshStatusResponse"
+              example:
+                state: connected
+                connected: true
+                connecting: false
+                mode: mesh-contributor
+                meshUrl: https://api.jimbomesh.ai
+                hollerName: warehouse-holler-1
+                autoConnect: true
+                hasStoredMeshKey: true
+                lastHeartbeat: "2026-03-01T15:45:10.114Z"
+                errorMessage: null
+                log: []
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/connect:
+    post:
+      tags: [Admin Mesh]
+      summary: Connect this server to JimboMesh cloud mesh
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMeshConnectRequest"
+            example:
+              apiKey: jmsh_abc123_example
+              meshUrl: https://api.jimbomesh.ai
+              hollerName: warehouse-holler-1
+              autoConnect: true
+      responses:
+        "200":
+          description: Connector initialization started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "400":
+          description: Missing apiKey
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+              example:
+                error:
+                  code: invalid_request
+                  message: Missing apiKey
+                  type: client_error
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/cancel:
+    post:
+      tags: [Admin Mesh]
+      summary: Cancel an in-progress mesh connection attempt
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Connect attempt cancelled (or no-op if idle)
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/settings:
+    post:
+      tags: [Admin Mesh]
+      summary: Save mesh settings without connecting or disconnecting
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMeshSettingsRequest"
+            example:
+              meshUrl: https://api.jimbomesh.ai
+              hollerName: warehouse-holler-1
+              autoConnect: true
+      responses:
+        "200":
+          description: Settings saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "400":
+          description: Invalid request body
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/auto-connect:
+    post:
+      tags: [Admin Mesh]
+      summary: Toggle mesh auto-connect preference
+      description: Saves whether mesh should auto-connect at startup.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminMeshAutoConnectRequest"
+            example:
+              enabled: true
+      responses:
+        "200":
+          description: Auto-connect preference updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminMeshAutoConnectResponse"
+              example:
+                success: true
+                autoConnect: true
+        "400":
+          description: Missing boolean enabled
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+              example:
+                error:
+                  code: invalid_request
+                  message: Missing boolean enabled
+                  type: client_error
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/disconnect:
+    post:
+      tags: [Admin Mesh]
+      summary: Disconnect from mesh
+      description: |
+        Disconnects from the mesh but preserves the stored API key in SQLite
+        so the user can reconnect with one click via `/mesh/connect-stored`.
+        Only clears `mesh_auto_connect`.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Mesh disconnected
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/peers:
+    get:
+      tags: [Admin Mesh]
+      summary: Active WebRTC peer connections
+      description: Returns details of active WebRTC peer-to-peer connections with Buyers. Only populated when the Holler is connected to the mesh and processing jobs via WebRTC.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Peer connection status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  activeConnections:
+                    type: integer
+                    description: Number of active peer connections
+                  maxConnections:
+                    type: integer
+                    description: Maximum allowed concurrent peer connections (MAX_PEER_CONNECTIONS)
+                  jobs:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        jobId:
+                          type: string
+                        model:
+                          type: string
+                        state:
+                          type: string
+                          enum: [signaling, connected, streaming, complete, closed]
+                        startedAt:
+                          type: integer
+                          description: Unix timestamp (ms)
+              example:
+                activeConnections: 2
+                maxConnections: 10
+                jobs:
+                  - jobId: "job_a1b2c3d4"
+                    model: "llama3.1:8b"
+                    state: "streaming"
+                    startedAt: 1709312400000
+                  - jobId: "job_e5f6g7h8"
+                    model: "nomic-embed-text"
+                    state: "connected"
+                    startedAt: 1709312403000
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/connect-stored:
+    post:
+      tags: [Admin Mesh]
+      summary: Connect using stored API key
+      description: Reconnects to the mesh using the API key already stored in SQLite. Returns 400 if no key is stored.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Connection initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "400":
+          description: No stored mesh API key
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+              example:
+                error:
+                  code: no_key
+                  message: "No stored mesh API key. Enter one first."
+                  type: client_error
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "501":
+          description: SQLite not available
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+
+  /admin/api/mesh/forget-key:
+    post:
+      tags: [Admin Mesh]
+      summary: Clear stored mesh API key
+      description: Removes the stored mesh API key from SQLite. The user will need to re-enter the key to connect again.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Key cleared
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/mesh/reconnect:
+    post:
+      tags: [Admin Mesh]
+      summary: Reconnect to mesh
+      description: Stops the current mesh connection and reconnects using the stored API key. Returns 400 if no key is stored.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        "200":
+          description: Reconnection initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminSuccessResponse"
+              example:
+                success: true
+        "400":
+          description: No stored mesh API key or no active connection
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StructuredError"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /admin/api/restart:
+    post:
+      tags: [Admin Core]
+      summary: Restart Holler or Ollama
+      description: |
+        Restarts the specified target. For `holler`, calls `process.exit(0)` so the
+        container or process manager restarts the service. For `ollama`, sends `pkill`
+        on macOS Performance Mode (launchctl/brew auto-restarts); inside Docker, logs
+        a message to restart the container manually. Response is sent before the restart.
+      security:
+        - ApiKeyAuth: []
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminRestartRequest"
+            example:
+              target: holler
+      responses:
+        "200":
+          description: Restart initiated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminRestartResponse"
+              example:
+                success: true
+                message: "Restarting holler..."
+        "401":
+          $ref: "#/components/responses/Unauthorized"

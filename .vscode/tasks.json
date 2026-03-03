@@ -1,0 +1,58 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Docker Compose: Down",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "presentation": { "reveal": "always", "panel": "shared" }
+    },
+    {
+      "label": "Docker Compose: Build only",
+      "type": "shell",
+      "command": "docker compose build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Docker Compose: Build & Up (CPU)",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans && docker compose up --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Docker Compose: Build & Up (GPU)",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans && docker compose --profile gpu up --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Docker Compose: Build & Up (Qdrant)",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans && docker compose --profile qdrant up --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    },
+    {
+      "label": "Docker Compose: Build & Up (GPU + Qdrant)",
+      "type": "shell",
+      "command": "docker compose down --remove-orphans && docker compose --profile gpu --profile qdrant up --build",
+      "options": { "cwd": "${workspaceFolder}" },
+      "problemMatcher": [],
+      "group": "build",
+      "presentation": { "reveal": "always", "panel": "dedicated" }
+    }
+  ]
+}
