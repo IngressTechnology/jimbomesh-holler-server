@@ -594,7 +594,16 @@ ParserError: An expression was expected after '('
 
 **Symptom**: Running the setup script again starts pulling models
 
-**Solution**: The installer now detects existing installations and shows a menu. Choose **1) Update** to rebuild the image and restart without touching model volumes. Models are stored in a Docker volume (`ollama_models`) that persists across image rebuilds.
+**Solution**: The installer now detects existing installations and shows an 8-option menu:
+
+```text
+1) Update      2) Restart      3) Reconfigure      4) Stop
+5) Quick Start 6) Uninstall    7) Nuclear          8) Cancel
+```
+
+For normal upgrades, choose **1) Update** to rebuild/restart without touching model volumes.
+Choose **3) Reconfigure** only if you want to re-run prompts (GPU/Qdrant/mesh) while preserving existing `.env` values.
+Avoid **6) Uninstall** and **7) Nuclear** unless you intentionally want destructive cleanup.
 
 If you ran the installer before it had the detection feature, models still persist on the volume — `docker compose up --build -d` rebuilds only the image.
 

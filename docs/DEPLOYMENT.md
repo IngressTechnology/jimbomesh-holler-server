@@ -43,11 +43,13 @@ irm https://github.com/IngressTechnology/jimbomesh-holler-server/archive/refs/he
 2. **Checks prerequisites** — Docker, Docker Compose, Docker running
 3. **GPU / mode selection** — Linux/Windows: Detects NVIDIA GPU; defaults to GPU if found, CPU if not. macOS: Shows a **Performance Mode vs Secure Mode** prompt — [P] installs Ollama natively via Homebrew for full Apple Metal GPU, [S] uses Docker CPU-only. Use `--cpu` to skip the prompt and select Secure Mode automatically. See [MAC_WINDOWS_SETUP.md](MAC_WINDOWS_SETUP.md)
 4. **Qdrant prompt** — Asks if you want the Qdrant vector database (default: Yes). Skipped with `--qdrant` flag
-5. **Creates .env** — Copies `.env.example`, auto-generates both `JIMBOMESH_HOLLER_API_KEY` and `QDRANT_API_KEY` (always, regardless of `--qdrant` flag)
-6. **Builds the image** — `jimbomesh-still:latest` from the Dockerfile (~1-2 min)
-7. **Starts Ollama** — Launches the container, pulls models on first run
-8. **Waits for readiness** — Polls health endpoint until services are available
-9. **Prints auto-login URL** — Shows a clickable URL with embedded API key for first-time Admin UI login
+5. **Creates/preserves `.env`** — Copies from `.env.example` only when missing; otherwise preserves your existing configuration
+6. **Persists setup choices** — Writes selected mode, ports, model list, mesh auto-connect/name, and admin settings to `.env`
+7. **Auto-generates server branding** — Sets `HOLLER_SERVER_NAME=Holler Server <hostname>` when missing/empty
+8. **Builds the image** — `jimbomesh-still:latest` from the Dockerfile (~1-2 min)
+9. **Starts Ollama** — Launches the container, pulls models on first run
+10. **Waits for readiness** — Polls health endpoint until services are available
+11. **Prints auto-login URL + config summary** — Shows clickable Admin URL and a saved `.env` summary
 
 ### Installer Options
 
@@ -70,9 +72,12 @@ If the setup script detects a previous installation (existing container, Docker 
 |--------|--------|
 | **1) Update** | Rebuild image + restart container. Preserves model volumes — no re-download |
 | **2) Restart** | Restart existing container without rebuilding |
-| **3) Fresh install** | Full reinstall (image rebuild, `.env` recreated). Model volumes preserved |
+| **3) Reconfigure** | Re-run setup prompts and rebuild while preserving existing `.env` values |
 | **4) Stop** | Stop all running services |
-| **5) Cancel** | Exit without changes |
+| **5) Quick Start** | Continue with guided setup flow |
+| **6) Uninstall** | Remove containers/images/volumes and config |
+| **7) Nuclear** | Wipe everything and start fresh (keeps Ollama model cache) |
+| **8) Cancel** | Exit without changes |
 
 ### Manual Installation
 
@@ -160,7 +165,7 @@ curl -H "api-key: YOUR_KEY" http://localhost:6333/collections
 If you want this Holler to contribute jobs to the JimboMesh network, set `JIMBOMESH_API_KEY` in `.env` and optionally configure:
 
 - `JIMBOMESH_COORDINATOR_URL` (preferred coordinator URL override)
-- `JIMBOMESH_HOLLER_NAME` (friendly display name)
+- `JIMBOMESH_HOLLER_NAME` (friendly display name, defaults to `HOLLER_SERVER_NAME`)
 - `JIMBOMESH_AUTO_CONNECT` (`true` by default)
 - `MAX_PEER_CONNECTIONS` (default `10`, set `0` for HTTP-only)
 

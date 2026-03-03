@@ -35,6 +35,7 @@ restarting the container. Port and TLS changes still require a restart.
 | `ADMIN_API_KEY` | (none) | Separate API key for admin routes. Falls back to `JIMBOMESH_HOLLER_API_KEY` if not set |
 | `RATE_LIMIT_BURST` | `10` | Allow short bursts above the per-minute rate limit |
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | Graceful shutdown drain timeout in milliseconds |
+| `HOLLER_SERVER_NAME` | `Holler Server <hostname>` | Branded server name shown in Admin UI/login. `setup.sh` / `setup.ps1` auto-generates this when missing |
 
 **Important:** If `JIMBOMESH_HOLLER_API_KEY` is not set, the server will run WITHOUT authentication (not recommended for production).
 
@@ -123,9 +124,19 @@ Used when connecting this Holler to the JimboMesh coordinator. Leave unset for s
 | `JIMBOMESH_API_KEY` | (optional) | Mesh API key used for coordinator registration, heartbeats, and job polling |
 | `JIMBOMESH_COORDINATOR_URL` | (none) | Preferred coordinator URL override. If set, takes precedence over `JIMBOMESH_MESH_URL` |
 | `JIMBOMESH_MESH_URL` | `https://api.jimbomesh.ai` | Legacy coordinator URL variable kept for backward compatibility |
-| `JIMBOMESH_HOLLER_NAME` | (none) | Friendly Holler name shown in Mesh dashboards (falls back to hostname when unset) |
+| `JIMBOMESH_HOLLER_NAME` | (none) | Friendly Holler name shown in Mesh dashboards (falls back to `HOLLER_SERVER_NAME`, then hostname when unset) |
 | `JIMBOMESH_AUTO_CONNECT` | `true` | Auto-connect to Mesh on startup when `JIMBOMESH_API_KEY` exists. Set `false` for manual connect from Admin UI |
 | `MAX_PEER_CONNECTIONS` | `10` | Maximum concurrent WebRTC peer sessions for Mesh jobs. Set `0` to disable WebRTC and force HTTP polling |
+
+### Installer Persistence Behavior
+
+The setup scripts persist all interactive choices into `.env` so reinstall/rebuild flows stay seamless:
+
+- Preserve existing `.env` when present (no overwrite)
+- Auto-generate `HOLLER_SERVER_NAME=Holler Server <hostname>` when missing/empty
+- Persist deployment mode (`COMPOSE_FILE`, including GPU/mac overlays)
+- Persist startup behavior and ports (`HOLLER_PERFORMANCE_MODE`, `GATEWAY_PORT`, `OLLAMA_HOST_PORT`)
+- Persist model and mesh choices (`HOLLER_MODELS`, `OLLAMA_EMBED_MODEL`, `JIMBOMESH_AUTO_CONNECT`, `JIMBOMESH_HOLLER_NAME`)
 
 Mesh settings can also be saved at runtime from the Admin UI Mesh panel (`/admin/api/mesh/settings`) and are persisted in SQLite.
 

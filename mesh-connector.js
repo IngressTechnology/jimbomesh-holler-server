@@ -261,7 +261,21 @@ class MeshConnector {
       connecting: this._state === 'connecting' || this._state === 'reconnecting',
       meshUrl: this.meshUrl,
       hollerId: this.hollerId,
-      hollerName: this.hollerName || (this.db ? (this.db.getSetting('holler_name') || this.db.getSetting('server_name') || null) : null) || os.hostname(),
+      hollerName: this.hollerName
+        || (this.db
+          ? (
+            this.db.getSetting('holler_name')
+            || this.db.getSetting('server_name')
+            || process.env.JIMBOMESH_HOLLER_NAME
+            || process.env.HOLLER_SERVER_NAME
+            || null
+          )
+          : (
+            process.env.JIMBOMESH_HOLLER_NAME
+            || process.env.HOLLER_SERVER_NAME
+            || null
+          ))
+        || os.hostname(),
       lastHeartbeat: this.lastHeartbeat,
       jobsProcessed: this.jobsProcessed,
       moonshineEarned: this.moonshineEarned,
@@ -725,7 +739,21 @@ class MeshConnector {
       this._getGpuInfo(),
     ]);
 
-    const serverName = this.hollerName || (this.db ? (this.db.getSetting('holler_name') || this.db.getSetting('server_name') || os.hostname()) : os.hostname());
+    const serverName = this.hollerName
+      || (this.db
+        ? (
+          this.db.getSetting('holler_name')
+          || this.db.getSetting('server_name')
+          || process.env.JIMBOMESH_HOLLER_NAME
+          || process.env.HOLLER_SERVER_NAME
+          || null
+        )
+        : (
+          process.env.JIMBOMESH_HOLLER_NAME
+          || process.env.HOLLER_SERVER_NAME
+          || null
+        ))
+      || os.hostname();
     const gpuName = gpuInfo ? gpuInfo.name : 'CPU only';
     const vramMb = gpuInfo ? gpuInfo.vram_total_mb : 0;
     this._addLog('info', 'Registering "' + serverName + '" (' + gpuName + (vramMb ? ', ' + Math.round(vramMb / 1024) + 'GB VRAM' : '') + ', ' + models.length + ' models)');

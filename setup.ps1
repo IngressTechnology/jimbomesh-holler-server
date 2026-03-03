@@ -83,6 +83,39 @@ function Test-Command {
     }
 }
 
+function Get-EnvVar {
+    param(
+        [string]$FilePath,
+        [string]$Key
+    )
+    if (-not (Test-Path $FilePath)) { return "" }
+    $content = Get-Content $FilePath -Raw
+    $match = [regex]::Match($content, "(?m)^$([regex]::Escape($Key))=(.*)$")
+    if ($match.Success) { return $match.Groups[1].Value.Trim() }
+    return ""
+}
+
+function Set-EnvVar {
+    param(
+        [string]$FilePath,
+        [string]$Key,
+        [string]$Value
+    )
+    $line = "$Key=$Value"
+    $content = if (Test-Path $FilePath) { Get-Content $FilePath -Raw } else { "" }
+    if ($content -match "(?m)^$([regex]::Escape($Key))=") {
+        $content = $content -replace "(?m)^$([regex]::Escape($Key))=.*", $line
+    } elseif ($content -match "(?m)^#\s*$([regex]::Escape($Key))=") {
+        $content = $content -replace "(?m)^#\s*$([regex]::Escape($Key))=.*", $line
+    } else {
+        if ($content.Length -gt 0 -and -not $content.EndsWith("`n")) {
+            $content += "`n"
+        }
+        $content += $line
+    }
+    Set-Content -Path $FilePath -Value $content.TrimEnd() -NoNewline
+}
+
 function Invoke-Compose {
     param([string[]]$ComposeArgs)
     $composeCheck = docker compose version 2>&1
@@ -440,16 +473,19 @@ if ($ExistingInstall -and -not $PullOnly) {
 
             # Read API key for connect URL
             $connectKey = ""
+            $updateGatewayPort = "11434"
             if (Test-Path $envFile) {
                 foreach ($line in (Get-Content $envFile)) {
                     if ($line -match '^JIMBOMESH_HOLLER_API_KEY=(.+)$') {
                         $connectKey = $Matches[1].Trim()
-                        break
+                    }
+                    if ($line -match '^GATEWAY_PORT=(.+)$') {
+                        $updateGatewayPort = $Matches[1].Trim()
                     }
                 }
             }
             if ($connectKey) {
-                Write-Host "  Connect: http://localhost:11434/admin#key=$connectKey" -ForegroundColor White
+                Write-Host "  Connect: http://localhost:$updateGatewayPort/admin#key=$connectKey" -ForegroundColor White
             }
             Write-Host "  Logs:    docker logs -f jimbomesh-still" -ForegroundColor Cyan
             Write-Host ""
@@ -563,28 +599,6 @@ if (-not $WithQdrant) {
     }
 }
 
-# Mesh connectivity interactive prompt
-Write-Host ""
-Write-Host "  Connect to the JimboMesh mesh network?" -ForegroundColor White
-Write-Host "  Share your GPU compute and earn Moonshine tokens." -ForegroundColor White
-Write-Host "  You'll need an API key from app.jimbomesh.ai" -ForegroundColor Cyan
-Write-Host ""
-$meshChoice = Read-Host "  Connect to mesh? [y/N] (default: N)"
-$WithMesh = $false
-if ($meshChoice -match '^[Yy]') {
-    Write-Host ""
-    $meshUrl = Read-Host "  Mesh URL [https://api.jimbomesh.ai]"
-    if ($meshUrl -eq '') { $meshUrl = 'https://api.jimbomesh.ai' }
-    $meshKey = Read-Host "  API Key"
-    if ($meshKey -ne '') {
-        $WithMesh = $true
-    } else {
-        Write-Host "  No API key entered - mesh skipped" -ForegroundColor Yellow
-    }
-} else {
-    Write-Host "  Mesh skipped (can configure later in Admin UI > Configuration)" -ForegroundColor Yellow
-}
-
 # Create .env if it doesn't exist
 Write-Step "Checking configuration..."
 $envFile = Join-Path $ScriptDir ".env"
@@ -629,30 +643,69 @@ if (-not (Test-Path $envFile)) {
         Write-Warn "No .env file found - using defaults"
     }
 } else {
-    Write-Success ".env file exists"
+    Write-Success "Existing .env found - preserving your configuration"
+    Write-Host "  To start fresh, delete .env and run setup again" -ForegroundColor Yellow
 }
 
-# Write mesh settings to .env if configured
-if ($WithMesh) {
-    $envContent = Get-Content $envFile -Raw
-    # JIMBOMESH_API_KEY — update existing or append
-    if ($envContent -match '(?m)^JIMBOMESH_API_KEY=') {
-        $envContent = $envContent -replace '(?m)^JIMBOMESH_API_KEY=.*', "JIMBOMESH_API_KEY=$meshKey"
-    } elseif ($envContent -match '(?m)^# *JIMBOMESH_API_KEY=') {
-        $envContent = $envContent -replace '(?m)^# *JIMBOMESH_API_KEY=.*', "JIMBOMESH_API_KEY=$meshKey"
+# Auto-generate HOLLER_SERVER_NAME when unset/commented/empty.
+$envContent = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
+if ($envContent -notmatch '(?m)^HOLLER_SERVER_NAME=.+' -or $envContent -match '(?m)^HOLLER_SERVER_NAME=Holler Server$') {
+    $localHostname = $env:COMPUTERNAME
+    if ($envContent -match '(?m)^# *HOLLER_SERVER_NAME=') {
+        $envContent = $envContent -replace '(?m)^# *HOLLER_SERVER_NAME=.*', "HOLLER_SERVER_NAME=Holler Server $localHostname"
     } else {
-        $envContent += "`nJIMBOMESH_API_KEY=$meshKey"
+        if ($envContent.Length -gt 0 -and -not $envContent.EndsWith("`n")) {
+            $envContent += "`n"
+        }
+        $envContent += "HOLLER_SERVER_NAME=Holler Server $localHostname"
     }
-    # JIMBOMESH_MESH_URL — update existing or append
-    if ($envContent -match '(?m)^JIMBOMESH_MESH_URL=') {
-        $envContent = $envContent -replace '(?m)^JIMBOMESH_MESH_URL=.*', "JIMBOMESH_MESH_URL=$meshUrl"
-    } elseif ($envContent -match '(?m)^# *JIMBOMESH_MESH_URL=') {
-        $envContent = $envContent -replace '(?m)^# *JIMBOMESH_MESH_URL=.*', "JIMBOMESH_MESH_URL=$meshUrl"
+    Set-Content $envFile $envContent -NoNewline
+    Write-Success "Server name set to: Holler Server $localHostname"
+}
+
+# Persist defaults/choices so rebuilds/reinstalls keep behavior.
+if (-not (Get-EnvVar $envFile "OLLAMA_HOST_PORT")) { Set-EnvVar $envFile "OLLAMA_HOST_PORT" "11434" }
+if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) { Set-EnvVar $envFile "GATEWAY_PORT" "11434" }
+if (-not (Get-EnvVar $envFile "HOLLER_MODELS")) { Set-EnvVar $envFile "HOLLER_MODELS" "nomic-embed-text,llama3.1:8b" }
+if (-not (Get-EnvVar $envFile "OLLAMA_EMBED_MODEL")) { Set-EnvVar $envFile "OLLAMA_EMBED_MODEL" "nomic-embed-text" }
+if (-not (Get-EnvVar $envFile "ADMIN_ENABLED")) { Set-EnvVar $envFile "ADMIN_ENABLED" "true" }
+if (-not (Get-EnvVar $envFile "JIMBOMESH_HOLLER_NAME")) {
+    Set-EnvVar $envFile "JIMBOMESH_HOLLER_NAME" (Get-EnvVar $envFile "HOLLER_SERVER_NAME")
+}
+
+# Persist compose selection even when -NoStart is used.
+if ($WithGpu) {
+    Set-EnvVar $envFile "COMPOSE_FILE" "docker-compose.yml;docker-compose.gpu.yml"
+} else {
+    Set-EnvVar $envFile "COMPOSE_FILE" "docker-compose.yml"
+}
+
+# Mesh connectivity interactive prompt
+Write-Host ""
+Write-Host "  Connect to the JimboMesh mesh network?" -ForegroundColor White
+Write-Host "  Share your GPU compute and earn Moonshine tokens." -ForegroundColor White
+Write-Host "  You'll need an API key from app.jimbomesh.ai" -ForegroundColor Cyan
+Write-Host ""
+$meshChoice = Read-Host "  Connect to mesh? [y/N] (default: N)"
+$WithMesh = $false
+if ($meshChoice -match '^[Yy]') {
+    Write-Host ""
+    $meshUrl = Read-Host "  Mesh URL [https://api.jimbomesh.ai]"
+    if ($meshUrl -eq '') { $meshUrl = 'https://api.jimbomesh.ai' }
+    $meshKey = Read-Host "  API Key"
+    if ($meshKey -ne '') {
+        $WithMesh = $true
+        Set-EnvVar $envFile "JIMBOMESH_API_KEY" $meshKey
+        Set-EnvVar $envFile "JIMBOMESH_MESH_URL" $meshUrl
+        Set-EnvVar $envFile "JIMBOMESH_AUTO_CONNECT" "true"
+        Write-Success "Mesh connectivity configured"
     } else {
-        $envContent += "`nJIMBOMESH_MESH_URL=$meshUrl"
+        Set-EnvVar $envFile "JIMBOMESH_AUTO_CONNECT" "false"
+        Write-Host "  No API key entered - mesh skipped" -ForegroundColor Yellow
     }
-    Set-Content -Path $envFile -Value $envContent.TrimEnd() -NoNewline
-    Write-Success "Mesh connectivity configured"
+} else {
+    Set-EnvVar $envFile "JIMBOMESH_AUTO_CONNECT" "false"
+    Write-Host "  Mesh skipped (can configure later in Admin UI > Configuration)" -ForegroundColor Yellow
 }
 
 # Build image
@@ -696,19 +749,8 @@ if (-not $NoStart) {
     Write-Step "Starting services..."
     Push-Location $ScriptDir
 
-    # Configure GPU mode via COMPOSE_FILE in .env (survives restarts and down)
+    # COMPOSE_FILE is persisted earlier so choices survive even with -NoStart.
     if ($WithGpu) {
-        $gpuCompose = "COMPOSE_FILE=docker-compose.yml;docker-compose.gpu.yml"
-        $envContent = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
-        if ($envContent -match '(?m)^COMPOSE_FILE=') {
-            $envContent = $envContent -replace '(?m)^COMPOSE_FILE=.*', $gpuCompose
-            Set-Content -Path $envFile -Value $envContent.TrimEnd() -NoNewline
-        } elseif ($envContent -match '(?m)^# *COMPOSE_FILE=') {
-            $envContent = $envContent -replace '(?m)^# *COMPOSE_FILE=.*', $gpuCompose
-            Set-Content -Path $envFile -Value $envContent.TrimEnd() -NoNewline
-        } else {
-            Add-Content -Path $envFile -Value "`n$gpuCompose"
-        }
         Write-Host "  GPU passthrough enabled (written to .env)" -ForegroundColor Cyan
     }
 
@@ -779,6 +821,14 @@ if (Test-Path $envFile) {
     }
 }
 
+# Persist performance mode choice and keep key ports synced.
+Set-EnvVar $envFile "HOLLER_PERFORMANCE_MODE" "false"
+if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) {
+    Set-EnvVar $envFile "GATEWAY_PORT" (Get-EnvVar $envFile "OLLAMA_HOST_PORT")
+}
+$gatewayHostPort = Get-EnvVar $envFile "GATEWAY_PORT"
+if (-not $gatewayHostPort) { $gatewayHostPort = "11434" }
+
 # Success
 Write-Host ""
 Write-Host "================================================================" -ForegroundColor Green
@@ -791,19 +841,63 @@ if ($connectKey) {
     Write-Host "         Connect now from your browser at:                      " -ForegroundColor Green
     Write-Host "                                                                " -ForegroundColor Green
 }
+
+# Saved configuration summary from .env
+$summaryServerName = Get-EnvVar $envFile "HOLLER_SERVER_NAME"
+$summaryCompose = Get-EnvVar $envFile "COMPOSE_FILE"
+$summaryGatewayPort = Get-EnvVar $envFile "GATEWAY_PORT"
+$summaryOllamaPort = Get-EnvVar $envFile "OLLAMA_HOST_PORT"
+$summaryModels = Get-EnvVar $envFile "HOLLER_MODELS"
+$summaryMeshUrl = Get-EnvVar $envFile "JIMBOMESH_MESH_URL"
+$summaryMeshKey = Get-EnvVar $envFile "JIMBOMESH_API_KEY"
+$summaryAdminEnabled = Get-EnvVar $envFile "ADMIN_ENABLED"
+
+if (-not $summaryServerName) { $summaryServerName = "Holler Server" }
+if (-not $summaryCompose) { $summaryCompose = "docker-compose.yml" }
+if (-not $summaryGatewayPort) { $summaryGatewayPort = "11434" }
+if (-not $summaryOllamaPort) { $summaryOllamaPort = "11434" }
+if (-not $summaryModels) { $summaryModels = "nomic-embed-text,llama3.1:8b" }
+if (-not $summaryAdminEnabled) { $summaryAdminEnabled = "true" }
+
+$summaryGpuMode = "CPU"
+if ($summaryCompose -match 'docker-compose\.gpu\.yml') {
+    $summaryGpuMode = "NVIDIA (docker-compose.gpu.yml)"
+}
+$summaryMesh = "Disconnected"
+if ($summaryMeshKey) {
+    if (-not $summaryMeshUrl) { $summaryMeshUrl = "https://api.jimbomesh.ai" }
+    $summaryMesh = "Connected ($summaryMeshUrl)"
+}
+$summaryAdmin = if ($summaryAdminEnabled.ToLower() -eq "true") { "Enabled" } else { "Disabled" }
+
+Write-Host ""
+Write-Host "  ╔═══════════════════════════════════════════════════════════╗"
+Write-Host "  ║  Configuration saved to .env                             ║"
+Write-Host "  ╠═══════════════════════════════════════════════════════════╣"
+Write-Host ("  ║  Server Name:    {0,-41}║" -f $summaryServerName)
+Write-Host ("  ║  GPU Mode:       {0,-41}║" -f $summaryGpuMode)
+Write-Host ("  ║  Gateway Port:   {0,-41}║" -f $summaryGatewayPort)
+Write-Host ("  ║  Ollama Port:    {0,-41}║" -f $summaryOllamaPort)
+Write-Host ("  ║  Models:         {0,-41}║" -f $summaryModels)
+Write-Host ("  ║  Mesh:           {0,-41}║" -f $summaryMesh)
+Write-Host ("  ║  Admin:          {0,-41}║" -f $summaryAdmin)
+Write-Host "  ║                                                           ║"
+Write-Host "  ║  All settings persist across reinstalls.                 ║"
+Write-Host "  ║  Edit .env directly or use Admin UI to change settings.  ║"
+Write-Host "  ╚═══════════════════════════════════════════════════════════╝"
 Write-Host "================================================================" -ForegroundColor Green
 
 if ($connectKey) {
     Write-Host ""
-    Write-Host "  http://localhost:11434/admin#key=$connectKey" -ForegroundColor White
+    Write-Host "  http://localhost:$gatewayHostPort/admin#key=$connectKey" -ForegroundColor White
     Write-Host ""
     Write-Host "  (This URL auto-logs you in. Bookmark it or save the key.)" -ForegroundColor Yellow
 }
 
 Write-Host ""
 Write-Host "Quick reference:" -ForegroundColor White
-Write-Host "  Admin UI:       http://localhost:11434/admin" -ForegroundColor Cyan
-Write-Host "  Ollama API:     http://localhost:11434" -ForegroundColor Cyan
+Write-Host "  Admin UI:       http://localhost:$gatewayHostPort/admin" -ForegroundColor Cyan
+Write-Host "  Ollama API:     http://localhost:$gatewayHostPort" -ForegroundColor Cyan
 if ($WithQdrant) {
     Write-Host "  Qdrant REST:    http://localhost:6333" -ForegroundColor Cyan
     Write-Host "  Qdrant gRPC:    localhost:6334" -ForegroundColor Cyan
@@ -825,7 +919,7 @@ Write-Host "  Restart:        cd $ScriptDir && $ComposeCmd restart jimbomesh-sti
 
 Write-Host ""
 Write-Host "Test embedding:" -ForegroundColor White
-Write-Host '  curl http://localhost:11434/api/embed -d "{\"model\":\"nomic-embed-text\",\"input\":\"hello world\"}"' -ForegroundColor Cyan
+Write-Host "  curl http://localhost:$gatewayHostPort/api/embed -d '{""model"":""nomic-embed-text"",""input"":""hello world""}'" -ForegroundColor Cyan
 
 Write-Host ""
 Write-Host "Documentation:    $ScriptDir\docs\" -ForegroundColor White

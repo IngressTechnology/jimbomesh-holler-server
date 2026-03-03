@@ -645,6 +645,14 @@ set_env_var() {
     fi
 }
 
+get_env_var() {
+    local file="$1"
+    local key="$2"
+    local value
+    value=$(grep "^${key}=" "$file" 2>/dev/null | head -1 | cut -d= -f2-)
+    echo "$value"
+}
+
 # Early compose command detection (for install menu before full prereq check)
 if docker compose version &> /dev/null; then
     COMPOSE_CMD="docker compose"
@@ -1039,6 +1047,65 @@ if [ "$WITH_QDRANT" = false ]; then
     fi
 fi
 
+# Create .env if it doesn't exist
+log_step "Checking configuration..."
+if [ ! -f "$SCRIPT_DIR/.env" ]; then
+    if [ -f "$SCRIPT_DIR/.env.example" ]; then
+        cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
+        log_success "Created .env from .env.example"
+    else
+        log_warning "No .env file found — using defaults"
+    fi
+else
+    log_success "Existing .env found — preserving your configuration"
+    echo -e "  ${YELLOW}To start fresh, delete .env and run setup again${NC}"
+fi
+
+# Auto-generate HOLLER_SERVER_NAME only when unset/commented/empty/default placeholder.
+if ! grep -q '^HOLLER_SERVER_NAME=' "$SCRIPT_DIR/.env" || grep -q '^HOLLER_SERVER_NAME=$' "$SCRIPT_DIR/.env" || grep -q '^HOLLER_SERVER_NAME=Holler Server$' "$SCRIPT_DIR/.env" || grep -q '^# *HOLLER_SERVER_NAME=' "$SCRIPT_DIR/.env"; then
+    LOCAL_HOSTNAME=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "unknown")
+    set_env_var "$SCRIPT_DIR/.env" "HOLLER_SERVER_NAME" "Holler Server $LOCAL_HOSTNAME"
+    log_success "Server name set to: Holler Server $LOCAL_HOSTNAME"
+fi
+
+# Persist defaults/choices so rebuilds and reinstalls are seamless.
+CURRENT_OLLAMA_HOST_PORT=$(get_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT")
+if [ -z "$CURRENT_OLLAMA_HOST_PORT" ]; then
+    CURRENT_OLLAMA_HOST_PORT="11434"
+fi
+set_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT" "$CURRENT_OLLAMA_HOST_PORT"
+
+CURRENT_GATEWAY_PORT=$(get_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT")
+if [ -z "$CURRENT_GATEWAY_PORT" ]; then
+    CURRENT_GATEWAY_PORT="11434"
+fi
+set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "$CURRENT_GATEWAY_PORT"
+
+CURRENT_MODELS=$(get_env_var "$SCRIPT_DIR/.env" "HOLLER_MODELS")
+if [ -z "$CURRENT_MODELS" ]; then
+    CURRENT_MODELS="nomic-embed-text,llama3.1:8b"
+fi
+set_env_var "$SCRIPT_DIR/.env" "HOLLER_MODELS" "$CURRENT_MODELS"
+
+CURRENT_EMBED_MODEL=$(get_env_var "$SCRIPT_DIR/.env" "OLLAMA_EMBED_MODEL")
+if [ -z "$CURRENT_EMBED_MODEL" ]; then
+    CURRENT_EMBED_MODEL="nomic-embed-text"
+fi
+set_env_var "$SCRIPT_DIR/.env" "OLLAMA_EMBED_MODEL" "$CURRENT_EMBED_MODEL"
+
+CURRENT_ADMIN_ENABLED=$(get_env_var "$SCRIPT_DIR/.env" "ADMIN_ENABLED")
+if [ -z "$CURRENT_ADMIN_ENABLED" ]; then
+    CURRENT_ADMIN_ENABLED="true"
+fi
+set_env_var "$SCRIPT_DIR/.env" "ADMIN_ENABLED" "$CURRENT_ADMIN_ENABLED"
+
+# Keep mesh name aligned with branded server name unless explicitly set.
+CURRENT_MESH_HOLLER_NAME=$(get_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME")
+if [ -z "$CURRENT_MESH_HOLLER_NAME" ] || grep -q '^# *JIMBOMESH_HOLLER_NAME=' "$SCRIPT_DIR/.env"; then
+    SERVER_NAME_DEFAULT=$(get_env_var "$SCRIPT_DIR/.env" "HOLLER_SERVER_NAME")
+    set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME" "$SERVER_NAME_DEFAULT"
+fi
+
 # Mesh connectivity interactive prompt
 echo ""
 echo -e "  ${BOLD}Connect to the JimboMesh mesh network?${NC}"
@@ -1054,11 +1121,14 @@ if echo "$mesh_choice" | grep -qi '^y'; then
     if [ -n "$mesh_key" ]; then
         set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_API_KEY" "$mesh_key"
         set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_MESH_URL" "$mesh_url"
+        set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_AUTO_CONNECT" "true"
         log_success "Mesh connectivity configured"
     else
+        set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_AUTO_CONNECT" "false"
         echo -e "  ${YELLOW}No API key entered — mesh skipped${NC}"
     fi
 else
+    set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_AUTO_CONNECT" "false"
     echo -e "  ${YELLOW}Mesh skipped (can configure later in Admin UI > Configuration)${NC}"
 fi
 
@@ -1070,17 +1140,10 @@ if [ "$OLLAMA_MODE" = "native" ]; then
     fi
 fi
 
-# Create .env if it doesn't exist
-log_step "Checking configuration..."
-if [ ! -f "$SCRIPT_DIR/.env" ]; then
-    if [ -f "$SCRIPT_DIR/.env.example" ]; then
-        cp "$SCRIPT_DIR/.env.example" "$SCRIPT_DIR/.env"
-        log_success "Created .env from .env.example"
-    else
-        log_warning "No .env file found — using defaults"
-    fi
+if [ "$OLLAMA_MODE" = "native" ]; then
+    set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "true"
 else
-    log_success ".env file exists"
+    set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "false"
 fi
 
 # macOS Performance Mode: avoid host port collision with native Ollama on 11434.
@@ -1089,10 +1152,22 @@ if [ "$OLLAMA_MODE" = "native" ] && [ -f "$SCRIPT_DIR/.env" ]; then
     CURRENT_OLLAMA_HOST_PORT=$(grep '^OLLAMA_HOST_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
     if [ -z "$CURRENT_OLLAMA_HOST_PORT" ] || [ "$CURRENT_OLLAMA_HOST_PORT" = "11434" ]; then
         set_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT" "11435"
+        set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "11435"
         log_success "Performance Mode gateway port set: localhost:11435 (native Ollama remains on 11434)"
     else
+        set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "$CURRENT_OLLAMA_HOST_PORT"
         log_success "Performance Mode gateway port preserved: localhost:${CURRENT_OLLAMA_HOST_PORT}"
     fi
+fi
+
+# Persist compose selection even when --no-start is used.
+if [ "$OLLAMA_MODE" = "native" ]; then
+    generate_mac_compose
+    set_env_var "$SCRIPT_DIR/.env" "COMPOSE_FILE" "docker-compose.yml:docker-compose.mac.yml"
+elif [ "$WITH_GPU" = true ]; then
+    set_env_var "$SCRIPT_DIR/.env" "COMPOSE_FILE" "docker-compose.yml:docker-compose.gpu.yml"
+else
+    set_env_var "$SCRIPT_DIR/.env" "COMPOSE_FILE" "docker-compose.yml"
 fi
 
 # Generate API keys if .env still has placeholder values
@@ -1173,28 +1248,10 @@ if [ "$NO_START" = false ]; then
     log_step "Starting services..."
     cd "$SCRIPT_DIR"
 
-    # Configure COMPOSE_FILE in .env (survives restarts and down)
-    # macOS Performance Mode takes precedence over GPU flag (Mac can't use NVIDIA anyway)
+    # COMPOSE_FILE is persisted earlier so choices survive even with --no-start.
     if [ "$OLLAMA_MODE" = "native" ]; then
-        generate_mac_compose
-        MAC_COMPOSE="COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml"
-        if grep -q '^COMPOSE_FILE=' "$SCRIPT_DIR/.env" 2>/dev/null; then
-            sed_inplace "s|^COMPOSE_FILE=.*|$MAC_COMPOSE|" "$SCRIPT_DIR/.env"
-        elif grep -q '^# *COMPOSE_FILE=' "$SCRIPT_DIR/.env" 2>/dev/null; then
-            sed_inplace "s|^# *COMPOSE_FILE=.*|$MAC_COMPOSE|" "$SCRIPT_DIR/.env"
-        else
-            echo "$MAC_COMPOSE" >> "$SCRIPT_DIR/.env"
-        fi
         echo -e "  ${CYAN}Mac Performance Mode: docker-compose.mac.yml overlay active${NC}"
     elif [ "$WITH_GPU" = true ]; then
-        GPU_COMPOSE="COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml"
-        if grep -q '^COMPOSE_FILE=' "$SCRIPT_DIR/.env" 2>/dev/null; then
-            sed_inplace "s|^COMPOSE_FILE=.*|$GPU_COMPOSE|" "$SCRIPT_DIR/.env"
-        elif grep -q '^# *COMPOSE_FILE=' "$SCRIPT_DIR/.env" 2>/dev/null; then
-            sed_inplace "s|^# *COMPOSE_FILE=.*|$GPU_COMPOSE|" "$SCRIPT_DIR/.env"
-        else
-            echo "$GPU_COMPOSE" >> "$SCRIPT_DIR/.env"
-        fi
         echo -e "  ${CYAN}GPU passthrough enabled (written to .env)${NC}"
     fi
 
@@ -1274,6 +1331,15 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
     [ -n "$_FINAL_PORT" ] && GATEWAY_HOST_PORT="$_FINAL_PORT"
 fi
 
+# Persist final mode choices after runtime checks.
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    if [ "$OLLAMA_MODE" = "native" ]; then
+        set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "true"
+    else
+        set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "false"
+    fi
+fi
+
 # macOS: write persistent artifacts and show mode-specific banner
 if [ "$OS_TYPE" = "Darwin" ]; then
     write_setup_config "$OLLAMA_MODE"
@@ -1304,6 +1370,56 @@ if [ -n "$CONNECT_KEY" ]; then
     echo -e "  ${BOLD}http://localhost:${GATEWAY_HOST_PORT}/admin#key=${CONNECT_KEY}${NC}"
     echo ""
     echo -e "  ${YELLOW}(This URL auto-logs you in. Bookmark it or save the key.)${NC}"
+fi
+
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    SUMMARY_SERVER_NAME=$(get_env_var "$SCRIPT_DIR/.env" "HOLLER_SERVER_NAME")
+    SUMMARY_COMPOSE=$(get_env_var "$SCRIPT_DIR/.env" "COMPOSE_FILE")
+    SUMMARY_GATEWAY_PORT=$(get_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT")
+    SUMMARY_OLLAMA_PORT=$(get_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT")
+    SUMMARY_MODELS=$(get_env_var "$SCRIPT_DIR/.env" "HOLLER_MODELS")
+    SUMMARY_MESH_URL=$(get_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_MESH_URL")
+    SUMMARY_MESH_KEY=$(get_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_API_KEY")
+    SUMMARY_ADMIN_ENABLED=$(get_env_var "$SCRIPT_DIR/.env" "ADMIN_ENABLED")
+
+    [ -z "$SUMMARY_SERVER_NAME" ] && SUMMARY_SERVER_NAME="Holler Server"
+    [ -z "$SUMMARY_COMPOSE" ] && SUMMARY_COMPOSE="docker-compose.yml"
+    [ -z "$SUMMARY_GATEWAY_PORT" ] && SUMMARY_GATEWAY_PORT="11434"
+    [ -z "$SUMMARY_OLLAMA_PORT" ] && SUMMARY_OLLAMA_PORT="11434"
+    [ -z "$SUMMARY_MODELS" ] && SUMMARY_MODELS="nomic-embed-text,llama3.1:8b"
+    [ -z "$SUMMARY_ADMIN_ENABLED" ] && SUMMARY_ADMIN_ENABLED="true"
+
+    SUMMARY_GPU_MODE="CPU"
+    if echo "$SUMMARY_COMPOSE" | grep -q 'docker-compose.gpu.yml'; then
+        SUMMARY_GPU_MODE="NVIDIA (docker-compose.gpu.yml)"
+    elif echo "$SUMMARY_COMPOSE" | grep -q 'docker-compose.mac.yml'; then
+        SUMMARY_GPU_MODE="METAL (docker-compose.mac.yml)"
+    fi
+
+    SUMMARY_MESH_STATUS="Disconnected"
+    if [ -n "$SUMMARY_MESH_KEY" ]; then
+        SUMMARY_MESH_STATUS="Connected (${SUMMARY_MESH_URL:-https://api.jimbomesh.ai})"
+    fi
+    SUMMARY_ADMIN_STATUS="Disabled"
+    if echo "$SUMMARY_ADMIN_ENABLED" | grep -qi '^true$'; then
+        SUMMARY_ADMIN_STATUS="Enabled"
+    fi
+
+    echo ""
+    echo "  ╔═══════════════════════════════════════════════════════════╗"
+    echo "  ║  Configuration saved to .env                             ║"
+    echo "  ╠═══════════════════════════════════════════════════════════╣"
+    printf "  ║  Server Name:    %-41s║\n" "$SUMMARY_SERVER_NAME"
+    printf "  ║  GPU Mode:       %-41s║\n" "$SUMMARY_GPU_MODE"
+    printf "  ║  Gateway Port:   %-41s║\n" "$SUMMARY_GATEWAY_PORT"
+    printf "  ║  Ollama Port:    %-41s║\n" "$SUMMARY_OLLAMA_PORT"
+    printf "  ║  Models:         %-41s║\n" "$SUMMARY_MODELS"
+    printf "  ║  Mesh:           %-41s║\n" "$SUMMARY_MESH_STATUS"
+    printf "  ║  Admin:          %-41s║\n" "$SUMMARY_ADMIN_STATUS"
+    echo "  ║                                                           ║"
+    echo "  ║  All settings persist across reinstalls.                 ║"
+    echo "  ║  Edit .env directly or use Admin UI to change settings.  ║"
+    echo "  ╚═══════════════════════════════════════════════════════════╝"
 fi
 
 echo -e "\n${BOLD}Quick reference:${NC}"

@@ -14,7 +14,8 @@ After:   ingest-*.js → embed.sh → Ollama (local) → Qdrant
 ## Quick Start
 
 The built-in setup scripts are the fastest way to get running — they handle
-prerequisites, `.env` creation, API key generation, image build, and startup.
+prerequisites, `.env` creation, API key generation, image build, startup, and
+persist your setup selections to `.env` for seamless reinstalls/rebuilds.
 
 ### Linux / macOS (one command)
 
@@ -244,7 +245,7 @@ Key Mesh environment variables:
 
 - `JIMBOMESH_COORDINATOR_URL` (preferred, takes precedence)
 - `JIMBOMESH_MESH_URL` (legacy fallback)
-- `JIMBOMESH_HOLLER_NAME`
+- `JIMBOMESH_HOLLER_NAME` (defaults to `HOLLER_SERVER_NAME`)
 - `JIMBOMESH_AUTO_CONNECT`
 - `MAX_PEER_CONNECTIONS`
 

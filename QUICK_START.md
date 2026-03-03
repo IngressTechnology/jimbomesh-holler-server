@@ -9,7 +9,8 @@ through the built-in **Admin UI**.
 
 The built-in setup scripts are the fastest way to get running. They handle
 prerequisite checks, `.env` creation, API key generation, Docker image build,
-and service startup — all in one shot.
+service startup, and persist your setup choices back into `.env` so reinstalls
+are seamless.
 
 ### Linux / macOS
 
@@ -104,9 +105,12 @@ The setup script detects an existing installation and presents a menu:
 
   1) Update        — Rebuild image + restart (keeps models & data)
   2) Restart       — Just restart services (no rebuild)
-  3) Fresh install — Full setup from scratch (keeps models & data)
+  3) Reconfigure   — Re-run setup prompts + rebuild (preserves existing .env)
   4) Stop          — Shut down all services
-  5) Cancel        — Exit without changes
+  5) Quick Start   — Continue with guided setup flow
+  6) Uninstall     — Remove containers/images/volumes and config
+  7) Nuclear       — Wipe everything and start fresh (keeps Ollama models)
+  8) Cancel        — Exit without changes
 ```
 
 **Models are never re-downloaded.** They live on a persistent Docker volume
@@ -279,7 +283,9 @@ browser and you are logged in immediately:
 http://localhost:11434/admin#key=YOUR_API_KEY
 ```
 
-Replace `YOUR_API_KEY` with the actual key from your `.env` file. The `#key=`
+Replace `YOUR_API_KEY` with the actual key from your `.env` file. The installer
+prints this URL using your configured gateway port (`GATEWAY_PORT`, default `11434`).
+The `#key=`
 hash is read once, used to log in, then stripped from the URL bar — it is never
 sent to the server as part of an HTTP request (hash fragments stay client-side).
 
@@ -425,7 +431,7 @@ Leave Mesh settings unset for standalone off-grid mode.
 
 - Set `JIMBOMESH_API_KEY` in `.env`
 - Optional: set `JIMBOMESH_COORDINATOR_URL` (preferred over `JIMBOMESH_MESH_URL`)
-- Optional: set `JIMBOMESH_HOLLER_NAME` for display
+- Optional: set `JIMBOMESH_HOLLER_NAME` for display (defaults to `HOLLER_SERVER_NAME`)
 - Optional: set `JIMBOMESH_AUTO_CONNECT=false` to require manual connect in Admin UI
 - Optional: set `MAX_PEER_CONNECTIONS=0` to disable WebRTC and force HTTP polling
 
