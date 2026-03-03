@@ -807,53 +807,7 @@ if (-not $NoStart) {
     }
 }
 
-# ── Launch Admin UI ──────────────────────────────────────────
-Write-Host ""
-Write-Host "  Opening Admin Dashboard..." -ForegroundColor Cyan
-
-$launchEnvContent = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
-$launchApiKey = ""
-if ($launchEnvContent -match '(?m)^JIMBOMESH_HOLLER_API_KEY=(.+)$') {
-    $launchApiKey = $Matches[1].Trim().Trim('"').Trim("'")
-}
-if ($launchApiKey -match '^generate_with_openssl_rand_hex_32$') {
-    $launchApiKey = ""
-}
-
-$launchPort = "11434"
-if ($launchEnvContent -match '(?m)^GATEWAY_PORT=(\d+)$') {
-    $launchPort = $Matches[1].Trim()
-}
-
-$launchReady = $false
-for ($i = 1; $i -le 30; $i++) {
-    Start-Sleep -Seconds 2
-    try {
-        $response = Invoke-WebRequest -Uri "http://localhost:$launchPort/healthz" -TimeoutSec 2 -ErrorAction SilentlyContinue
-        if ($response.StatusCode -eq 200) {
-            $launchReady = $true
-            break
-        }
-    } catch { }
-    Write-Host "    Waiting for Holler to start... ($($i * 2)s)" -ForegroundColor Gray
-}
-
-if ($launchReady -and $launchApiKey) {
-    $adminUrl = "http://localhost:$launchPort/admin#key=$launchApiKey"
-    Start-Process $adminUrl
-    Write-Host "  [OK] Admin Dashboard opened in your default browser" -ForegroundColor Green
-    Write-Host "  URL: http://localhost:$launchPort/admin" -ForegroundColor Cyan
-    Write-Host "  (Auto-logged in with your API key)" -ForegroundColor Gray
-} elseif ($launchReady) {
-    Start-Process "http://localhost:$launchPort/admin"
-    Write-Host "  [!!] Admin Dashboard opened (manual login required)" -ForegroundColor Yellow
-} else {
-    Write-Host "  [!!] Holler didn't start within 60 seconds." -ForegroundColor Yellow
-    Write-Host "  Check: docker compose logs -f" -ForegroundColor Yellow
-    Write-Host "  Then open: http://localhost:$launchPort/admin" -ForegroundColor Cyan
-}
-
-# Read keys from .env for the summary
+# Read keys from .env
 $connectKey = ""
 $qdrantConnectKey = ""
 if (Test-Path $envFile) {
@@ -866,6 +820,64 @@ if (Test-Path $envFile) {
         }
     }
 }
+
+# Auto-launch Admin UI in browser
+Write-Host ""
+Write-Host "Opening Admin Dashboard..." -ForegroundColor Cyan
+$launchPort = Get-EnvVar $envFile "GATEWAY_PORT"
+if (-not $launchPort) { $launchPort = "11434" }
+$adminUrl = "http://localhost:$launchPort/admin"
+if ($connectKey) {
+    $adminUrl = "http://localhost:$launchPort/admin#key=$connectKey"
+}
+
+# Quick readiness check (non-blocking)
+$apiReady = $false
+$apiHeaders = @{}
+if ($connectKey) {
+    $apiHeaders["X-API-Key"] = $connectKey
+}
+for ($i = 0; $i -lt 3; $i++) {
+    try {
+        $adminResp = Invoke-WebRequest -Uri "http://localhost:$launchPort/admin" -UseBasicParsing -TimeoutSec 2 -ErrorAction Stop
+        if ($adminResp.StatusCode -ge 200 -and $adminResp.StatusCode -lt 400) {
+            $apiReady = $true
+            break
+        }
+    } catch {
+        # Fallback: API endpoint may still be auth-gated even when gateway is up.
+        try {
+            $resp = Invoke-WebRequest -Uri "http://localhost:$launchPort/api/tags" -UseBasicParsing -TimeoutSec 2 -Headers $apiHeaders -ErrorAction Stop
+            if ($resp.StatusCode -in @(200, 401, 403)) {
+                $apiReady = $true
+                break
+            }
+        } catch {
+            $statusCode = $null
+            if ($_.Exception -and $_.Exception.Response -and $_.Exception.Response.StatusCode) {
+                $statusCode = [int]$_.Exception.Response.StatusCode
+            }
+            if ($statusCode -in @(401, 403)) {
+                $apiReady = $true
+                break
+            }
+        }
+    }
+    if ($i -lt 2) { Start-Sleep -Seconds 1 }
+}
+
+try {
+    Start-Process $adminUrl
+    Write-Host "  Browser opened!" -ForegroundColor Green
+    if (-not $apiReady) {
+        Write-Host "  Holler may still be warming up. If page is blank, refresh in a few seconds." -ForegroundColor Yellow
+    }
+} catch {
+    Write-Host "  Could not auto-open browser. Open manually:" -ForegroundColor Yellow
+    Write-Host "  $adminUrl" -ForegroundColor White
+}
+
+# Keys already loaded from .env for launch and summary
 
 # Persist performance mode choice and keep key ports synced.
 Set-EnvVar $envFile "HOLLER_PERFORMANCE_MODE" "false"

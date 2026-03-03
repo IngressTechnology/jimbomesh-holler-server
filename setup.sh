@@ -1320,30 +1320,28 @@ if [ "$NO_START" = false ]; then
     repair_stats_schema
 fi
 
+# Read keys from .env for launch and summary
+CONNECT_KEY=""
+QDRANT_CONNECT_KEY=""
+GATEWAY_HOST_PORT="11434"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    CONNECT_KEY=$(grep '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
+    QDRANT_CONNECT_KEY=$(grep '^QDRANT_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
+    _FINAL_PORT=$(grep '^GATEWAY_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
+    if [ -z "$_FINAL_PORT" ]; then
+        _FINAL_PORT=$(grep '^OLLAMA_HOST_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
+    fi
+    [ -n "$_FINAL_PORT" ] && GATEWAY_HOST_PORT="$_FINAL_PORT"
+fi
+
 # ── Launch Admin UI ──────────────────────────────────────────
 echo ""
-echo -e "${CYAN}  Opening Admin Dashboard...${NC}"
-
-LAUNCH_API_KEY=""
-LAUNCH_PORT="11434"
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    LAUNCH_API_KEY="$(grep -E '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")"
-    LAUNCH_PORT="$(grep -E '^GATEWAY_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")"
+echo -e "${CYAN}Opening Admin Dashboard...${NC}"
+LAUNCH_PORT="${GATEWAY_HOST_PORT:-11434}"
+ADMIN_URL="http://localhost:${LAUNCH_PORT}/admin"
+if [ -n "$CONNECT_KEY" ]; then
+    ADMIN_URL="http://localhost:${LAUNCH_PORT}/admin#key=$CONNECT_KEY"
 fi
-LAUNCH_PORT="${LAUNCH_PORT:-11434}"
-if [ "$LAUNCH_API_KEY" = "generate_with_openssl_rand_hex_32" ]; then
-    LAUNCH_API_KEY=""
-fi
-
-READY=false
-for i in $(seq 1 30); do
-    sleep 2
-    if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$LAUNCH_PORT/healthz" 2>/dev/null)" = "200" ]; then
-        READY=true
-        break
-    fi
-    echo -e "    Waiting for Holler to start... ($((i * 2))s)"
-done
 
 open_admin_url() {
     local target_url="$1"
@@ -1359,39 +1357,34 @@ open_admin_url() {
     return 1
 }
 
-if [ "$READY" = true ] && [ -n "$LAUNCH_API_KEY" ]; then
-    ADMIN_URL="http://localhost:$LAUNCH_PORT/admin#key=$LAUNCH_API_KEY"
-    if open_admin_url "$ADMIN_URL"; then
-        echo -e "  ${GREEN}✓ Admin Dashboard opened in your default browser${NC}"
-        echo -e "  ${CYAN}URL: http://localhost:$LAUNCH_PORT/admin${NC}"
-        echo -e "  ${YELLOW}(Auto-logged in with your API key)${NC}"
-    else
-        echo -e "  ${YELLOW}Could not auto-open browser.${NC}"
-        echo -e "  ${CYAN}Open manually: $ADMIN_URL${NC}"
+# Quick readiness check (non-blocking)
+READY=false
+for i in $(seq 0 2); do
+    ADMIN_STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:${LAUNCH_PORT}/admin" 2>/dev/null)"
+    if [ "$ADMIN_STATUS_CODE" = "200" ] || [ "$ADMIN_STATUS_CODE" = "301" ] || [ "$ADMIN_STATUS_CODE" = "302" ]; then
+        READY=true
+        break
     fi
-elif [ "$READY" = true ]; then
-    NO_KEY_URL="http://localhost:$LAUNCH_PORT/admin"
-    if open_admin_url "$NO_KEY_URL"; then
-        echo -e "  ${YELLOW}✓ Admin Dashboard opened (manual login required)${NC}"
+    if [ -n "$CONNECT_KEY" ]; then
+        STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' -H "X-API-Key: $CONNECT_KEY" "http://localhost:${LAUNCH_PORT}/api/tags" 2>/dev/null)"
     else
-        echo -e "  ${YELLOW}Could not auto-open browser.${NC}"
-        echo -e "  ${CYAN}Open manually: $NO_KEY_URL${NC}"
+        STATUS_CODE="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:${LAUNCH_PORT}/api/tags" 2>/dev/null)"
+    fi
+    if [ "$STATUS_CODE" = "200" ] || [ "$STATUS_CODE" = "401" ] || [ "$STATUS_CODE" = "403" ]; then
+        READY=true
+        break
+    fi
+    [ "$i" -lt 2 ] && sleep 1
+done
+
+if open_admin_url "$ADMIN_URL"; then
+    echo -e "  ${GREEN}Browser opened!${NC}"
+    if [ "$READY" = false ]; then
+        echo -e "  ${YELLOW}Holler may still be warming up. If page is blank, refresh in a few seconds.${NC}"
     fi
 else
-    echo -e "  ${YELLOW}⚠️  Holler didn't start within 60 seconds.${NC}"
-    echo -e "  ${YELLOW}Check: docker compose logs -f${NC}"
-    echo -e "  ${CYAN}Then open: http://localhost:$LAUNCH_PORT/admin${NC}"
-fi
-
-# Read keys from .env for the summary
-CONNECT_KEY=""
-QDRANT_CONNECT_KEY=""
-GATEWAY_HOST_PORT="11434"
-if [ -f "$SCRIPT_DIR/.env" ]; then
-    CONNECT_KEY=$(grep '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
-    QDRANT_CONNECT_KEY=$(grep '^QDRANT_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
-    _FINAL_PORT=$(grep '^OLLAMA_HOST_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
-    [ -n "$_FINAL_PORT" ] && GATEWAY_HOST_PORT="$_FINAL_PORT"
+    echo -e "  ${YELLOW}Could not auto-open browser. Open manually:${NC}"
+    echo -e "  ${NC}$ADMIN_URL${NC}"
 fi
 
 # Persist final mode choices after runtime checks.
