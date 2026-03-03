@@ -1320,6 +1320,69 @@ if [ "$NO_START" = false ]; then
     repair_stats_schema
 fi
 
+# ── Launch Admin UI ──────────────────────────────────────────
+echo ""
+echo -e "${CYAN}  Opening Admin Dashboard...${NC}"
+
+LAUNCH_API_KEY=""
+LAUNCH_PORT="11434"
+if [ -f "$SCRIPT_DIR/.env" ]; then
+    LAUNCH_API_KEY="$(grep -E '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")"
+    LAUNCH_PORT="$(grep -E '^GATEWAY_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d'=' -f2- | tr -d '"' | tr -d "'")"
+fi
+LAUNCH_PORT="${LAUNCH_PORT:-11434}"
+if [ "$LAUNCH_API_KEY" = "generate_with_openssl_rand_hex_32" ]; then
+    LAUNCH_API_KEY=""
+fi
+
+READY=false
+for i in $(seq 1 30); do
+    sleep 2
+    if [ "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$LAUNCH_PORT/healthz" 2>/dev/null)" = "200" ]; then
+        READY=true
+        break
+    fi
+    echo -e "    Waiting for Holler to start... ($((i * 2))s)"
+done
+
+open_admin_url() {
+    local target_url="$1"
+    if command -v xdg-open >/dev/null 2>&1; then
+        xdg-open "$target_url" >/dev/null 2>&1 && return 0
+    fi
+    if command -v open >/dev/null 2>&1; then
+        open "$target_url" >/dev/null 2>&1 && return 0
+    fi
+    if command -v start >/dev/null 2>&1; then
+        start "$target_url" >/dev/null 2>&1 && return 0
+    fi
+    return 1
+}
+
+if [ "$READY" = true ] && [ -n "$LAUNCH_API_KEY" ]; then
+    ADMIN_URL="http://localhost:$LAUNCH_PORT/admin#key=$LAUNCH_API_KEY"
+    if open_admin_url "$ADMIN_URL"; then
+        echo -e "  ${GREEN}✓ Admin Dashboard opened in your default browser${NC}"
+        echo -e "  ${CYAN}URL: http://localhost:$LAUNCH_PORT/admin${NC}"
+        echo -e "  ${YELLOW}(Auto-logged in with your API key)${NC}"
+    else
+        echo -e "  ${YELLOW}Could not auto-open browser.${NC}"
+        echo -e "  ${CYAN}Open manually: $ADMIN_URL${NC}"
+    fi
+elif [ "$READY" = true ]; then
+    NO_KEY_URL="http://localhost:$LAUNCH_PORT/admin"
+    if open_admin_url "$NO_KEY_URL"; then
+        echo -e "  ${YELLOW}✓ Admin Dashboard opened (manual login required)${NC}"
+    else
+        echo -e "  ${YELLOW}Could not auto-open browser.${NC}"
+        echo -e "  ${CYAN}Open manually: $NO_KEY_URL${NC}"
+    fi
+else
+    echo -e "  ${YELLOW}⚠️  Holler didn't start within 60 seconds.${NC}"
+    echo -e "  ${YELLOW}Check: docker compose logs -f${NC}"
+    echo -e "  ${CYAN}Then open: http://localhost:$LAUNCH_PORT/admin${NC}"
+fi
+
 # Read keys from .env for the summary
 CONNECT_KEY=""
 QDRANT_CONNECT_KEY=""
@@ -1370,6 +1433,9 @@ if [ -n "$CONNECT_KEY" ]; then
     echo -e "  ${BOLD}http://localhost:${GATEWAY_HOST_PORT}/admin#key=${CONNECT_KEY}${NC}"
     echo ""
     echo -e "  ${YELLOW}(This URL auto-logs you in. Bookmark it or save the key.)${NC}"
+    echo -e "  ${YELLOW}⚠️  The Admin URL contains your API key in the hash fragment.${NC}"
+    echo -e "  ${YELLOW}    It is NOT sent to any server — it stays in your browser only.${NC}"
+    echo -e "  ${YELLOW}    Do NOT share the full URL with the #key= part.${NC}"
 fi
 
 if [ -f "$SCRIPT_DIR/.env" ]; then

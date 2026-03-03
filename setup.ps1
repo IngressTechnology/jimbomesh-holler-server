@@ -807,6 +807,52 @@ if (-not $NoStart) {
     }
 }
 
+# ── Launch Admin UI ──────────────────────────────────────────
+Write-Host ""
+Write-Host "  Opening Admin Dashboard..." -ForegroundColor Cyan
+
+$launchEnvContent = if (Test-Path $envFile) { Get-Content $envFile -Raw } else { "" }
+$launchApiKey = ""
+if ($launchEnvContent -match '(?m)^JIMBOMESH_HOLLER_API_KEY=(.+)$') {
+    $launchApiKey = $Matches[1].Trim().Trim('"').Trim("'")
+}
+if ($launchApiKey -match '^generate_with_openssl_rand_hex_32$') {
+    $launchApiKey = ""
+}
+
+$launchPort = "11434"
+if ($launchEnvContent -match '(?m)^GATEWAY_PORT=(\d+)$') {
+    $launchPort = $Matches[1].Trim()
+}
+
+$launchReady = $false
+for ($i = 1; $i -le 30; $i++) {
+    Start-Sleep -Seconds 2
+    try {
+        $response = Invoke-WebRequest -Uri "http://localhost:$launchPort/healthz" -TimeoutSec 2 -ErrorAction SilentlyContinue
+        if ($response.StatusCode -eq 200) {
+            $launchReady = $true
+            break
+        }
+    } catch { }
+    Write-Host "    Waiting for Holler to start... ($($i * 2)s)" -ForegroundColor Gray
+}
+
+if ($launchReady -and $launchApiKey) {
+    $adminUrl = "http://localhost:$launchPort/admin#key=$launchApiKey"
+    Start-Process $adminUrl
+    Write-Host "  [OK] Admin Dashboard opened in your default browser" -ForegroundColor Green
+    Write-Host "  URL: http://localhost:$launchPort/admin" -ForegroundColor Cyan
+    Write-Host "  (Auto-logged in with your API key)" -ForegroundColor Gray
+} elseif ($launchReady) {
+    Start-Process "http://localhost:$launchPort/admin"
+    Write-Host "  [!!] Admin Dashboard opened (manual login required)" -ForegroundColor Yellow
+} else {
+    Write-Host "  [!!] Holler didn't start within 60 seconds." -ForegroundColor Yellow
+    Write-Host "  Check: docker compose logs -f" -ForegroundColor Yellow
+    Write-Host "  Then open: http://localhost:$launchPort/admin" -ForegroundColor Cyan
+}
+
 # Read keys from .env for the summary
 $connectKey = ""
 $qdrantConnectKey = ""
@@ -892,6 +938,9 @@ if ($connectKey) {
     Write-Host "  http://localhost:$gatewayHostPort/admin#key=$connectKey" -ForegroundColor White
     Write-Host ""
     Write-Host "  (This URL auto-logs you in. Bookmark it or save the key.)" -ForegroundColor Yellow
+    Write-Host "  [!!] The Admin URL contains your API key in the hash fragment." -ForegroundColor Yellow
+    Write-Host "       It is NOT sent to any server - it stays in your browser only." -ForegroundColor Yellow
+    Write-Host "       Do NOT share the full URL with the #key= part." -ForegroundColor Yellow
 }
 
 Write-Host ""
