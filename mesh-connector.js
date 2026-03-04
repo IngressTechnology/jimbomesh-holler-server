@@ -477,6 +477,11 @@ class MeshConnector {
           try { this._addLog('error', 'Fallback inference error: ' + (err && err.message || String(err))); } catch (_) {}
         });
 
+      } else if (msg.type === 'embedding_request') {
+        this._handleEmbeddingRequest(msg).catch((err) => {
+          try { this._addLog('error', 'Embedding request error: ' + (err && err.message || String(err))); } catch (_) {}
+        });
+
       } else if (msg.type === 'pong') {
         this._mgmtWsPongReceived = true;
       } else if (msg.type === 'ping') {
@@ -683,6 +688,86 @@ class MeshConnector {
         this._addLog('error', 'Fallback inference crashed: ' + (err && err.message || String(err)));
       } catch (logErr) {
         console.error('[mesh-connector] CRITICAL: fallback_inference double-fault:', err, logErr);
+      }
+    }
+  }
+
+  /**
+   * Handle embedding requests from SaaS Playground via management WebSocket.
+   * Calls local Ollama /api/embed, transforms to OpenAI-compatible format.
+   */
+  async _handleEmbeddingRequest(msg) {
+    const requestId = msg.request_id;
+    try {
+      const model = msg.model || 'nomic-embed-text';
+      const input = msg.input;
+      if (!input) {
+        this._sendMgmtMessage({ type: 'embedding_error', request_id: requestId, error: 'Missing input text' });
+        return;
+      }
+
+      this._addLog('info', 'Embedding request: model=' + model + ' len=' + (typeof input === 'string' ? input.length : '?'));
+
+      const ollamaUrl = this.ollamaUrl || process.env.OLLAMA_HOST || 'http://127.0.0.1:11435';
+      const parsed = new URL(ollamaUrl);
+      const isHttps = parsed.protocol === 'https:';
+      const http = require(isHttps ? 'https' : 'http');
+
+      const body = JSON.stringify({ model, input });
+      const ollamaResult = await new Promise((resolve, reject) => {
+        const req = http.request({
+          hostname: parsed.hostname,
+          port: parsed.port || (isHttps ? 443 : 80),
+          path: '/api/embed',
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          timeout: 30000,
+        }, (res) => {
+          let chunks = '';
+          res.on('data', (c) => { chunks += c; });
+          res.on('end', () => {
+            if (res.statusCode >= 400) {
+              reject(new Error('Ollama returned ' + res.statusCode + ': ' + chunks.slice(0, 200)));
+            } else {
+              try { resolve(JSON.parse(chunks)); } catch (e) { reject(new Error('Invalid JSON from Ollama')); }
+            }
+          });
+        });
+        req.on('error', reject);
+        req.on('timeout', () => { req.destroy(); reject(new Error('Ollama embedding request timed out (30s)')); });
+        req.write(body);
+        req.end();
+      });
+
+      if (!ollamaResult.embeddings || !ollamaResult.embeddings.length) {
+        this._sendMgmtMessage({ type: 'embedding_error', request_id: requestId, error: 'Ollama returned no embeddings' });
+        return;
+      }
+
+      const promptTokens = ollamaResult.prompt_eval_count || 0;
+      this._sendMgmtMessage({
+        type: 'embedding_response',
+        request_id: requestId,
+        data: {
+          object: 'list',
+          data: ollamaResult.embeddings.map((emb, i) => ({
+            object: 'embedding',
+            embedding: emb,
+            index: i,
+          })),
+          model: ollamaResult.model || model,
+          usage: { prompt_tokens: promptTokens, total_tokens: promptTokens },
+        },
+      });
+
+      this._addLog('info', 'Embedding response sent: ' + ollamaResult.embeddings[0].length + 'd, ' + promptTokens + ' tokens');
+    } catch (err) {
+      const errorMsg = (err && err.message) || String(err);
+      this._addLog('error', 'Embedding request failed: ' + errorMsg);
+      try {
+        this._sendMgmtMessage({ type: 'embedding_error', request_id: requestId, error: errorMsg });
+      } catch (_) {
+        console.error('[mesh-connector] CRITICAL: embedding_request double-fault:', err);
       }
     }
   }
