@@ -53,7 +53,7 @@ The benchmark script measures embedding latency across different text lengths an
 JIMBOMESH_HOLLER_API_KEY=your_key ./scripts/benchmark-models.sh
 
 # Against a remote server
-OLLAMA_URL=http://your-server-ip:11434 JIMBOMESH_HOLLER_API_KEY=your_key ./scripts/benchmark-models.sh
+OLLAMA_URL=http://your-server-ip:1920 JIMBOMESH_HOLLER_API_KEY=your_key ./scripts/benchmark-models.sh
 
 # More rounds for statistical accuracy
 BENCH_ROUNDS=10 BENCH_WARMUP=2 ./scripts/benchmark-models.sh
@@ -63,7 +63,7 @@ BENCH_ROUNDS=10 BENCH_WARMUP=2 ./scripts/benchmark-models.sh
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `OLLAMA_URL` | `http://localhost:11434` | Ollama API endpoint |
+| `OLLAMA_URL` | `http://localhost:1920` | Ollama API endpoint |
 | `JIMBOMESH_HOLLER_API_KEY` | (none) | API key for authentication |
 | `BENCH_ROUNDS` | `5` | Number of timed rounds per test |
 | `BENCH_WARMUP` | `1` | Warmup rounds (excluded from results) |

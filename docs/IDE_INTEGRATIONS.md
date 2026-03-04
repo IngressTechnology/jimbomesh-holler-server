@@ -22,7 +22,7 @@ Use your JimboMesh Holler as the AI backend for your favorite development tools.
 ### Prerequisites
 
 1. **Holler must be running** — see [Quick Start](../QUICK_START.md)
-2. **Note your Holler URL** — default: `http://localhost:11434`
+2. **Note your Holler URL** — default: `http://localhost:1920`
 3. **Note your API key** — from `.env` file: `JIMBOMESH_HOLLER_API_KEY`
 
 **Note on Authentication:** The Holler accepts API keys via both methods:
@@ -47,7 +47,7 @@ When you configure `apiKey` in IDE settings, most tools automatically send it as
 
 ```bash
 # Using X-API-Key
-curl -X POST http://localhost:11434/admin/api/models/pull \
+curl -X POST http://localhost:1920/admin/api/models/pull \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "qwen2.5-coder:7b"}'
@@ -79,7 +79,7 @@ Cursor natively supports custom OpenAI-compatible API endpoints.
 1. Open Cursor Settings (`Cmd+,` / `Ctrl+,`)
 2. Navigate to **Models** section
 3. Under **OpenAI API Key**, enter your Holler API key
-4. Under **Override OpenAI Base URL**, enter: `http://localhost:11434/v1`
+4. Under **Override OpenAI Base URL**, enter: `http://localhost:1920/v1`
 5. Click **Add Model** and enter your model name (e.g., `llama3.1:8b`)
 6. Select your model as the default for Chat and/or Composer
 
@@ -88,7 +88,7 @@ Cursor natively supports custom OpenAI-compatible API endpoints.
 | Setting | Value |
 |---------|-------|
 | OpenAI API Key | `your-holler-api-key` |
-| Override OpenAI Base URL | `http://localhost:11434/v1` |
+| Override OpenAI Base URL | `http://localhost:1920/v1` |
 | Model | `llama3.1:8b` (or any installed model) |
 
 ### Using Multiple Models
@@ -133,14 +133,14 @@ Edit `~/.continue/config.json` (Continue creates this on first launch):
       "title": "Holler — Llama 3.1 8B",
       "provider": "openai",
       "model": "llama3.1:8b",
-      "apiBase": "http://localhost:11434/v1",
+      "apiBase": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     },
     {
       "title": "Holler — Qwen Coder",
       "provider": "openai",
       "model": "qwen2.5-coder:7b",
-      "apiBase": "http://localhost:11434/v1",
+      "apiBase": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     }
   ],
@@ -148,13 +148,13 @@ Edit `~/.continue/config.json` (Continue creates this on first launch):
     "title": "Holler Autocomplete",
     "provider": "openai",
     "model": "starcoder2:3b",
-    "apiBase": "http://localhost:11434/v1",
+    "apiBase": "http://localhost:1920/v1",
     "apiKey": "your-holler-api-key"
   },
   "embeddingsProvider": {
     "provider": "openai",
     "model": "nomic-embed-text",
-    "apiBase": "http://localhost:11434/v1",
+    "apiBase": "http://localhost:1920/v1",
     "apiKey": "your-holler-api-key"
   }
 }
@@ -201,7 +201,7 @@ In VS Code `settings.json`:
 {
   "cody.experimental.ollamaChat": true,
   "cody.autocomplete.advanced.provider": "experimental-ollama",
-  "cody.autocomplete.advanced.serverEndpoint": "http://localhost:11434",
+  "cody.autocomplete.advanced.serverEndpoint": "http://localhost:1920",
   "cody.autocomplete.advanced.model": "starcoder2:3b"
 }
 ```
@@ -216,7 +216,7 @@ If Cody adds full OpenAI-compatible provider support (check latest docs), config
 {
   "cody.provider": "openaicompatible",
   "cody.provider.config": {
-    "endpoint": "http://localhost:11434/v1",
+    "endpoint": "http://localhost:1920/v1",
     "apiKey": "your-holler-api-key",
     "model": "llama3.1:8b"
   }
@@ -251,7 +251,7 @@ Edit `~/.continue/config.json` (same file as VS Code — shared config!):
       "title": "Holler — Llama 3.1 8B",
       "provider": "openai",
       "model": "llama3.1:8b",
-      "apiBase": "http://localhost:11434/v1",
+      "apiBase": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     }
   ],
@@ -259,7 +259,7 @@ Edit `~/.continue/config.json` (same file as VS Code — shared config!):
     "title": "Holler Autocomplete",
     "provider": "openai",
     "model": "qwen2.5-coder:7b",
-    "apiBase": "http://localhost:11434/v1",
+    "apiBase": "http://localhost:1920/v1",
     "apiKey": "your-holler-api-key"
   }
 }
@@ -300,7 +300,7 @@ AI-powered code suggestions and chat inside Neovim.
   opts = {
     provider = "openai",
     openai = {
-      endpoint = "http://localhost:11434/v1",
+      endpoint = "http://localhost:1920/v1",
       model = "llama3.1:8b",
       api_key_name = "HOLLER_API_KEY",  -- reads from env var
       timeout = 60000,
@@ -329,7 +329,7 @@ More flexible, supports multiple providers and adapters.
       holler = function()
         return require("codecompanion.adapters").extend("openai_compatible", {
           env = {
-            url = "http://localhost:11434",
+            url = "http://localhost:1920",
             api_key = "HOLLER_API_KEY",
           },
           schema = {
@@ -357,7 +357,7 @@ If you prefer the native Ollama API (not OpenAI-compatible):
   "nomnivore/ollama.nvim",
   opts = {
     model = "llama3.1:8b",
-    url = "http://localhost:11434",  -- Holler proxies to Ollama
+    url = "http://localhost:1920",  -- Holler proxies to Ollama
   },
 }
 ```
@@ -378,7 +378,7 @@ Edit Zed settings (`Cmd+,` → JSON):
 {
   "language_models": {
     "openai": {
-      "api_url": "http://localhost:11434/v1",
+      "api_url": "http://localhost:1920/v1",
       "api_key": "your-holler-api-key",
       "available_models": [
         {
@@ -422,7 +422,7 @@ Aider is a powerful AI pair programming CLI tool. Works perfectly with any OpenA
 pip install aider-chat
 
 # Set environment variables
-export OPENAI_API_BASE=http://localhost:11434/v1
+export OPENAI_API_BASE=http://localhost:1920/v1
 export OPENAI_API_KEY=your-holler-api-key
 
 # Start aider with your Holler
@@ -434,7 +434,7 @@ aider --model openai/llama3.1:8b
 Create `~/.aider.conf.yml`:
 
 ```yaml
-openai-api-base: http://localhost:11434/v1
+openai-api-base: http://localhost:1920/v1
 openai-api-key: your-holler-api-key
 model: openai/llama3.1:8b
 ```
@@ -466,7 +466,7 @@ Windsurf's custom model support varies by version. Check the latest documentatio
 ### If OpenAI-Compatible Providers Are Supported
 
 **Settings → AI Provider → Custom:**
-- **API Base URL**: `http://localhost:11434/v1`
+- **API Base URL**: `http://localhost:1920/v1`
 - **API Key**: `your-holler-api-key`
 - **Model**: `llama3.1:8b`
 
@@ -489,7 +489,7 @@ For full local AI coding in a VS Code-based editor, consider using **VS Code + C
 Your Holler isn't running or isn't accessible:
 
 ```bash
-curl http://localhost:11434/health
+curl http://localhost:1920/health
 ```
 
 If this fails, start your Holler:
@@ -510,10 +510,10 @@ Use this exact value in your IDE config. Test authentication works:
 
 ```bash
 # Test with X-API-Key header
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/v1/models
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/v1/models
 
 # Or test with Authorization: Bearer (what most IDEs use)
-curl -H "Authorization: Bearer YOUR_KEY" http://localhost:11434/v1/models
+curl -H "Authorization: Bearer YOUR_KEY" http://localhost:1920/v1/models
 ```
 
 Both methods should return a JSON list of available models.
@@ -523,13 +523,13 @@ Both methods should return a JSON list of available models.
 The model isn't installed. List available models first:
 
 ```bash
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/v1/models
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/v1/models
 ```
 
 Then install the model you need:
 
 ```bash
-curl -X POST http://localhost:11434/admin/api/models/pull \
+curl -X POST http://localhost:1920/admin/api/models/pull \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "llama3.1:8b"}'
@@ -546,13 +546,13 @@ Or use the Holler admin panel → **Models** tab → **Marketplace**.
 
 ### Remote Holler (different machine)
 
-Replace `localhost:11434` with your Holler machine's IP:
+Replace `localhost:1920` with your Holler machine's IP:
 
 ```
-http://192.168.1.100:11434/v1
+http://192.168.1.100:1920/v1
 ```
 
-Ensure port 11434 is open in the firewall.
+Ensure port 1920 is open in the firewall.
 
 ---
 

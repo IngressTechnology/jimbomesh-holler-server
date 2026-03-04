@@ -72,7 +72,7 @@ RUN chmod +x /usr/local/bin/docker-entrypoint.sh /opt/jimbomesh-still/*.sh /opt/
 # This is mapped to a named volume for persistence
 VOLUME ["/root/.ollama"]
 
-EXPOSE 11434
+EXPOSE 1920
 EXPOSE 9090
 
 ENTRYPOINT ["/usr/local/bin/docker-entrypoint.sh"]

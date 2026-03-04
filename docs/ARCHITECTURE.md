@@ -15,7 +15,7 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │  │                      │   │  (optional profile) │             │
 │  │  ┌───────────────┐   │   │                     │             │
 │  │  │ API Gateway   │   │   │  Qdrant v1.13.2     │             │
-│  │  │ :11434 (ext)  │   │   │  :6333 REST         │             │
+│  │  │ :1920 (ext)   │   │   │  :6333 REST         │             │
 │  │  │ X-API-Key auth│   │   │  :6334 gRPC         │             │
 │  │  │ Rate limiting │   │   │                     │             │
 │  │  │ /admin (UI)   │   │   │                     │             │
@@ -49,7 +49,7 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 ┌─────────────────────────┐  ┌─────────────────────────┐
 │    Host / LAN Clients   │  │  JimboMesh Gateway       │
 │                         │  │  (separate stack)       │
-│  http://localhost:11434 │  │  embed.sh → Ollama      │
+│  http://localhost:1920 │  │  embed.sh → Ollama      │
 │  http://localhost:6333  │  │  ingest-*.js → Qdrant   │
 └─────────────────────────┘  └─────────────────────────┘
 ```
@@ -64,7 +64,7 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │                              │         │                             │
 │  Notion API ──→ ingest-*.js  │         │   ┌─────────────────────┐   │
 │       │                      │         │   │  API Gateway        │   │
-│       ▼                      │         │   │  :11434             │   │
+│       ▼                      │         │   │  :1920              │   │
 │  classify() → sanitize()     │         │   │  • Validate API key │   │
 │       │                      │  HTTP   │   │  • Rate limit       │   │
 │       ▼                      │ +Header │   │  • Forward request  │   │
@@ -174,7 +174,7 @@ The primary service. Runs Ollama with automatic model management.
 | Image | `jimbomesh-still:latest` (built from Dockerfile) |
 | Base | `ollama/ollama:latest` + Node.js 22.x LTS |
 | Container | `jimbomesh-still` |
-| Ports | 11434 (API gateway + admin UI), 9090 (health endpoints) |
+| Ports | 1920 (API gateway + admin UI), 9090 (health endpoints) |
 | Internal | Ollama on 127.0.0.1:11435 (not exposed) |
 | Volume | `ollama_models` (named volume at `/root/.ollama`) |
 | Entrypoint | `docker-entrypoint.sh` (start → wait → API gateway → health → pull → serve) |
@@ -189,7 +189,7 @@ The primary service. Runs Ollama with automatic model management.
 
 1. Start Ollama server on internal port 127.0.0.1:11435
 2. Poll `/api/tags` until API is ready (120s timeout)
-3. Start API gateway on 0.0.0.0:11434 (validates X-API-Key header)
+3. Start API gateway on 0.0.0.0:1920 (validates X-API-Key header)
 4. Start health server on :9090
 5. Pull each model in `HOLLER_MODELS` if not already present
 6. Log readiness and wait on all processes
@@ -199,7 +199,7 @@ The primary service. Runs Ollama with automatic model management.
 1. Skip `ollama serve` — external Ollama is already running on the host
 2. Wait for `OLLAMA_EXTERNAL_URL` (host.docker.internal:11434) to respond (60s timeout)
 3. Set `OLLAMA_INTERNAL_URL=$OLLAMA_EXTERNAL_URL` — gateway routes to host Ollama
-4. Start API gateway on 0.0.0.0:11434
+4. Start API gateway on 0.0.0.0:1920
 5. Start health server on :9090
 6. Pull each model in `HOLLER_MODELS` via `OLLAMA_HOST=host.docker.internal:11434` (host CLI)
 7. Log readiness and wait on all processes
@@ -238,7 +238,7 @@ On macOS, Docker cannot pass Metal GPU access to containers. Performance Mode ru
 │  │  Docker Network                    │                  │
 │  │                                    │                  │
 │  │  jimbomesh-still                   │                  │
-│  │  API Gateway :11434 (external)     │                  │
+│  │  API Gateway :1920 (external)      │                  │
 │  │  OLLAMA_INTERNAL_URL=              │                  │
 │  │    http://host.docker.internal:11434│                 │
 │  └──────────────────┬─────────────────┘                  │
@@ -317,9 +317,9 @@ All services run on the default Docker Compose network. Service-to-service commu
 
 | From | To | URL | Auth Required |
 |------|----|-----|---------------|
-| Host | Admin UI | `http://localhost:11434/admin` | ❌ Static (API key entered in browser) |
-| Host | Admin API | `http://localhost:11434/admin/api/*` | ✅ X-API-Key |
-| Host | API Gateway | `http://localhost:11434` | ✅ X-API-Key |
+| Host | Admin UI | `http://localhost:1920/admin` | ❌ Static (API key entered in browser) |
+| Host | Admin API | `http://localhost:1920/admin/api/*` | ✅ X-API-Key |
+| Host | API Gateway | `http://localhost:1920` | ✅ X-API-Key |
 | Host | Health | `http://localhost:9090` | ❌ Public |
 | Host | Qdrant | `http://localhost:6333` | ✅ api-key |
 | API Gateway | Ollama (internal, standard) | `http://127.0.0.1:11435` | ❌ Internal |
@@ -328,13 +328,13 @@ All services run on the default Docker Compose network. Service-to-service commu
 | Document Pipeline | Ollama (internal, standard) | `http://127.0.0.1:11435` | ❌ Internal |
 | Document Pipeline | Ollama (host, Performance Mode) | `http://host.docker.internal:11434` | ❌ Internal |
 | Document Pipeline | Qdrant | `http://jimbomesh-holler-qdrant:6333` | ✅ api-key |
-| JimboMesh gateway | API Gateway | `http://jimbomesh-still:11434` | ✅ X-API-Key |
+| JimboMesh gateway | API Gateway | `http://jimbomesh-still:1920` | ✅ X-API-Key |
 | embed.sh | Qdrant | `http://jimbomesh-holler-qdrant:6333` | ✅ api-key |
 | init-qdrant | Qdrant | `http://jimbomesh-holler-qdrant:6333` | ✅ api-key |
 
 **Port Architecture:**
 
-- **11434** — API Gateway (external, authenticated)
+- **1920** — API Gateway (external, authenticated)
 - **11435** — Ollama server (internal only, localhost)
 - **9090** — Health endpoints (external, public)
 - **6333** — Qdrant REST API (external, authenticated)
@@ -348,7 +348,7 @@ The Ollama server is protected by a Node.js API gateway that validates all incom
 - **API key required** — All requests must include `X-API-Key` header
 - **Rate limiting** — 60 requests/minute per IP address (configurable via `RATE_LIMIT_PER_MIN`)
 - **Internal isolation** — Ollama runs on 127.0.0.1:11435, only accessible via the gateway
-- **External access** — API gateway listens on 0.0.0.0:11434, validates all requests
+- **External access** — API gateway listens on 0.0.0.0:1920, validates all requests
 - **Admin UI** — Static assets served without auth (contain no secrets); admin API endpoints require `X-API-Key`
 - **Admin kill switch** — `ADMIN_ENABLED=false` returns 404 for all `/admin` routes
 - **Path traversal protection** — `path.resolve()` + prefix check prevents directory escape
@@ -370,7 +370,7 @@ JIMBOMESH_HOLLER_API_KEY=your_generated_key_here
 All requests to the Ollama server must include the API key:
 
 ```bash
-curl -H "X-API-Key: your_api_key" http://localhost:11434/api/tags
+curl -H "X-API-Key: your_api_key" http://localhost:1920/api/tags
 ```
 
 ### Qdrant Authentication
@@ -405,7 +405,7 @@ API keys are passed via `.env` file and environment variables at runtime. Nothin
 | `curlimages/curl` for init | Minimal image for HTTP-only Qdrant setup, no Node.js needed |
 | Entrypoint model pulling | Models download on first run, not at build time (keeps image small) |
 | OpenRouter fallback in embed.sh | Allows gradual migration without breaking existing pipelines |
-| Admin UI on existing port | No new port, no new process — reuses API gateway on :11434 |
+| Admin UI on existing port | No new port, no new process — reuses API gateway on :1920 |
 | Vanilla JS for admin UI | No build step, works in air-gapped deployments |
 | SQLite via `better-sqlite3` | Synchronous API (~5μs writes), fastest Node.js binding, single dependency, no external service |
 | SQLite WAL mode | Concurrent reads during writes, no lock contention on the hot path |

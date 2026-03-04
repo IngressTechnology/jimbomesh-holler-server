@@ -225,7 +225,7 @@ The container follows this lifecycle:
 1. Ollama starts on an internal port (11435, localhost only)
 2. The entrypoint waits for Ollama to become ready
 3. Models are pulled (default: `nomic-embed-text` ~274 MB + `llama3.1:8b` ~4.9 GB)
-4. The Node.js API gateway starts on port 11434 with authentication enabled
+4. The Node.js API gateway starts on port 1920 with authentication enabled
 
 First startup takes 2-10 minutes depending on your network speed while models
 download. **Subsequent rebuilds skip model downloads** — models live on a
@@ -246,8 +246,8 @@ You will see output like:
 [jimbomesh-still] nomic-embed-text — done
 [jimbomesh-still] pulling llama3.1:8b...
 [jimbomesh-still] llama3.1:8b — done
-[jimbomesh-still] all models ready — starting API gateway on :11434 (auth)
-[api-gateway] Listening on 0.0.0.0:11434 (HTTP)
+[jimbomesh-still] all models ready — starting API gateway on :1920 (auth)
+[api-gateway] Listening on 0.0.0.0:1920 (HTTP)
 ```
 
 ### Verify the still is running
@@ -257,11 +257,11 @@ You will see output like:
 curl http://localhost:9090/healthz
 
 # List models (auth required -- replace with your key)
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
 
 # Test an embedding
 curl -H "X-API-Key: YOUR_KEY" \
-  -X POST http://localhost:11434/api/embed \
+  -X POST http://localhost:1920/api/embed \
   -H "Content-Type: application/json" \
   -d '{"model":"nomic-embed-text","input":"Hello, world!"}'
 ```
@@ -280,11 +280,11 @@ The installer prints a ready-to-click URL at the end. Copy-paste it into your
 browser and you are logged in immediately:
 
 ```
-http://localhost:11434/admin#key=YOUR_API_KEY
+http://localhost:1920/admin#key=YOUR_API_KEY
 ```
 
 Replace `YOUR_API_KEY` with the actual key from your `.env` file. The installer
-prints this URL using your configured gateway port (`GATEWAY_PORT`, default `11434`).
+prints this URL using your configured gateway port (`GATEWAY_PORT`, default `1920`).
 The `#key=`
 hash is read once, used to log in, then stripped from the URL bar — it is never
 sent to the server as part of an HTTP request (hash fragments stay client-side).
@@ -293,7 +293,7 @@ You can bookmark this URL for quick access.
 
 ### Manual login
 
-Navigate to **http://localhost:11434/admin** in your browser and enter your API
+Navigate to **http://localhost:1920/admin** in your browser and enter your API
 key in the login prompt:
 
 - If you set `ADMIN_API_KEY` in `.env`, use that key.
@@ -449,7 +449,7 @@ docker compose restart jimbomesh-still
 
 | Port | Service | Auth Required |
 |------|---------|---------------|
-| 11434 | API gateway (Ollama API + Admin UI) | Yes (`X-API-Key` header) |
+| 1920 | API gateway (Ollama API + Admin UI) | Yes (`X-API-Key` header) |
 | 9090 | Health server (`/healthz`, `/readyz`, `/status`) | No |
 | 6333 | Qdrant REST API (if `--profile qdrant`) | Yes (`api-key` header) |
 
@@ -458,8 +458,8 @@ docker compose restart jimbomesh-still
 | Endpoint | Purpose |
 |----------|---------|
 | `/admin` | Admin UI (web panel) |
-| `/health` | Gateway liveness probe (port `11434`) |
-| `/readyz` | Gateway readiness probe (port `11434`, `503` during shutdown) |
+| `/health` | Gateway liveness probe (port `1920`) |
+| `/readyz` | Gateway readiness probe (port `1920`, `503` during shutdown) |
 | `http://localhost:9090/healthz` | Container health-server liveness probe |
 | `http://localhost:9090/status` | Container health-server status details |
 | `/api/tags` | List installed models |

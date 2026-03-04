@@ -32,7 +32,7 @@ process.on('uncaughtException', (err) => {
 });
 
 // Boot-time configuration (ports/TLS cannot change at runtime)
-const PORT = parseInt(process.env.GATEWAY_PORT || '11434');
+const PORT = parseInt(process.env.GATEWAY_PORT || '1920');
 const OLLAMA_URL = process.env.OLLAMA_INTERNAL_URL || 'http://127.0.0.1:11435';
 let currentApiKey = process.env.JIMBOMESH_HOLLER_API_KEY;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || null;

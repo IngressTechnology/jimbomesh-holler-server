@@ -6,13 +6,13 @@ How to interact with the JimboMesh Holler Server API using curl, Postman, and th
 
 | Environment | URL |
 |---|---|
-| Windows Server (LAN) | `http://your-server-ip:11434` |
-| Local / same machine | `http://localhost:11434` |
+| Windows Server (LAN) | `http://your-server-ip:1920` |
+| Local / same machine | `http://localhost:1920` |
 
 All examples below use `$BASE_URL` — set it once:
 
 ```bash
-export BASE_URL="http://your-server-ip:11434"
+export BASE_URL="http://your-server-ip:1920"
 export API_KEY="your_ollama_api_key_here"
 ```
 
@@ -35,7 +35,7 @@ Inference endpoints require authentication via `X-API-Key` (or `Authorization: B
 Open in a browser — no auth needed:
 
 ```
-http://your-server-ip:11434/docs
+http://your-server-ip:1920/docs
 ```
 
 The Swagger UI loads the full OpenAPI spec and lets you try every endpoint interactively. Click **Authorize** in the top-right and enter your API key.
@@ -44,7 +44,7 @@ The Swagger UI loads the full OpenAPI spec and lets you try every endpoint inter
 
 ## Health Checks
 
-Gateway health endpoints run on port `11434`. The dedicated health server runs on port `9090`.
+Gateway health endpoints run on port `1920`. The dedicated health server runs on port `9090`.
 
 ### Liveness probe (gateway)
 
@@ -758,7 +758,7 @@ curl -X DELETE $BASE_URL/admin/api/collections/my-docs \
 3. Postman generates a collection with every endpoint pre-configured
 4. Set up environment variables:
    - Click **Environments** → **New Environment**
-   - Add variable `baseUrl` = `http://your-server-ip:11434`
+   - Add variable `baseUrl` = `http://your-server-ip:1920`
    - Add variable `apiKey` = your API key
 5. In the collection settings, set the **Base URL** to `{{baseUrl}}`
 6. Under **Authorization**, set type **API Key**, key name `X-API-Key`, value `{{apiKey}}`, add to **Header**
@@ -772,7 +772,7 @@ curl -X DELETE $BASE_URL/admin/api/collections/my-docs \
    - Value: `{{apiKey}}`
    - Add to: **Header**
 3. Create environment variables:
-   - `baseUrl` = `http://your-server-ip:11434`
+   - `baseUrl` = `http://your-server-ip:1920`
    - `apiKey` = your API key
 4. Add requests:
 
@@ -850,15 +850,15 @@ On Windows without WSL, use `Invoke-RestMethod`:
 $headers = @{ "X-API-Key" = "your_api_key_here"; "Content-Type" = "application/json" }
 
 # Health check
-Invoke-RestMethod -Uri "http://localhost:11434/health"
+Invoke-RestMethod -Uri "http://localhost:1920/health"
 
 # Embeddings
-Invoke-RestMethod -Uri "http://localhost:11434/v1/embeddings" `
+Invoke-RestMethod -Uri "http://localhost:1920/v1/embeddings" `
   -Method Post -Headers $headers `
   -Body '{"model":"nomic-embed-text","input":"test text"}'
 
 # Chat (non-streaming)
-Invoke-RestMethod -Uri "http://localhost:11434/api/chat" `
+Invoke-RestMethod -Uri "http://localhost:1920/api/chat" `
   -Method Post -Headers $headers `
   -Body '{"model":"llama3.1:8b","messages":[{"role":"user","content":"Hello"}],"stream":false}'
 ```

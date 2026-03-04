@@ -23,14 +23,14 @@ services:
       - ollama_models:/root/.ollama
       - holler_data:/opt/jimbomesh-still/data
     ports:
-      - "127.0.0.1:${OLLAMA_HOST_PORT:-11434}:11434"
+      - "127.0.0.1:${OLLAMA_HOST_PORT:-1920}:1920"
       - "127.0.0.1:${HEALTH_HOST_PORT:-9090}:9090"
     environment:
       # API Authentication
       - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}
       - ADMIN_API_KEY=${ADMIN_API_KEY:-}
       # API Gateway
-      - GATEWAY_PORT=${GATEWAY_PORT:-11434}
+      - GATEWAY_PORT=${GATEWAY_PORT:-1920}
       - OLLAMA_INTERNAL_PORT=${OLLAMA_INTERNAL_PORT:-11435}
       - RATE_LIMIT_PER_MIN=${RATE_LIMIT_PER_MIN:-60}
       - RATE_LIMIT_BURST=${RATE_LIMIT_BURST:-10}

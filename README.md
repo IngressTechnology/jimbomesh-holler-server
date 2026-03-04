@@ -94,7 +94,7 @@ See [NAMING.md](NAMING.md) for details on why this structure supports multiple s
 │  │                      │   │  (optional profile) │   │
 │  │  ┌───────────────┐   │   │                     │   │
 │  │  │ API Gateway   │   │   │  Qdrant v1.13.2     │   │
-│  │  │ :11434 (ext)  │   │   │  :6333 REST         │   │
+│  │  │ :1920 (ext)   │   │   │  :6333 REST         │   │
 │  │  │ X-API-Key auth│   │   │  :6334 gRPC         │   │
 │  │  │ /admin (UI)   │   │   │                     │   │
 │  │  └───────┬───────┘   │   │                     │   │
@@ -110,6 +110,23 @@ See [NAMING.md](NAMING.md) for details on why this structure supports multiple s
 │  │  /data/ volume       │   │                     │   │
 │  └─────────────────────┘   └─────────────────────┘   │
 └────────────────────────────────────────────────────────┘
+```
+
+## Port 1920
+
+JimboMesh runs on port **1920** by default — the year Prohibition started and moonshine went underground.
+
+| Service | URL |
+|---------|-----|
+| Holler Gateway | http://localhost:1920 |
+| Admin UI | http://localhost:1920/admin |
+| OpenAI-Compatible API | http://localhost:1920/v1 |
+| Ollama (upstream) | http://localhost:11434 |
+
+To use a custom port, set the `PORT` environment variable:
+
+```bash
+PORT=8080 docker compose up
 ```
 
 ## Storage
@@ -149,13 +166,13 @@ OpenAPI schemas in this section:
 ```bash
 # List models
 curl -H "X-API-Key: your_api_key_here" \
-  http://localhost:11434/api/tags
+  http://localhost:1920/api/tags
 
 # Generate embeddings
 curl -H "X-API-Key: your_api_key_here" \
   -H "Content-Type: application/json" \
   -d '{"model": "nomic-embed-text", "input": "Your text here"}' \
-  http://localhost:11434/api/embed
+  http://localhost:1920/api/embed
 ```
 
 ### OpenAI-Compatible Endpoint
@@ -168,7 +185,7 @@ OpenAPI schemas: request `OpenAIEmbeddingsRequest`, response `OpenAIEmbeddingsRe
 curl -H "X-API-Key: your_api_key_here" \
   -H "Content-Type: application/json" \
   -d '{"model": "nomic-embed-text", "input": ["Hello world", "Another text"]}' \
-  http://localhost:11434/v1/embeddings
+  http://localhost:1920/v1/embeddings
 ```
 
 Returns OpenAI-format response with `object`, `data[].embedding`, `model`, and `usage`. Supports batch (array of strings) natively.
@@ -199,17 +216,17 @@ curl -s http://localhost:9090/status | jq .
 
 ## Admin UI
 
-A built-in web admin panel is available at `/admin` on the API gateway port (default 11434). No additional ports or processes required.
+A built-in web admin panel is available at `/admin` on the API gateway port (default 1920). No additional ports or processes required.
 
 **Quick connect** — use the auto-login URL printed by the installer:
 
 ```
-http://localhost:11434/admin#key=YOUR_API_KEY
+http://localhost:1920/admin#key=YOUR_API_KEY
 ```
 
 The `#key=` fragment logs you in automatically and is stripped from the URL bar
 (hash fragments never leave the browser). Bookmark it for quick access, or
-navigate to `http://localhost:11434/admin` and enter the key manually.
+navigate to `http://localhost:1920/admin` and enter the key manually.
 
 **Features:**
 
@@ -280,7 +297,7 @@ OpenAPI schemas:
   "providers": {
     "holler": {
       "type": "openai",
-      "baseUrl": "http://localhost:11434/v1",
+      "baseUrl": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     }
   }
@@ -310,7 +327,7 @@ The Ollama server requires API key authentication for all requests:
 - **API Gateway** — Node.js proxy validates `X-API-Key` header on all requests
 - **Rate Limiting** — 60 requests/minute per IP address (configurable)
 - **Internal Isolation** — Ollama runs on localhost:11435, only accessible via the gateway
-- **External Access** — API gateway on 0.0.0.0:11434 validates all incoming requests
+- **External Access** — API gateway on 0.0.0.0:1920 validates all incoming requests
 
 Generate an API key:
 
@@ -326,7 +343,7 @@ JIMBOMESH_HOLLER_API_KEY=your_generated_key_here
 
 ### Health Endpoints
 
-Gateway health endpoints on port `11434` (`/health`, `/readyz`) and health-server endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. All inference and admin API endpoints require authentication.
+Gateway health endpoints on port `1920` (`/health`, `/readyz`) and health-server endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. All inference and admin API endpoints require authentication.
 
 ## Documentation
 

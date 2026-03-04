@@ -127,7 +127,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **Internationalization (i18n)**: Admin UI supports English, Hillbilly, and Spanish. Language selector in toolbar, persists to `localStorage` (`holler-lang`), defaults to English. All UI strings live in `admin/locales/*.json`. See `docs/CUSTOMIZATION.md`.
 - **API key management**: Admin UI can view masked key, copy full key (with `JIMBOMESH_HOLLER_API_KEY=` prefix for .env), regenerate with "hellyeah" confirmation. Runtime rotation stored in SQLite (`api_key_override`), no container restart needed.
 - **Qdrant key management**: Admin UI shows Qdrant key status; when configured, displays masked key with copy button (copies `QDRANT_API_KEY=<key>` for direct .env paste). Backend: `GET /admin/api/qdrantkey`.
-- **Auto-login URL**: `http://host:11434/admin#key=<KEY>` — hash-based auto-login, printed by installers on first install. Hash never sent to server.
+- **Auto-login URL**: `http://host:1920/admin#key=<KEY>` — hash-based auto-login, printed by installers on first install. Hash never sent to server.
 - **Interactive installers**: GPU/mode, Qdrant, and existing-install detection prompts. macOS: `[P]` Performance Mode (native Ollama + Metal GPU) or `[S]` Secure Mode (Docker CPU). Linux/Windows: NVIDIA GPU detection. Auto-generate both API keys on first run. Support `-CpuOnly`/`--cpu` and `-WithQdrant`/`--qdrant` flags. One-liner install commands available (git, curl, wget, PowerShell `irm`).
 - **macOS Performance Mode**: Native Ollama via `brew services`, Docker runs only API gateway. Full Metal GPU. `OLLAMA_EXTERNAL_URL` env var routes gateway to host Ollama. `docker-compose.mac.yml` overlay committed to repo and also written by `setup.sh`. Models stored in `~/.ollama/models/`. Security hardening applied automatically. Installation metadata persisted to `.setup-config.json`.
 - **GPU detection API**: `GET /admin/api/gpu-info` (admin auth required) — detects NVIDIA via `nvidia-smi`, Apple Metal via `OLLAMA_EXTERNAL_URL` / Darwin platform. Returns GPU name, VRAM (total/used/free), Ollama offload %, and system RAM. 30s response cache. Used by the Marketplace tab to render a VRAM bar and model fit badges ("Will fit" / "Tight fit" / "Won't fit").
@@ -266,7 +266,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 
 ### Auto-Login URL
 - **Hash-based login**: Admin UI reads `#key=` from URL hash, auto-logs in, strips hash from URL bar
-- **Installers print connect URL**: Both installers read API key from `.env` and show `http://localhost:11434/admin#key=<KEY>`
+- **Installers print connect URL**: Both installers read API key from `.env` and show `http://localhost:1920/admin#key=<KEY>`
 - **Safe**: Hash fragments never leave the browser (not sent as HTTP requests)
 
 ### Interactive Installer Prompts
@@ -282,7 +282,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **New flags**: `-CpuOnly` / `--cpu` to skip GPU prompt
 
 ### Installer Fixes
-- **401 flood fix**: Installer wait loops now poll `http://localhost:9090/healthz` (no auth) instead of `http://localhost:11434/api/tags` (auth required)
+- **401 flood fix**: Installer wait loops now poll `http://localhost:9090/healthz` (no auth) instead of `http://localhost:1920/api/tags` (auth required)
 - **PowerShell banner fix**: Replaced bash-syntax `fprint_banner()` with proper PowerShell `Write-Banner` function
 
 ### Environment Variable Rename & Developer Tooling
@@ -340,7 +340,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 ### Recent Changes (2026-02-23)
 
 ### Bug Fixes
-- **Health handler**: Fixed health-handler.sh hitting gateway port 11434 (auth required) instead of internal Ollama port 11435
+- **Health handler**: Fixed health-handler.sh hitting gateway port 1920 (auth required) instead of internal Ollama port 11435
 - **Init-qdrant**: Fixed exit code 22 — removed curl `-f` flag, handles 404/409 gracefully
 - **Model defaults**: Fixed stale `llama3.2:3b` fallback in docker-entrypoint.sh and pull-models.sh
 
@@ -355,7 +355,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **nginx.conf**: Dead code from before the Node.js API gateway
 
 ### Previous Changes (2026-02-22)
-- **Admin UI**: Web-based admin panel at `/admin` on port 11434 (no new port/process)
+- **Admin UI**: Web-based admin panel at `/admin` on port 1920 (no new port/process)
 - **API key auth**: Node.js gateway validates X-API-Key on all requests
 - **Dual-backend embed.sh**: Supports both Ollama and OpenRouter backends
 - **Docker fixes**: Absolute entrypoint path, CRLF→LF, sh→bash shebang
@@ -364,15 +364,15 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 ## Network Configuration
 
 ### Default Endpoints
-- Ollama API: `http://localhost:11434`
-- Admin UI: `http://localhost:11434/admin`
-- Swagger UI: `http://localhost:11434/docs`
+- Holler Gateway: `http://localhost:1920`
+- Admin UI: `http://localhost:1920/admin`
+- Swagger UI: `http://localhost:1920/docs`
 - Health API: `http://localhost:9090`
 - Qdrant API: `http://localhost:6333` (when using --profile qdrant)
 
 ### Firewall Rules
 Windows firewall must allow inbound connections on:
-- Port 11434 (Ollama API)
+- Port 1920 (Holler Gateway)
 - Port 9090 (Health checks)
 - Port 6333 (Qdrant, if used)
 

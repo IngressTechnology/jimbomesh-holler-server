@@ -5,7 +5,7 @@
       "name": "Docker: Build & Up",
       "type": "node-terminal",
       "request": "launch",
-      "command": "docker compose up --build -d && echo '--- Holler Server running at http://localhost:11434 ---' && echo 'Admin UI: http://localhost:11434/admin' && docker compose logs -f jimbomesh-still",
+      "command": "docker compose up --build -d && echo '--- Holler Server running at http://localhost:1920 ---' && echo 'Admin UI: http://localhost:1920/admin' && docker compose logs -f jimbomesh-still",
       "cwd": "${workspaceFolder}"
     },
     {
@@ -26,7 +26,7 @@
       "name": "Docker: Deploy Code",
       "type": "node-terminal",
       "request": "launch",
-      "command": "docker compose build jimbomesh-still && docker compose up -d --force-recreate --no-deps jimbomesh-still && echo '--- Holler Server running at http://localhost:11434 ---' && echo 'Admin UI: http://localhost:11434/admin' && docker compose logs -f jimbomesh-still",
+      "command": "docker compose build jimbomesh-still && docker compose up -d --force-recreate --no-deps jimbomesh-still && echo '--- Holler Server running at http://localhost:1920 ---' && echo 'Admin UI: http://localhost:1920/admin' && docker compose logs -f jimbomesh-still",
       "cwd": "${workspaceFolder}"
     },
     {

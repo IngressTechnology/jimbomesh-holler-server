@@ -306,7 +306,7 @@ async function handleRunning(ollamaUrl, res, sendError) {
 function handleConfig(res, db) {
   json(res, 200, {
     server: {
-      gateway_port: process.env.GATEWAY_PORT || '11434',
+      gateway_port: process.env.GATEWAY_PORT || '1920',
       ollama_internal_port: process.env.OLLAMA_INTERNAL_PORT || '11435',
       rate_limit_per_min: process.env.RATE_LIMIT_PER_MIN || '60',
       admin_enabled: process.env.ADMIN_ENABLED || 'true',
@@ -983,7 +983,7 @@ function exposureFromBinding(binding) {
 }
 
 function serviceLabel(name, containerPort) {
-  if (name === 'jimbomesh-still' && containerPort === 11434) return 'API Gateway';
+  if (name === 'jimbomesh-still' && containerPort === 1920) return 'API Gateway';
   if (name === 'jimbomesh-still' && containerPort === 9090) return 'Health Check';
   if (name === 'jimbomesh-qdrant' && containerPort === 6333) return 'Qdrant Vector DB';
   if (name === 'jimbomesh-qdrant' && containerPort === 6334) return 'Qdrant gRPC';
@@ -1008,11 +1008,11 @@ function buildPorts(composeInfo) {
       service: serviceLabel(service, containerPort),
       binding,
       exposure: exposureFromBinding(binding),
-      protocol: process.env.TLS_CERT_PATH && containerPort === 11434 ? 'https' : 'http',
+      protocol: process.env.TLS_CERT_PATH && containerPort === 1920 ? 'https' : 'http',
     });
   }
 
-  addPort('jimbomesh-still', 11434, toNumber(process.env.GATEWAY_PORT || process.env.OLLAMA_HOST_PORT, 11434));
+  addPort('jimbomesh-still', 1920, toNumber(process.env.GATEWAY_PORT || process.env.OLLAMA_HOST_PORT, 1920));
   addPort('jimbomesh-still', 9090, toNumber(process.env.HEALTH_HOST_PORT || process.env.HEALTH_PORT, 9090));
   addPort('jimbomesh-qdrant', 6333, toNumber(process.env.QDRANT_HOST_PORT, null));
 
@@ -1084,7 +1084,7 @@ function getSecurityChecks(systemInfo) {
     detail: adminPort ? `Bound to ${adminPort.binding}` : 'Admin route shares API gateway auth',
   });
 
-  const ollamaExposure = ports.find((p) => p.port === 11434);
+  const ollamaExposure = ports.find((p) => p.port === 1920);
   const ollamaPass = !ollamaExposure || ollamaExposure.exposure === 'local-only';
   checks.push({
     name: 'Ollama Binding',

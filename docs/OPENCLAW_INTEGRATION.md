@@ -12,7 +12,7 @@ Use your JimboMesh Holler as a local LLM backend for OpenClaw — zero cloud API
 
 From your Holler admin panel or `.env` file:
 
-- **Holler URL**: `http://localhost:11434` (or your Holler's IP/hostname)
+- **Holler URL**: `http://localhost:1920` (or your Holler's IP/hostname)
 - **API Key**: Your `JIMBOMESH_HOLLER_API_KEY`
 - **Available Models**: Check the Models tab or run:
 
@@ -20,10 +20,10 @@ OpenAPI schema for these model-list examples: response `OpenAIModelListResponse`
 
 ```bash
 # Using X-API-Key header
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/v1/models
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/v1/models
 
 # Or using Authorization: Bearer (OpenAI-compatible)
-curl -H "Authorization: Bearer YOUR_KEY" http://localhost:11434/v1/models
+curl -H "Authorization: Bearer YOUR_KEY" http://localhost:1920/v1/models
 ```
 
 Both authentication methods work identically with all endpoints.
@@ -37,7 +37,7 @@ Add your Holler as a custom OpenAI-compatible provider in your OpenClaw config (
   "providers": {
     "holler": {
       "type": "openai",
-      "baseUrl": "http://YOUR_HOLLER_IP:11434/v1",
+      "baseUrl": "http://YOUR_HOLLER_IP:1920/v1",
       "apiKey": "your-holler-api-key"
     }
   }
@@ -60,7 +60,7 @@ OpenAPI schemas: request `OpenAIChatRequest`, response `OpenAIChatResponse` (or 
 
 ```bash
 # Non-streaming (with X-API-Key)
-curl -X POST http://YOUR_HOLLER_IP:11434/v1/chat/completions \
+curl -X POST http://YOUR_HOLLER_IP:1920/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_KEY" \
   -d '{
@@ -70,7 +70,7 @@ curl -X POST http://YOUR_HOLLER_IP:11434/v1/chat/completions \
   }'
 
 # Streaming (with Authorization: Bearer)
-curl -X POST http://YOUR_HOLLER_IP:11434/v1/chat/completions \
+curl -X POST http://YOUR_HOLLER_IP:1920/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_KEY" \
   -d '{
@@ -87,7 +87,7 @@ curl -X POST http://YOUR_HOLLER_IP:11434/v1/chat/completions \
 OpenAPI schema: response `OpenAIModelListResponse`.
 
 ```bash
-curl -H "X-API-Key: YOUR_KEY" http://YOUR_HOLLER_IP:11434/v1/models
+curl -H "X-API-Key: YOUR_KEY" http://YOUR_HOLLER_IP:1920/v1/models
 ```
 
 ### Test Embeddings
@@ -95,7 +95,7 @@ curl -H "X-API-Key: YOUR_KEY" http://YOUR_HOLLER_IP:11434/v1/models
 OpenAPI schemas: request `OpenAIEmbeddingsRequest`, response `OpenAIEmbeddingsResponse`.
 
 ```bash
-curl -X POST http://YOUR_HOLLER_IP:11434/v1/embeddings \
+curl -X POST http://YOUR_HOLLER_IP:1920/v1/embeddings \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_KEY" \
   -d '{
@@ -108,17 +108,17 @@ curl -X POST http://YOUR_HOLLER_IP:11434/v1/embeddings \
 
 ### Same Machine
 
-- **URL**: `http://localhost:11434`
+- **URL**: `http://localhost:1920`
 - **No firewall changes needed**
 
 ### Same LAN
 
-- **URL**: `http://192.168.x.x:11434` (Holler machine's IP)
-- **Ensure port 11434 is accessible** (check firewall)
+- **URL**: `http://192.168.x.x:1920` (Holler machine's IP)
+- **Ensure port 1920 is accessible** (check firewall)
 
 ### Docker-to-Docker (same host)
 
-- **URL**: `http://host.docker.internal:11434`
+- **URL**: `http://host.docker.internal:1920`
 - **Works on macOS/Windows Docker Desktop**
 - **On Linux**: use `--add-host=host.docker.internal:host-gateway`
 
@@ -126,7 +126,7 @@ curl -X POST http://YOUR_HOLLER_IP:11434/v1/embeddings \
 
 - **Use a reverse proxy** (nginx, Caddy) with TLS
 - **Or use the Holler's built-in TLS** (`TLS_CERT_PATH` + `TLS_KEY_PATH`)
-- **Never expose port 11434 to the internet without TLS and auth**
+- **Never expose port 1920 to the internet without TLS and auth**
 
 ## Recommended Models for OpenClaw
 
@@ -146,7 +146,7 @@ OpenAPI schema for request body: `PullRequest` (response is `text/event-stream`)
 
 ```bash
 # Using X-API-Key
-curl -X POST http://localhost:11434/admin/api/models/pull \
+curl -X POST http://localhost:1920/admin/api/models/pull \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
   -d '{"name": "llama3.1:8b"}'
@@ -158,8 +158,8 @@ curl -X POST http://localhost:11434/admin/api/models/pull \
 
 ### "Connection refused"
 
-- **Is the Holler running?** `docker ps` or check `http://localhost:11434/health`
-- **Is the port accessible?** `curl http://HOLLER_IP:11434/health`
+- **Is the Holler running?** `docker ps` or check `http://localhost:1920/health`
+- **Is the port accessible?** `curl http://HOLLER_IP:1920/health`
 - **Firewall blocking?** Check `ufw status` or Windows Firewall
 
 ### "401 Unauthorized"
@@ -172,19 +172,19 @@ curl -X POST http://localhost:11434/admin/api/models/pull \
 - **Test authentication** with curl:
   ```bash
   # OpenClaw typically uses Bearer auth
-  curl -H "Authorization: Bearer YOUR_KEY" http://HOLLER_IP:11434/v1/models
+  curl -H "Authorization: Bearer YOUR_KEY" http://HOLLER_IP:1920/v1/models
 
   # X-API-Key also works
-  curl -H "X-API-Key: YOUR_KEY" http://HOLLER_IP:11434/v1/models
+  curl -H "X-API-Key: YOUR_KEY" http://HOLLER_IP:1920/v1/models
   ```
 
 - **OpenClaw must send the key** as `Authorization: Bearer <key>` or `X-API-Key: <key>`
 
 ### "Model not found"
 
-- **List available models**: `curl -H "X-API-Key: KEY" http://HOLLER_IP:11434/v1/models`
+- **List available models**: `curl -H "X-API-Key: KEY" http://HOLLER_IP:1920/v1/models`
 - **Pull the model**: Open Holler admin → Models → search and install
-- **Or via API**: `curl -X POST http://HOLLER_IP:11434/admin/api/models/pull -H "X-API-Key: KEY" -H "Content-Type: application/json" -d '{"name": "llama3.1:8b"}'`
+- **Or via API**: `curl -X POST http://HOLLER_IP:1920/admin/api/models/pull -H "X-API-Key: KEY" -H "Content-Type: application/json" -d '{"name": "llama3.1:8b"}'`
 
 ### Slow responses
 
@@ -219,12 +219,12 @@ Configure multiple Holler instances for load balancing or model variety:
   "providers": {
     "holler-gpu": {
       "type": "openai",
-      "baseUrl": "http://192.168.1.100:11434/v1",
+      "baseUrl": "http://192.168.1.100:1920/v1",
       "apiKey": "gpu-holler-key"
     },
     "holler-cpu": {
       "type": "openai",
-      "baseUrl": "http://192.168.1.101:11434/v1",
+      "baseUrl": "http://192.168.1.101:1920/v1",
       "apiKey": "cpu-holler-key"
     }
   }

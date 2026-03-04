@@ -73,9 +73,9 @@ After starting the container, these are available on the host:
 
 | Endpoint | URL | Auth |
 |----------|-----|------|
-| Ollama API | `http://your-server-ip:11434` | `X-API-Key` header (if `JIMBOMESH_HOLLER_API_KEY` set) |
-| Admin UI | `http://your-server-ip:11434/admin` | Same API key via login form |
-| Swagger UI | `http://your-server-ip:11434/docs` | None |
+| Ollama API | `http://your-server-ip:1920` | `X-API-Key` header (if `JIMBOMESH_HOLLER_API_KEY` set) |
+| Admin UI | `http://your-server-ip:1920/admin` | Same API key via login form |
+| Swagger UI | `http://your-server-ip:1920/docs` | None |
 | Health checks | `http://your-server-ip:9090/healthz` | None |
 | Readiness | `http://your-server-ip:9090/readyz` | None |
 
@@ -99,7 +99,7 @@ docker compose exec jimbomesh-still bash
 docker compose exec jimbomesh-still ollama list
 
 # Test the embedding endpoint
-curl http://your-server-ip:11434/v1/embeddings \
+curl http://your-server-ip:1920/v1/embeddings \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_KEY" \
   -d '{"input": "hello world", "model": "nomic-embed-text"}'

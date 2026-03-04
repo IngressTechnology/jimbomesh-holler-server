@@ -11,7 +11,7 @@
 #   ./scripts/benchmark-models.sh --help             # Show help
 #
 # Environment:
-#   OLLAMA_URL       — Ollama API endpoint (default: http://localhost:11434)
+#   OLLAMA_URL       — Ollama API endpoint (default: http://localhost:1920)
 #   JIMBOMESH_HOLLER_API_KEY   — API key for authentication (required if gateway is enabled)
 #   BENCH_ROUNDS     — Number of rounds per test (default: 5)
 #   BENCH_WARMUP     — Number of warmup rounds (default: 1)
@@ -24,7 +24,7 @@ set -e
 
 # ── Configuration ──────────────────────────────────────────────────
 
-OLLAMA_URL="${OLLAMA_URL:-http://localhost:11434}"
+OLLAMA_URL="${OLLAMA_URL:-http://localhost:1920}"
 API_KEY="${JIMBOMESH_HOLLER_API_KEY:-}"
 ROUNDS="${BENCH_ROUNDS:-5}"
 WARMUP="${BENCH_WARMUP:-1}"
@@ -87,7 +87,7 @@ usage() {
     echo "  --help                Show this help"
     echo ""
     echo "Environment:"
-    echo "  OLLAMA_URL       Ollama endpoint (default: http://localhost:11434)"
+    echo "  OLLAMA_URL       Ollama endpoint (default: http://localhost:1920)"
     echo "  JIMBOMESH_HOLLER_API_KEY   API key for authentication"
     echo "  BENCH_ROUNDS     Rounds per test (default: 5)"
     echo "  BENCH_WARMUP     Warmup rounds (default: 1)"

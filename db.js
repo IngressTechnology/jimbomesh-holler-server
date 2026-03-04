@@ -208,7 +208,7 @@ console.log(`[db] Schema version ${CURRENT_SCHEMA_VERSION} applied`);
 
 const SEED_SETTINGS = {
   server_name: process.env.HOLLER_SERVER_NAME || 'Holler Server',
-  gateway_port: process.env.GATEWAY_PORT || '11434',
+  gateway_port: process.env.GATEWAY_PORT || '1920',
   ollama_internal_port: process.env.OLLAMA_INTERNAL_PORT || '11435',
   rate_limit_per_min: process.env.RATE_LIMIT_PER_MIN || '60',
   rate_limit_burst: process.env.RATE_LIMIT_BURST || '10',

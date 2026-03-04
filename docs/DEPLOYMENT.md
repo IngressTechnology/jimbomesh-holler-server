@@ -117,7 +117,7 @@ docker compose --profile qdrant up -d
 The installer prints a clickable auto-login URL at the end:
 
 ```
-http://localhost:11434/admin#key=YOUR_API_KEY_HERE
+http://localhost:1920/admin#key=YOUR_API_KEY_HERE
 ```
 
 Click or paste this URL to open the Admin UI and log in automatically. The API key in the URL hash (`#key=...`) is **client-side only** — it never leaves your browser.
@@ -127,14 +127,14 @@ Click or paste this URL to open the Admin UI and log in automatically. The API k
 ### 2. Verify Ollama is Running
 
 ```bash
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
 ```
 
 You should see a JSON response listing the pulled models.
 
 ### 3. Open Admin UI (Manual)
 
-If you don't have the auto-login URL, open `http://localhost:11434/admin` in your browser and enter your API key. The dashboard shows server health, latency, model count, and uptime at a glance.
+If you don't have the auto-login URL, open `http://localhost:1920/admin` in your browser and enter your API key. The dashboard shows server health, latency, model count, and uptime at a glance.
 
 > **Forgot your key?** Check your `.env` file for `JIMBOMESH_HOLLER_API_KEY`, or use the Admin UI > Configuration tab to regenerate one.
 
@@ -142,7 +142,7 @@ If you don't have the auto-login URL, open `http://localhost:11434/admin` in you
 
 ```bash
 curl -H "X-API-Key: YOUR_KEY" \
-  http://localhost:11434/api/embed -d '{
+  http://localhost:1920/api/embed -d '{
   "model": "nomic-embed-text",
   "input": "The quick brown fox jumps over the lazy dog"
 }'
@@ -177,7 +177,7 @@ docker compose restart jimbomesh-still
 
 Or connect from Admin UI:
 
-1. Open `http://localhost:11434/admin`
+1. Open `http://localhost:1920/admin`
 2. Go to the **Mesh** tab
 3. Enter Mesh API key, coordinator URL, and Holler name
 4. Click **Connect**
@@ -302,7 +302,7 @@ docker compose logs -f
 
 ### Managing Models
 
-Models can be managed via the **Admin UI** (`http://localhost:11434/admin` → Models tab) or via the command line.
+Models can be managed via the **Admin UI** (`http://localhost:1920/admin` → Models tab) or via the command line.
 
 **Secure Mode (Docker CPU) or NVIDIA GPU Mode** — Ollama runs inside the container:
 
@@ -342,13 +342,13 @@ Models in Performance Mode are stored in `~/.ollama/models/` on your Mac, not in
 
 ```bash
 # Check current Mesh status
-curl -s -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/status | jq
+curl -s -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/status | jq
 
 # List active WebRTC peer sessions
-curl -s -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/peers | jq
+curl -s -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/peers | jq
 
 # Disconnect from Mesh
-curl -s -X POST -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/disconnect
+curl -s -X POST -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/disconnect
 ```
 
 ### Health Check
@@ -366,7 +366,7 @@ curl -s http://localhost:9090/readyz | jq
 curl -s http://localhost:9090/status | jq
 
 # Ollama API health (direct, requires auth)
-curl -s -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags | jq
+curl -s -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags | jq
 
 # Qdrant health (if running)
 curl -s http://localhost:6333/healthz

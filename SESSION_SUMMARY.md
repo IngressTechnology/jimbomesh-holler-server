@@ -64,7 +64,7 @@ exec /usr/local/bin/docker-entrypoint.sh: no such file or directory
 JimboMesh (Mac)
   ↓ calls embed.sh with text
   ↓ detects OLLAMA_URL environment variable
-  ↓ sends POST to http://your-server-ip:11434/api/embed
+  ↓ sends POST to http://your-server-ip:1920/api/embed
 Ollama Server (Windows)
   ↓ returns {"embeddings": [[768d vector]]}
 JimboMesh embed.sh
@@ -91,7 +91,7 @@ JimboMesh's Qdrant
 **Changes**:
 ```bash
 # Added these lines:
-OLLAMA_URL=http://your-server-ip:11434
+OLLAMA_URL=http://your-server-ip:1920
 OLLAMA_EMBED_MODEL=nomic-embed-text
 EMBED_DIMENSIONS=768
 ```
@@ -100,7 +100,7 @@ EMBED_DIMENSIONS=768
 
 **Windows Machine**:
 - IP Address: `your-server-ip`
-- Ollama API: Port 11434
+- Ollama API: Port 1920
 - Health API: Port 9090
 - Qdrant API: Port 6333
 
@@ -111,7 +111,7 @@ docker ps
 # jimbomesh-holler-qdrant (Vector database)
 ```
 
-**Firewall**: Configured to allow inbound on ports 11434, 9090, 6333
+**Firewall**: Configured to allow inbound on ports 1920, 9090, 6333
 
 ## Documentation Created
 
@@ -171,7 +171,7 @@ QDRANT_API_KEY=<your-generated-key>
 
 **Mac (JimboMesh `.env`)**:
 ```bash
-OLLAMA_URL=http://your-server-ip:11434
+OLLAMA_URL=http://your-server-ip:1920
 OLLAMA_EMBED_MODEL=nomic-embed-text
 EMBED_DIMENSIONS=768
 QDRANT_API_KEY=<your-generated-key>
@@ -194,7 +194,7 @@ docker ps --filter name=jimbomesh-still
 
 ### 2. Ollama API ✅
 ```bash
-curl http://your-server-ip:11434/api/tags
+curl http://your-server-ip:1920/api/tags
 # Response: JSON with available models
 ```
 
@@ -224,7 +224,7 @@ curl -H "api-key: ..." http://localhost:6333/collections
 
 1. **Test Connection**:
    ```bash
-   curl http://your-server-ip:11434/api/tags
+   curl http://your-server-ip:1920/api/tags
    ```
 
 2. **Test Embedding**:
@@ -235,14 +235,14 @@ curl -H "api-key: ..." http://localhost:6333/collections
 
 3. **Expected Output**:
    ```
-   [embed] using Ollama backend: http://your-server-ip:11434 (model=nomic-embed-text, 768d)
+   [embed] using Ollama backend: http://your-server-ip:1920 (model=nomic-embed-text, 768d)
    [embed] upserted test-001 into knowledge_base (14 chars, 768d)
    ```
 
 ### Switching Backends:
 
 **Use Ollama** (on-prem):
-- Keep `OLLAMA_URL=http://your-server-ip:11434` in `.env`
+- Keep `OLLAMA_URL=http://your-server-ip:1920` in `.env`
 
 **Use OpenRouter** (cloud):
 - Comment out or remove `OLLAMA_URL` from `.env`

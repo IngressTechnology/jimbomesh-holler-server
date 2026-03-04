@@ -82,7 +82,7 @@ To skip the prompt and use Secure Mode automatically:
 │  │                                                  │    │
 │  │  ┌────────────────────────┐                      │    │
 │  │  │  jimbomesh-still        │                      │    │
-│  │  │  API Gateway :11434    │                      │    │
+│  │  │  API Gateway :1920     │                      │    │
 │  │  │  X-API-Key auth        │                      │    │
 │  │  │  /admin (UI)           │─────────────────┐    │    │
 │  │  │  SQLite (holler.db)    │                 │    │    │
@@ -197,7 +197,7 @@ This section documents how to set up JimboMesh (running on Mac) to use the Holle
 JimboMesh (Mac)
   ↓ calls embed.sh with text
   ↓ detects OLLAMA_URL environment variable
-  ↓ sends POST to http://your-server-ip:11434/api/embed
+  ↓ sends POST to http://your-server-ip:1920/api/embed
 Ollama Server (Windows)
   ↓ returns {"embeddings": [[768d vector]]}
 JimboMesh embed.sh
@@ -212,7 +212,7 @@ JimboMesh's Qdrant
 - **Windows Machine**: Running Docker with jimbomesh-holler-server
 - **Mac Machine**: Running JimboMesh
 - **Network**: Both machines on the same local network
-- **Ports**: Windows firewall allows ports 11434 (Ollama) and 9090 (Health)
+- **Ports**: Windows firewall allows ports 1920 (Ollama) and 9090 (Health)
 
 ### Step 1: Windows Server Setup
 
@@ -251,7 +251,7 @@ docker exec jimbomesh-still ollama list
 
 # Test embedding API
 curl -H "X-API-Key: YOUR_KEY" \
-  -X POST http://localhost:11434/api/embed \
+  -X POST http://localhost:1920/api/embed \
   -H "Content-Type: application/json" \
   -d '{"model":"nomic-embed-text","input":"test"}'
 ```
@@ -290,7 +290,7 @@ Add the following to your JimboMesh `.env` file:
 ```bash
 # Ollama Embedding Server (on-prem, Windows)
 # Set OLLAMA_URL to use Ollama instead of OpenRouter for embeddings
-OLLAMA_URL=http://your-server-ip:11434  # Replace with your Windows IP
+OLLAMA_URL=http://your-server-ip:1920  # Replace with your Windows IP
 JIMBOMESH_HOLLER_API_KEY=your_generated_api_key_here  # Must match Ollama server
 OLLAMA_EMBED_MODEL=nomic-embed-text
 EMBED_DIMENSIONS=768
@@ -307,7 +307,7 @@ EMBED_DIMENSIONS=768
 
 ```bash
 # Test Ollama API
-curl -H "X-API-Key: YOUR_KEY" http://your-server-ip:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://your-server-ip:1920/api/tags
 
 # Expected response: JSON list of available models
 ```
@@ -323,7 +323,7 @@ echo "Hello from Mac to Windows Ollama!" | \
   '{"source":"test","title":"Mac to Windows Test"}'
 
 # Expected output:
-# [embed] using Ollama backend: http://your-server-ip:11434 (model=nomic-embed-text, 768d)
+# [embed] using Ollama backend: http://your-server-ip:1920 (model=nomic-embed-text, 768d)
 # [embed] upserted test-mac-001 into knowledge_base (42 chars, 768d)
 ```
 
@@ -367,7 +367,7 @@ If you want to migrate existing embeddings to Ollama:
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Ollama API | 11434 | Embedding generation, LLM inference |
+| Ollama API | 1920 | Embedding generation, LLM inference |
 | Health Server | 9090 | Health checks (/healthz, /readyz, /status) |
 | Qdrant (optional) | 6333 | Vector database |
 | Qdrant gRPC (optional) | 6334 | Qdrant gRPC API |
@@ -378,7 +378,7 @@ If you want to migrate existing embeddings to Ollama:
 
 In JimboMesh `.env`:
 ```bash
-OLLAMA_URL=http://your-server-ip:11434
+OLLAMA_URL=http://your-server-ip:1920
 JIMBOMESH_HOLLER_API_KEY=your_api_key_here
 OLLAMA_EMBED_MODEL=nomic-embed-text
 EMBED_DIMENSIONS=768
@@ -389,7 +389,7 @@ EMBED_DIMENSIONS=768
 In JimboMesh `.env`:
 ```bash
 # Comment out or remove OLLAMA_URL
-# OLLAMA_URL=http://your-server-ip:11434
+# OLLAMA_URL=http://your-server-ip:1920
 OPENROUTER_API_KEY=sk-or-v1-...
 EMBED_DIMENSIONS=1536  # Optional, will default to 1536
 ```
@@ -424,14 +424,14 @@ done
 
 #### Connection Refused
 
-**Symptom**: `curl: (7) Failed to connect to your-server-ip port 11434`
+**Symptom**: `curl: (7) Failed to connect to your-server-ip port 1920`
 
 **Solutions**:
 1. Verify Windows IP address: `ipconfig`
 2. Check container is running: `docker ps`
-3. Test from Windows: `curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags`
+3. Test from Windows: `curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags`
 4. Check Windows Firewall:
-   - Allow inbound connections on port 11434
+   - Allow inbound connections on port 1920
    - Allow Docker Desktop network
 
 #### Dimension Mismatch Error
@@ -465,7 +465,7 @@ done
 # Check which backend will be used
 cd ~/path/to/JimboMesh
 bash scripts/embed.sh knowledge_base test-check '{"test":"true"}' < /dev/null 2>&1 | head -1
-# Should show: [embed] using Ollama backend: http://your-server-ip:11434 (model=nomic-embed-text, 768d)
+# Should show: [embed] using Ollama backend: http://your-server-ip:1920 (model=nomic-embed-text, 768d)
 ```
 
 ### Security Considerations
@@ -475,7 +475,7 @@ bash scripts/embed.sh knowledge_base test-check '{"test":"true"}' < /dev/null 2>
 - Rate limiting is enforced (60 req/min per IP by default)
 - Ollama runs on internal port (localhost only), accessible only via the authenticated API gateway
 - Consider using VPN or SSH tunneling for remote access
-- Do not expose port 11434 to the internet without authentication configured
+- Do not expose port 1920 to the internet without authentication configured
 
 #### API Keys
 - Ollama API key is required for all API and admin requests (`JIMBOMESH_HOLLER_API_KEY`)

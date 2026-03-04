@@ -152,7 +152,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ### Added (2026-02-27) — Auto-Login URL
 - **Hash-based login**: Admin UI reads `#key=` from URL, auto-logs in, strips hash from browser URL bar
-- **Installer output**: Both installers read API key from `.env` and display `http://localhost:11434/admin#key=<KEY>`
+- **Installer output**: Both installers read API key from `.env` and display `http://localhost:1920/admin#key=<KEY>`
 - **Secure**: Hash fragments are client-side only, never sent as HTTP requests
 
 ### Added (2026-02-27) — Interactive Installer Prompts
@@ -169,7 +169,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Eliminates concern about re-downloading large models
 
 ### Fixed (2026-02-27) — Installer Health Check
-- Installer wait loops now poll `http://localhost:9090/healthz` (unauthenticated) instead of `http://localhost:11434/api/tags` (requires API key)
+- Installer wait loops now poll `http://localhost:9090/healthz` (unauthenticated) instead of `http://localhost:1920/api/tags` (requires API key)
 - Prevents flood of `401 Missing API key` messages in container logs during install
 
 ### Fixed (2026-02-27) — PowerShell Installer Syntax
@@ -303,7 +303,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Remove orphaned `nginx.conf`** — dead code from before the Node.js gateway
 
 ### Fixed (2026-02-23)
-- **CRITICAL**: Fix health-handler.sh hitting gateway port 11434 (requires auth) instead of internal Ollama port 11435
+- **CRITICAL**: Fix health-handler.sh hitting gateway port 1920 (requires auth) instead of internal Ollama port 11435
   - Health checks were always getting 401 and reporting Ollama as down
   - Now uses `OLLAMA_INTERNAL_PORT` (default 11435) to reach Ollama directly
   - Also fixed healthcheck.sh fallback path with same issue
@@ -341,7 +341,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **NEW**: API Key Authentication for Ollama server
   - Node.js API gateway (`api-gateway.js`) validates X-API-Key header on all requests
   - Ollama now runs on internal port 11435 (localhost only)
-  - API gateway on external port 11434 with rate limiting (60 req/min per IP)
+  - API gateway on external port 1920 with rate limiting (60 req/min per IP)
   - Health endpoint `/health` bypasses auth for monitoring
   - Configured via `JIMBOMESH_HOLLER_API_KEY` environment variable
   - Generate with: `openssl rand -hex 32`
@@ -424,7 +424,7 @@ No known issues at this time.
 3. **Update Client Applications**:
    - All API requests must now include `X-API-Key` header
    - Update JimboMesh `.env` to include `JIMBOMESH_HOLLER_API_KEY=<same-key-as-server>`
-   - Example: `curl -H "X-API-Key: your_key" http://localhost:11434/api/tags`
+   - Example: `curl -H "X-API-Key: your_key" http://localhost:1920/api/tags`
 
 4. **Update .env** (if using Qdrant):
    ```bash

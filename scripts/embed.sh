@@ -8,7 +8,7 @@
 #   echo "some text" | ./scripts/embed.sh <collection> <point-key> [payload-json]
 #
 # Environment:
-#   OLLAMA_URL          — default: http://jimbomesh-still:11434
+#   OLLAMA_URL          — default: http://jimbomesh-still:1920
 #   OLLAMA_EMBED_MODEL  — default: nomic-embed-text
 #   EMBED_DIMENSIONS    — default: 768 (nomic-embed-text native dimension)
 #   QDRANT_URL          — default: http://jimbomesh-qdrant:6333
@@ -67,7 +67,7 @@ if [ -z "$QDRANT_API_KEY" ]; then
 fi
 
 # Determine embedding backend
-OLLAMA="${OLLAMA_URL:-http://jimbomesh-still:11434}"
+OLLAMA="${OLLAMA_URL:-http://jimbomesh-still:1920}"
 QDRANT="${QDRANT_URL:-http://jimbomesh-qdrant:6333}"
 EMBED_MODEL="${OLLAMA_EMBED_MODEL:-nomic-embed-text}"
 DIMENSIONS="${EMBED_DIMENSIONS:-768}"

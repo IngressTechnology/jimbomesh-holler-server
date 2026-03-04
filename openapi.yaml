@@ -16,9 +16,9 @@ info:
     - `/health`, `/readyz`, and `/admin/api/branding` are unauthenticated.
 
 servers:
-  - url: http://localhost:11434
+  - url: http://localhost:1920
     description: API gateway
-  - url: http://your-server-ip:11434
+  - url: http://your-server-ip:1920
     description: LAN gateway (replace with your server IP)
   - url: http://localhost:9090
     description: Health server (for /healthz and /status)
@@ -2031,7 +2031,7 @@ paths:
                   isDocker: true
                   localIp: 192.168.1.42
                 ports:
-                  gateway: 11434
+                  gateway: 1920
                   health: 9090
                   qdrant: 6333
                 security:

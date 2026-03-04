@@ -33,10 +33,10 @@ The Holler Server supports two distinct security profiles on macOS. On Linux and
 
 ### API Key Authentication
 
-Every request to the API gateway (port `11434`) requires an `X-API-Key` header:
+Every request to the API gateway (port `1920`) requires an `X-API-Key` header:
 
 ```bash
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
 ```
 
 Without a valid key, the gateway returns `401 Unauthorized` (missing key) or `403 Forbidden` (invalid key).
@@ -84,18 +84,18 @@ These are intended for infrastructure monitoring (load balancers, Kubernetes pro
 
 | Port | Service | Auth Required | Exposed To |
 |------|---------|---------------|------------|
-| `11434` | API gateway | Yes (`X-API-Key`) | Configured hosts (LAN or localhost) |
+| `1920` | API gateway | Yes (`X-API-Key`) | Configured hosts (LAN or localhost) |
 | `9090` | Health server | No | Same as above |
 | `6333` | Qdrant REST | Yes (`api-key`) | Same as above |
 | `11435` (internal) | Ollama (Secure Mode) | No | Localhost inside container only — not mapped to host |
 
 In Secure Mode, Ollama's port `11435` is never exposed to the host. It is accessible only from within the container, exclusively to the API gateway process.
 
-In Performance Mode, native Ollama listens on `localhost:11434` on the host, but the same host port is also mapped from the Docker gateway container. Only the gateway's port is accessible from external hosts via Docker port mapping.
+In Performance Mode, native Ollama listens on `localhost:11434` on the host. The Docker gateway container maps its port (`1920`) separately. Only the gateway's port is accessible from external hosts via Docker port mapping.
 
 ### Firewall Configuration
 
-For local-only use, do not expose port `11434` on the network interface. Use `localhost` binding or Docker's loopback mapping:
+For local-only use, do not expose port `1920` on the network interface. Use `localhost` binding or Docker's loopback mapping:
 
 ```bash
 # .env — bind gateway to loopback only

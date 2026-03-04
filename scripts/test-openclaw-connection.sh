@@ -2,7 +2,7 @@
 # Test Holler ↔ OpenClaw compatibility
 # Usage: ./test-openclaw-connection.sh [holler-url] [api-key]
 
-HOLLER_URL="${1:-http://localhost:11434}"
+HOLLER_URL="${1:-http://localhost:1920}"
 API_KEY="${2:-$(grep JIMBOMESH_HOLLER_API_KEY .env 2>/dev/null | cut -d= -f2)}"
 
 if [ -z "$API_KEY" ]; then

@@ -196,7 +196,7 @@ docker compose restart
 
 **Symptom**:
 ```bash
-curl: (7) Failed to connect to your-server-ip port 11434
+curl: (7) Failed to connect to your-server-ip port 1920
 ```
 
 **Diagnosis Steps**:
@@ -210,7 +210,7 @@ curl: (7) Failed to connect to your-server-ip port 11434
 2. **Test from Windows Locally**:
    ```bash
    # On Windows:
-   curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+   curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
    ```
    If this fails, container isn't running properly.
 
@@ -218,7 +218,7 @@ curl: (7) Failed to connect to your-server-ip port 11434
    ```bash
    # On Mac:
    ping your-server-ip
-   curl -H "X-API-Key: YOUR_KEY" http://your-server-ip:11434/api/tags
+   curl -H "X-API-Key: YOUR_KEY" http://your-server-ip:1920/api/tags
    ```
 
 **Solutions**:
@@ -228,8 +228,8 @@ curl: (7) Failed to connect to your-server-ip port 11434
 ```powershell
 # On Windows (PowerShell as Administrator):
 
-# Allow port 11434 (Ollama)
-New-NetFirewallRule -DisplayName "Ollama Server" -Direction Inbound -Protocol TCP -LocalPort 11434 -Action Allow
+# Allow port 1920 (Ollama)
+New-NetFirewallRule -DisplayName "Ollama Server" -Direction Inbound -Protocol TCP -LocalPort 1920 -Action Allow
 
 # Allow port 9090 (Health)
 New-NetFirewallRule -DisplayName "Ollama Health" -Direction Inbound -Protocol TCP -LocalPort 9090 -Action Allow
@@ -246,27 +246,27 @@ New-NetFirewallRule -DisplayName "Docker Desktop" -Direction Inbound -InterfaceA
 
 #### Container Not Binding to 0.0.0.0
 
-**Note**: The API gateway handles external binding (0.0.0.0:11434). Ollama itself runs on 127.0.0.1:11435 (internal only). If external connections fail, check that Docker port mapping is correct in `docker-compose.yml`:
+**Note**: The API gateway handles external binding (0.0.0.0:1920). Ollama itself runs on 127.0.0.1:11435 (internal only). If external connections fail, check that Docker port mapping is correct in `docker-compose.yml`:
 ```yaml
 ports:
-  - "${OLLAMA_HOST_PORT:-11434}:11434"  # Maps host port to gateway
+  - "${OLLAMA_HOST_PORT:-1920}:1920"  # Maps host port to gateway
 ```
 
 ### Port Already in Use
 
 **Symptom**:
 ```
-Error starting userland proxy: listen tcp4 0.0.0.0:11434: bind: address already in use
+Error starting userland proxy: listen tcp4 0.0.0.0:1920: bind: address already in use
 ```
 
 **Solution**:
 ```bash
 # Find what's using the port
-netstat -ano | findstr :11434  # Windows
-lsof -i :11434                  # Mac/Linux
+netstat -ano | findstr :1920  # Windows
+lsof -i :1920                  # Mac/Linux
 
 # Stop the conflicting service or change port in .env:
-echo "OLLAMA_HOST_PORT=11435" >> .env
+echo "OLLAMA_HOST_PORT=1921" >> .env
 docker compose down && docker compose up -d
 ```
 
@@ -387,7 +387,7 @@ curl -X PUT "http://localhost:6333/collections/knowledge_base" \
 
 ### Admin UI Not Loading
 
-**Symptom**: `http://localhost:11434/admin` returns 404
+**Symptom**: `http://localhost:1920/admin` returns 404
 
 **Possible Causes**:
 
@@ -421,7 +421,7 @@ docker compose up -d
 **Diagnosis**:
 ```bash
 # Verify the API key works via curl
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/status
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/status
 ```
 
 **Solution**: Ensure you're using the same `JIMBOMESH_HOLLER_API_KEY` value from your `.env` file.
@@ -456,7 +456,7 @@ docker logs jimbomesh-still
 
 2. **Use the auto-login URL**: If you saved the setup output, look for the URL:
    ```
-   http://localhost:11434/admin#key=YOUR_KEY_HERE
+   http://localhost:1920/admin#key=YOUR_KEY_HERE
    ```
 
 3. **Copy from Admin UI**: If already logged in, go to Configuration > Security and click Copy — this copies `JIMBOMESH_HOLLER_API_KEY=<key>` ready to paste into `.env`
@@ -475,8 +475,8 @@ docker logs jimbomesh-still
 
 **Symptom**: Docker logs show repeated `[api-gateway] 172.x.x.x - 401 Missing API key` messages
 
-**Root Cause**: Something is polling the API gateway port (11434) without providing an API key. Common causes:
-- An older installer version polling `http://localhost:11434/api/tags` during its wait loop
+**Root Cause**: Something is polling the API gateway port (1920) without providing an API key. Common causes:
+- An older installer version polling `http://localhost:1920/api/tags` during its wait loop
 - External monitoring hitting the gateway without auth
 
 **Solution**: Update your installer scripts. The current versions poll the unauthenticated health endpoint `http://localhost:9090/healthz` instead.
@@ -496,7 +496,7 @@ docker logs jimbomesh-still
 grep JIMBOMESH_API_KEY .env
 
 # Verify Mesh status from admin API
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/status
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/status
 ```
 
 **Solution**:
@@ -516,7 +516,7 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/status
 
 ```bash
 # Confirm effective coordinator URL in status output
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/status
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/status
 ```
 
 **Notes**:
@@ -540,7 +540,7 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/status
 **Checks**:
 
 ```bash
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/mesh/peers
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/mesh/peers
 ```
 
 **Possible Causes**:
@@ -657,7 +657,7 @@ lsof -iTCP:11434 -sTCP:LISTEN
 ```bash
 brew services start ollama
 # Wait a few seconds, then verify:
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
 ```
 
 #### Service Started but Not Listening
@@ -726,7 +726,7 @@ lsof -iTCP:11434 -sTCP:LISTEN
 # Check if Ollama sees the GPU
 ollama list  # Models should show
 # Run a quick embedding and watch Activity Monitor GPU usage
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/embed \
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/embed \
   -d '{"model":"nomic-embed-text","input":"test"}'
 ```
 
@@ -841,7 +841,7 @@ docker compose up -d --force-recreate
 **Diagnosis**:
 ```bash
 # Test the endpoint directly
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/gpu-info
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/admin/api/gpu-info
 ```
 
 **Solution**: If Ollama is still starting up, wait a few seconds and reload the Marketplace tab. If Ollama is unreachable, check `docker logs jimbomesh-still` for gateway errors.
@@ -858,7 +858,7 @@ curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/admin/api/gpu-info
 ```bash
 # Time a request
 time curl -H "X-API-Key: YOUR_KEY" \
-  -X POST http://localhost:11434/api/embed \
+  -X POST http://localhost:1920/api/embed \
   -H "Content-Type: application/json" \
   -d '{"model":"nomic-embed-text","input":"test"}'
 

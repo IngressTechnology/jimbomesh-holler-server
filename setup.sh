@@ -433,16 +433,16 @@ generate_mac_compose() {
 #
 # Applied via: COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml
 # Host gateway port is managed in .env via OLLAMA_HOST_PORT.
-# In Performance Mode setup.sh sets OLLAMA_HOST_PORT=11435 by default
-# to avoid collision with native Ollama on localhost:11434.
+# In Performance Mode setup.sh defaults OLLAMA_HOST_PORT=1920.
+# No collision with native Ollama on localhost:11434.
 
 services:
   jimbomesh-still:
     environment:
       # Route gateway requests to host's native Ollama (Metal GPU)
       - OLLAMA_EXTERNAL_URL=http://host.docker.internal:11434
-      # Container gateway still listens on 11434 internally.
-      - GATEWAY_PORT=11434
+      # Container gateway still listens on 1920 internally.
+      - GATEWAY_PORT=1920
     extra_hosts:
       - "host.docker.internal:host-gateway"
 COMPOSE_EOF
@@ -817,7 +817,7 @@ if [ "$EXISTING_INSTALL" = true ] && [ "$PULL_ONLY" = false ]; then
             repair_stats_schema
             log_success "Services restarted!"
             echo ""
-            echo -e "  ${CYAN}Admin UI:${NC}   http://localhost:11434/admin"
+            echo -e "  ${CYAN}Admin UI:${NC}   http://localhost:1920/admin"
             echo -e "  ${CYAN}Logs:${NC}       docker logs -f jimbomesh-still"
             echo ""
             exit 0
@@ -925,7 +925,7 @@ if [ "$EXISTING_INSTALL" = true ] && [ "$PULL_ONLY" = false ]; then
                 CONNECT_KEY=$(grep '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
             fi
             if [ -n "$CONNECT_KEY" ]; then
-                echo -e "  ${BOLD}Connect:${NC} http://localhost:11434/admin#key=${CONNECT_KEY}"
+                echo -e "  ${BOLD}Connect:${NC} http://localhost:1920/admin#key=${CONNECT_KEY}"
             fi
             echo -e "  ${CYAN}Logs:${NC}    docker logs -f jimbomesh-still"
             echo ""
@@ -1071,13 +1071,13 @@ fi
 # Persist defaults/choices so rebuilds and reinstalls are seamless.
 CURRENT_OLLAMA_HOST_PORT=$(get_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT")
 if [ -z "$CURRENT_OLLAMA_HOST_PORT" ]; then
-    CURRENT_OLLAMA_HOST_PORT="11434"
+    CURRENT_OLLAMA_HOST_PORT="1920"
 fi
 set_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT" "$CURRENT_OLLAMA_HOST_PORT"
 
 CURRENT_GATEWAY_PORT=$(get_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT")
 if [ -z "$CURRENT_GATEWAY_PORT" ]; then
-    CURRENT_GATEWAY_PORT="11434"
+    CURRENT_GATEWAY_PORT="1920"
 fi
 set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "$CURRENT_GATEWAY_PORT"
 
@@ -1146,17 +1146,17 @@ else
     set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "false"
 fi
 
-# macOS Performance Mode: avoid host port collision with native Ollama on 11434.
-# If OLLAMA_HOST_PORT is unset or still 11434, switch gateway host port to 11435.
+# macOS Performance Mode: detect host port collision with native Ollama on 11434.
+# Default gateway port (1920) does not collide; only warn if explicitly set to 11434.
 if [ "$OLLAMA_MODE" = "native" ] && [ -f "$SCRIPT_DIR/.env" ]; then
     CURRENT_OLLAMA_HOST_PORT=$(grep '^OLLAMA_HOST_PORT=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
-    if [ -z "$CURRENT_OLLAMA_HOST_PORT" ] || [ "$CURRENT_OLLAMA_HOST_PORT" = "11434" ]; then
+    if [ "$CURRENT_OLLAMA_HOST_PORT" = "11434" ]; then
         set_env_var "$SCRIPT_DIR/.env" "OLLAMA_HOST_PORT" "11435"
         set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "11435"
-        log_success "Performance Mode gateway port set: localhost:11435 (native Ollama remains on 11434)"
+        log_success "Performance Mode: moved gateway to localhost:11435 to avoid collision with native Ollama on 11434"
     else
-        set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "$CURRENT_OLLAMA_HOST_PORT"
-        log_success "Performance Mode gateway port preserved: localhost:${CURRENT_OLLAMA_HOST_PORT}"
+        [ -n "$CURRENT_OLLAMA_HOST_PORT" ] && set_env_var "$SCRIPT_DIR/.env" "GATEWAY_PORT" "$CURRENT_OLLAMA_HOST_PORT"
+        log_success "Performance Mode gateway port: localhost:${CURRENT_OLLAMA_HOST_PORT:-1920}"
     fi
 fi
 
@@ -1323,7 +1323,7 @@ fi
 # Read keys from .env for launch and summary
 CONNECT_KEY=""
 QDRANT_CONNECT_KEY=""
-GATEWAY_HOST_PORT="11434"
+GATEWAY_HOST_PORT="1920"
 if [ -f "$SCRIPT_DIR/.env" ]; then
     CONNECT_KEY=$(grep '^JIMBOMESH_HOLLER_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
     QDRANT_CONNECT_KEY=$(grep '^QDRANT_API_KEY=' "$SCRIPT_DIR/.env" | head -1 | cut -d= -f2-)
@@ -1337,7 +1337,7 @@ fi
 # ── Launch Admin UI ──────────────────────────────────────────
 echo ""
 echo -e "${CYAN}Opening Admin Dashboard...${NC}"
-LAUNCH_PORT="${GATEWAY_HOST_PORT:-11434}"
+LAUNCH_PORT="${GATEWAY_HOST_PORT:-1920}"
 ADMIN_URL="http://localhost:${LAUNCH_PORT}/admin"
 if [ -n "$CONNECT_KEY" ]; then
     ADMIN_URL="http://localhost:${LAUNCH_PORT}/admin#key=$CONNECT_KEY"
@@ -1443,8 +1443,8 @@ if [ -f "$SCRIPT_DIR/.env" ]; then
 
     [ -z "$SUMMARY_SERVER_NAME" ] && SUMMARY_SERVER_NAME="Holler Server"
     [ -z "$SUMMARY_COMPOSE" ] && SUMMARY_COMPOSE="docker-compose.yml"
-    [ -z "$SUMMARY_GATEWAY_PORT" ] && SUMMARY_GATEWAY_PORT="11434"
-    [ -z "$SUMMARY_OLLAMA_PORT" ] && SUMMARY_OLLAMA_PORT="11434"
+    [ -z "$SUMMARY_GATEWAY_PORT" ] && SUMMARY_GATEWAY_PORT="1920"
+    [ -z "$SUMMARY_OLLAMA_PORT" ] && SUMMARY_OLLAMA_PORT="1920"
     [ -z "$SUMMARY_MODELS" ] && SUMMARY_MODELS="nomic-embed-text,llama3.1:8b"
     [ -z "$SUMMARY_ADMIN_ENABLED" ] && SUMMARY_ADMIN_ENABLED="true"
 
@@ -1504,7 +1504,7 @@ if [ "$OLLAMA_MODE" = "native" ]; then
     echo -e "  ${CYAN}Pull model:${NC}     ollama pull <model>"
     echo -e "  ${CYAN}Ollama logs:${NC}    tail -f ~/.ollama/logs/server.log"
 else
-    echo -e "  ${CYAN}List models:${NC}    curl http://localhost:11434/api/tags"
+    echo -e "  ${CYAN}List models:${NC}    curl -H 'X-API-Key: YOUR_KEY' http://localhost:${GATEWAY_HOST_PORT}/api/tags"
     echo -e "  ${CYAN}Pull model:${NC}     docker exec jimbomesh-still ollama pull <model>"
 fi
 echo -e "  ${CYAN}Stop:${NC}           cd $SCRIPT_DIR && $COMPOSE_CMD down"

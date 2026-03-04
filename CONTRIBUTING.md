@@ -67,10 +67,10 @@ For NVIDIA GPU mode, set `COMPOSE_FILE=docker-compose.yml:docker-compose.gpu.yml
 ```bash
 docker compose ps
 docker logs -f jimbomesh-still
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/api/tags
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
 ```
 
-Admin UI: `http://localhost:11434/admin`
+Admin UI: `http://localhost:1920/admin`
 
 ## Repository Map
 
@@ -111,7 +111,7 @@ Useful commands:
 
 ```bash
 docker compose logs -f jimbomesh-still
-curl -H "X-API-Key: YOUR_KEY" http://localhost:11434/health
+curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/health
 curl http://localhost:9090/healthz
 ```
 

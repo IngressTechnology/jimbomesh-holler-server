@@ -34,7 +34,7 @@ cp jimbomesh-holler-server/scripts/embed.sh JimboMesh/scripts/embed.sh
 
 ```bash
 # Local Ollama (add to JimboMesh .env)
-OLLAMA_URL=http://jimbomesh-still:11434
+OLLAMA_URL=http://jimbomesh-still:1920
 JIMBOMESH_HOLLER_API_KEY=your_generated_api_key_here  # Must match Ollama server
 OLLAMA_EMBED_MODEL=nomic-embed-text
 EMBED_DIMENSIONS=768
@@ -68,7 +68,7 @@ Add the Ollama server to JimboMesh's Docker network so containers can communicat
 services:
   jimbomesh-gateway:
     environment:
-      - OLLAMA_URL=http://jimbomesh-still:11434
+      - OLLAMA_URL=http://jimbomesh-still:1920
       - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}  # Must match Ollama server
       - OLLAMA_EMBED_MODEL=nomic-embed-text
       - EMBED_DIMENSIONS=768
@@ -80,13 +80,13 @@ services:
     volumes:
       - ollama_models:/root/.ollama
     ports:
-      - "11434:11434"
+      - "1920:1920"
       - "9090:9090"
     environment:
       - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}  # Required for authentication
       - HOLLER_MODELS=nomic-embed-text,llama3.1:8b
       - OLLAMA_EMBED_MODEL=nomic-embed-text
-      - GATEWAY_PORT=11434
+      - GATEWAY_PORT=1920
       - OLLAMA_INTERNAL_PORT=11435
       - RATE_LIMIT_PER_MIN=60
     healthcheck:
@@ -122,13 +122,13 @@ If both stacks run on the same host machine, use `host.docker.internal`:
 
 ```bash
 # In JimboMesh .env
-OLLAMA_URL=http://host.docker.internal:11434
+OLLAMA_URL=http://host.docker.internal:1920
 JIMBOMESH_HOLLER_API_KEY=your_api_key_here
 ```
 
 This works on Docker Desktop (Windows/macOS). On Linux, add `--add-host=host.docker.internal:host-gateway` to the gateway service.
 
-> **macOS Performance Mode note:** Option C works identically whether Holler Server runs in Secure Mode (Docker CPU) or Performance Mode (native Ollama). From JimboMesh's container, `host.docker.internal:11434` always reaches the **Holler Server API gateway** (the Docker container), which then proxies internally to native Ollama. Authentication, rate limiting, and the admin UI are preserved. JimboMesh does not need to know which mode the Holler Server is using.
+> **macOS Performance Mode note:** Option C works identically whether Holler Server runs in Secure Mode (Docker CPU) or Performance Mode (native Ollama). From JimboMesh's container, `host.docker.internal:1920` always reaches the **Holler Server API gateway** (the Docker container), which then proxies internally to native Ollama. Authentication, rate limiting, and the admin UI are preserved. JimboMesh does not need to know which mode the Holler Server is using.
 
 ### Option D: Remote Server
 
@@ -136,14 +136,14 @@ If Ollama runs on a different machine (e.g., a GPU server or separate Windows PC
 
 ```bash
 # In JimboMesh .env
-OLLAMA_URL=http://192.168.1.100:11434  # Replace with actual IP
+OLLAMA_URL=http://192.168.1.100:1920  # Replace with actual IP
 JIMBOMESH_HOLLER_API_KEY=your_api_key_here        # Must match server
 ```
 
 Ensure:
-1. Port 11434 is accessible from the JimboMesh host
+1. Port 1920 is accessible from the JimboMesh host
 2. The API key matches the `JIMBOMESH_HOLLER_API_KEY` on the Ollama server
-3. Firewall allows incoming connections on port 11434
+3. Firewall allows incoming connections on port 1920
 
 ## Dimension Migration
 
@@ -271,13 +271,13 @@ After integration, verify the pipeline end-to-end:
 ```bash
 # 1. Test Ollama API gateway authentication
 curl -H "X-API-Key: $JIMBOMESH_HOLLER_API_KEY" \
-  http://localhost:11434/api/tags
+  http://localhost:1920/api/tags
 
 # 2. Test embedding generation
 curl -H "X-API-Key: $JIMBOMESH_HOLLER_API_KEY" \
   -H "Content-Type: application/json" \
   -d '{"model":"nomic-embed-text","input":"test embedding"}' \
-  http://localhost:11434/api/embed
+  http://localhost:1920/api/embed
 
 # 3. Test embed.sh (should use API key from environment)
 echo "test embedding" | ./scripts/embed.sh knowledge_base test-001 '{"source":"test"}'

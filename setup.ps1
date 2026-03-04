@@ -366,7 +366,7 @@ if ($ExistingInstall -and -not $PullOnly) {
             Pop-Location
             Write-Success "Services restarted!"
             Write-Host ""
-            Write-Host "  Admin UI:   http://localhost:11434/admin" -ForegroundColor Cyan
+            Write-Host "  Admin UI:   http://localhost:1920/admin" -ForegroundColor Cyan
             Write-Host "  Logs:       docker logs -f jimbomesh-still" -ForegroundColor Cyan
             Write-Host ""
             exit 0
@@ -473,7 +473,7 @@ if ($ExistingInstall -and -not $PullOnly) {
 
             # Read API key for connect URL
             $connectKey = ""
-            $updateGatewayPort = "11434"
+            $updateGatewayPort = "1920"
             if (Test-Path $envFile) {
                 foreach ($line in (Get-Content $envFile)) {
                     if ($line -match '^JIMBOMESH_HOLLER_API_KEY=(.+)$') {
@@ -664,8 +664,8 @@ if ($envContent -notmatch '(?m)^HOLLER_SERVER_NAME=.+' -or $envContent -match '(
 }
 
 # Persist defaults/choices so rebuilds/reinstalls keep behavior.
-if (-not (Get-EnvVar $envFile "OLLAMA_HOST_PORT")) { Set-EnvVar $envFile "OLLAMA_HOST_PORT" "11434" }
-if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) { Set-EnvVar $envFile "GATEWAY_PORT" "11434" }
+if (-not (Get-EnvVar $envFile "OLLAMA_HOST_PORT")) { Set-EnvVar $envFile "OLLAMA_HOST_PORT" "1920" }
+if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) { Set-EnvVar $envFile "GATEWAY_PORT" "1920" }
 if (-not (Get-EnvVar $envFile "HOLLER_MODELS")) { Set-EnvVar $envFile "HOLLER_MODELS" "nomic-embed-text,llama3.1:8b" }
 if (-not (Get-EnvVar $envFile "OLLAMA_EMBED_MODEL")) { Set-EnvVar $envFile "OLLAMA_EMBED_MODEL" "nomic-embed-text" }
 if (-not (Get-EnvVar $envFile "ADMIN_ENABLED")) { Set-EnvVar $envFile "ADMIN_ENABLED" "true" }
@@ -825,7 +825,7 @@ if (Test-Path $envFile) {
 Write-Host ""
 Write-Host "Opening Admin Dashboard..." -ForegroundColor Cyan
 $launchPort = Get-EnvVar $envFile "GATEWAY_PORT"
-if (-not $launchPort) { $launchPort = "11434" }
+if (-not $launchPort) { $launchPort = "1920" }
 $adminUrl = "http://localhost:$launchPort/admin"
 if ($connectKey) {
     $adminUrl = "http://localhost:$launchPort/admin#key=$connectKey"
@@ -885,7 +885,7 @@ if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) {
     Set-EnvVar $envFile "GATEWAY_PORT" (Get-EnvVar $envFile "OLLAMA_HOST_PORT")
 }
 $gatewayHostPort = Get-EnvVar $envFile "GATEWAY_PORT"
-if (-not $gatewayHostPort) { $gatewayHostPort = "11434" }
+if (-not $gatewayHostPort) { $gatewayHostPort = "1920" }
 
 # Success
 Write-Host ""
@@ -912,8 +912,8 @@ $summaryAdminEnabled = Get-EnvVar $envFile "ADMIN_ENABLED"
 
 if (-not $summaryServerName) { $summaryServerName = "Holler Server" }
 if (-not $summaryCompose) { $summaryCompose = "docker-compose.yml" }
-if (-not $summaryGatewayPort) { $summaryGatewayPort = "11434" }
-if (-not $summaryOllamaPort) { $summaryOllamaPort = "11434" }
+if (-not $summaryGatewayPort) { $summaryGatewayPort = "1920" }
+if (-not $summaryOllamaPort) { $summaryOllamaPort = "1920" }
 if (-not $summaryModels) { $summaryModels = "nomic-embed-text,llama3.1:8b" }
 if (-not $summaryAdminEnabled) { $summaryAdminEnabled = "true" }
 
@@ -972,7 +972,7 @@ Write-Host "  Config:         $ScriptDir\.env" -ForegroundColor Cyan
 Write-Host ""
 Write-Host "Useful commands:" -ForegroundColor White
 Write-Host "  View logs:      docker logs -f jimbomesh-still" -ForegroundColor Cyan
-Write-Host "  List models:    curl http://localhost:11434/api/tags" -ForegroundColor Cyan
+Write-Host "  List models:    curl -H 'X-API-Key: YOUR_KEY' http://localhost:$gatewayHostPort/api/tags" -ForegroundColor Cyan
 Write-Host "  Pull model:     docker exec jimbomesh-still ollama pull <model>" -ForegroundColor Cyan
 Write-Host "  Stop:           cd $ScriptDir && $ComposeCmd down" -ForegroundColor Cyan
 Write-Host "  Start:          cd $ScriptDir && $ComposeCmd up -d" -ForegroundColor Cyan

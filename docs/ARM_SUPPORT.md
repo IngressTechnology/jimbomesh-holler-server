@@ -313,7 +313,7 @@ Or manually warm up:
 
 ```bash
 curl -H "X-API-Key: YOUR_KEY" \
-  http://localhost:11434/api/embed \
+  http://localhost:1920/api/embed \
   -d '{"model": "nomic-embed-text", "input": "warmup"}'
 ```
 
