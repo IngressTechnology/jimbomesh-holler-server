@@ -1343,6 +1343,22 @@ if [ -n "$CONNECT_KEY" ]; then
     ADMIN_URL="http://localhost:${LAUNCH_PORT}/admin#key=$CONNECT_KEY"
 fi
 
+READY=false
+for i in $(seq 1 30); do
+    sleep 2
+    # Gateway readiness lives at /readyz (and /health as fallback), not /healthz.
+    ready_code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$LAUNCH_PORT/readyz" 2>/dev/null || true)"
+    if [ "$ready_code" = "200" ]; then
+        READY=true
+        break
+    fi
+    health_code="$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$LAUNCH_PORT/health" 2>/dev/null || true)"
+    if [ "$health_code" = "200" ]; then
+        READY=true
+        break
+    fi
+    echo -e "    Waiting for Holler to start... ($((i * 2))s)"
+done
 open_admin_url() {
     local target_url="$1"
     if command -v xdg-open >/dev/null 2>&1; then
