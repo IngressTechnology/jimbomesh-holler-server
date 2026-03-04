@@ -45,3 +45,5 @@ node_modules/
 
 # Logs
 *.log
+
+*.sqlite
