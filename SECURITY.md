@@ -6,7 +6,7 @@
 
 If you discover a security vulnerability in JimboMesh Holler Server, please report it responsibly:
 
-📧 **Email:** [security@ingresstechnology.com](mailto:security@ingresstechnology.com)
+📧 **Email:** [security@jimbomesh.ai](mailto:security@jimbomesh.ai)
 
 ### What to include:
 
