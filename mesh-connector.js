@@ -95,6 +95,10 @@ function mapModelsForSaas(models) {
 }
 
 const BACKOFF_SCHEDULE = [5000, 10000, 30000, 60000, 300000]; // 5s → 5min
+const MGMT_WS_BASE_DELAY_MS = 1000;
+const MGMT_WS_MAX_DELAY_MS = 60000;
+const MGMT_WS_STABLE_MS = 300000;
+const MGMT_WS_HEARTBEAT_STALE_MS = 90000;
 
 // ── MeshConnector ─────────────────────────────────────────────────
 
@@ -106,6 +110,7 @@ class MeshConnector {
     this.hollerEndpoint = config.hollerEndpoint || process.env.JIMBOMESH_HOLLER_ENDPOINT || 'http://127.0.0.1:11435';
     this.db = config.db || null;
     this.version = config.version || '0.0.0';
+    this.getConcurrencyStats = typeof config.getConcurrencyStats === 'function' ? config.getConcurrencyStats : null;
 
     this.hollerName = config.hollerName || null;
 
@@ -132,11 +137,15 @@ class MeshConnector {
     // Management WebSocket (real-time job push from SaaS)
     this._mgmtWs = null;
     this._mgmtWsRetries = 0;
+    this._mgmtReconnectAttempt = 0;
+    this._mgmtNextRetryAt = null;
     this._mgmtPingInterval = null;
     this._mgmtPongTimeout = null;
+    this._mgmtStableTimer = null;
     this._mgmtWsRetryTimeout = null;
     this._mgmtWsDisconnectedAt = null;
     this._mgmtWsPongReceived = false;
+    this._mgmtLastHeartbeatAck = 0;
     this.connectionMode = 'HTTP Polling';
 
     // Job dedup — prevent double-processing from WS + poll overlap
@@ -193,6 +202,8 @@ class MeshConnector {
       try { this._mgmtWs.close(); } catch (e) { /* ignore */ }
       this._mgmtWs = null;
     }
+    this._mgmtReconnectAttempt = 0;
+    this._mgmtNextRetryAt = null;
     this.connectionMode = 'HTTP Polling';
     this._state = 'disconnected';
     this.errorMessage = null;
@@ -224,6 +235,8 @@ class MeshConnector {
       try { this._mgmtWs.close(1000, 'Disconnecting'); } catch (e) { /* ignore */ }
       this._mgmtWs = null;
     }
+    this._mgmtReconnectAttempt = 0;
+    this._mgmtNextRetryAt = null;
     this.connectionMode = 'HTTP Polling';
 
     // Close all WebRTC peer connections
@@ -282,6 +295,8 @@ class MeshConnector {
       errorMessage: this.errorMessage,
       mode: modeMap[this._state] || 'off-grid',
       connectionMode: this.connectionMode,
+      reconnectAttempt: this._mgmtReconnectAttempt || 0,
+      nextReconnectAt: this._mgmtNextRetryAt,
       log: this._log.slice(),
     };
     if (this.peerHandler) {
@@ -313,6 +328,7 @@ class MeshConnector {
    */
   _connectManagementWebSocket() {
     if (this._stopped || this._aborted) return;
+    this._mgmtNextRetryAt = null;
     if (this._mgmtWs) {
       try { this._mgmtWs.close(); } catch (e) { /* ignore */ }
     }
@@ -323,18 +339,31 @@ class MeshConnector {
       + '?token=' + encodeURIComponent(this.apiKey)
       + '&holler_id=' + encodeURIComponent(this.hollerId);
 
-    this._addLog('info', 'Connecting management WebSocket...');
+    const connectAttempt = Math.max(1, this._mgmtReconnectAttempt || 1);
+    this._addLog('info', 'Connecting to ' + wsUrl + ' (attempt ' + connectAttempt + ')');
 
     try {
       const ws = new WebSocket(wsUrl);
 
       ws.addEventListener('open', () => {
-        this._addLog('success', 'Management WebSocket connected');
+        this._addLog('success', 'Connected to mesh (attempt ' + connectAttempt + ')');
         this._mgmtWsRetries = 0;
+        this._mgmtReconnectAttempt = 0;
+        this._mgmtNextRetryAt = null;
         this._mgmtWsDisconnectedAt = null;
+        this._mgmtLastHeartbeatAck = Date.now();
         this._mgmtWs = ws;
+        if (this._state === 'reconnecting') this._state = 'connected';
+        this.errorMessage = null;
         this.connectionMode = 'WebSocket';
         this._startMgmtPing();
+        this._mgmtStableTimer = setTimeout(() => {
+          if (!this._stopped && !this._aborted && this._mgmtWs && this._mgmtWs.readyState === 1) {
+            this._mgmtWsRetries = 0;
+            this._mgmtReconnectAttempt = 0;
+            this._addLog('info', 'Connection stable for 300s, resetting backoff');
+          }
+        }, MGMT_WS_STABLE_MS);
       });
 
       ws.addEventListener('message', (event) => {
@@ -350,12 +379,14 @@ class MeshConnector {
       });
 
       ws.addEventListener('close', (event) => {
-        this._addLog('warning', 'Management WebSocket closed (code: ' + event.code + ')');
+        const closeReason = event.reason ? String(event.reason) : 'none';
+        this._addLog('warning', 'WebSocket closed: code=' + event.code + ', reason=' + closeReason);
         this._mgmtWs = null;
         this.connectionMode = 'HTTP Polling';
         this._clearMgmtTimers();
 
         if (!this._stopped && !this._aborted && (this._state === 'connected' || this._state === 'reconnecting')) {
+          this._state = 'reconnecting';
           if (!this._mgmtWsDisconnectedAt) this._mgmtWsDisconnectedAt = Date.now();
 
           // If management WS has been down > 5 min, do full re-registration
@@ -372,7 +403,7 @@ class MeshConnector {
       });
 
       ws.addEventListener('error', (err) => {
-        this._addLog('warning', 'Management WebSocket error: ' + (err.message || 'unknown'));
+        this._addLog('warning', 'WebSocket error: ' + (err.message || 'unknown'));
       });
 
     } catch (err) {
@@ -384,13 +415,17 @@ class MeshConnector {
    * Schedule a management WebSocket reconnect with exponential backoff.
    */
   _scheduleMgmtWsReconnect() {
-    const BACKOFF = [2000, 5000, 10000, 30000, 60000];
-    const delay = BACKOFF[Math.min(this._mgmtWsRetries, BACKOFF.length - 1)];
+    const baseDelay = Math.min(MGMT_WS_BASE_DELAY_MS * Math.pow(2, this._mgmtWsRetries), MGMT_WS_MAX_DELAY_MS);
+    const jitter = Math.random() * baseDelay * 0.3;
+    const delay = Math.round(baseDelay + jitter);
+    const attempt = this._mgmtWsRetries + 1;
+    this._mgmtReconnectAttempt = attempt;
+    this._mgmtNextRetryAt = Date.now() + delay;
     this._mgmtWsRetries++;
-    this._addLog('info', 'Reconnecting management WebSocket in ' + (delay / 1000) + 's...');
+    this._addLog('info', 'Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + attempt + ')');
 
     this._mgmtWsRetryTimeout = setTimeout(() => {
-      if (!this._stopped && !this._aborted && (this._state === 'connected' || this._state === 'reconnecting')) {
+      if (!this._stopped && !this._aborted && (this._state === 'connected' || this._state === 'reconnecting' || this._state === 'connecting')) {
         this._connectManagementWebSocket();
       }
     }, delay);
@@ -425,6 +460,7 @@ class MeshConnector {
     if (this._mgmtPingInterval) { clearInterval(this._mgmtPingInterval); this._mgmtPingInterval = null; }
     if (this._mgmtPongTimeout) { clearTimeout(this._mgmtPongTimeout); this._mgmtPongTimeout = null; }
     if (this._mgmtWsRetryTimeout) { clearTimeout(this._mgmtWsRetryTimeout); this._mgmtWsRetryTimeout = null; }
+    if (this._mgmtStableTimer) { clearTimeout(this._mgmtStableTimer); this._mgmtStableTimer = null; }
   }
 
   /**
@@ -458,19 +494,7 @@ class MeshConnector {
           ice_servers: msg.ice_servers || [{ urls: 'stun:stun.l.google.com:19302' }],
         };
 
-        // Try WebRTC first
-        if (this.peerHandler && jobData.signaling_url && jobData.ice_servers) {
-          const result = await this.peerHandler.handleJobAssignment(jobData);
-          if (result.success) {
-            this.jobsProcessed++;
-            this._addLog('info', 'Job ' + jobId + ' started via WebRTC P2P');
-            return;
-          }
-          this._addLog('warning', 'WebRTC failed (' + result.reason + ') — falling back to HTTP processing');
-        }
-
-        // Fallback: process via local Ollama HTTP
-        await this._processJob(jobData);
+        await this._handleMeshJob(jobData, 'websocket');
 
       } else if (msg.type === 'fallback_inference') {
         this._handleFallbackInference(msg).catch((err) => {
@@ -484,7 +508,9 @@ class MeshConnector {
 
       } else if (msg.type === 'pong') {
         this._mgmtWsPongReceived = true;
+        this._mgmtLastHeartbeatAck = Date.now();
       } else if (msg.type === 'ping') {
+        this._mgmtLastHeartbeatAck = Date.now();
         this._sendMgmtMessage({ type: 'pong' });
       } else {
         this._addLog('info', 'Management WS message: ' + msg.type);
@@ -798,6 +824,43 @@ class MeshConnector {
     }
   }
 
+  async _handleMeshJob(job, source) {
+    const jobId = job.job_id || job.jobId || 'unknown';
+    const model = job.model || 'unknown';
+    const startTime = Date.now();
+    try {
+      // Try WebRTC first.
+      if (job.signaling_url && job.ice_servers && this.peerHandler) {
+        const result = await this.peerHandler.handleJobAssignment(job);
+        if (result && result.success) {
+          this.jobsProcessed++;
+          this._addLog('info', 'Job ' + jobId + ' started via WebRTC P2P');
+          return;
+        }
+        this._addLog('warning', 'WebRTC failed (' + ((result && result.reason) || 'unknown') + ') — falling back to HTTP processing');
+      }
+
+      // Fallback: process via local Ollama HTTP.
+      await this._processJob(job);
+    } catch (err) {
+      const msg = (err && err.message) || String(err);
+      const processingTime = Date.now() - startTime;
+      console.error('[mesh-connector] Inference error on job ' + jobId + ': ' + msg);
+      this._addLog('error', 'Inference error on job ' + jobId + ' (model: ' + model + ', source: ' + source + '): ' + msg);
+      // Report failure back to SaaS but never let it crash the management WebSocket.
+      try {
+        await this._completeJob(jobId, {
+          success: false,
+          error: msg,
+          processing_time_ms: processingTime,
+        });
+      } catch (reportErr) {
+        console.error('[mesh-connector] Failed to report job failure:', reportErr && reportErr.message ? reportErr.message : reportErr);
+        this._addLog('error', 'Failed to report job failure: ' + ((reportErr && reportErr.message) || String(reportErr)));
+      }
+    }
+  }
+
   // ── Registration ────────────────────────────────────────────────
 
   async _registerWithRetry() {
@@ -905,6 +968,9 @@ class MeshConnector {
       if (!this._mgmtWs || this._mgmtWs.readyState !== 1 /* OPEN */) {
         this._addLog('warning', 'Management WebSocket dead — reconnecting');
         this._connectManagementWebSocket();
+      } else if (this._mgmtLastHeartbeatAck && (Date.now() - this._mgmtLastHeartbeatAck > MGMT_WS_HEARTBEAT_STALE_MS)) {
+        this._addLog('warning', 'Heartbeat stale, forcing reconnect');
+        try { this._mgmtWs.close(); } catch (_) {}
       }
     } catch (err) {
       this.heartbeatFailures++;
@@ -922,10 +988,15 @@ class MeshConnector {
 
   async _sendHeartbeat() {
     const models = await this._getOllamaModels();
+    const concurrency = this.getConcurrencyStats ? this.getConcurrencyStats() : {};
     const body = {
       hollerId: this.hollerId,
       currentLoad: await this._getCurrentLoad(),
       models: mapModelsForSaas(models),
+      maxConcurrentRequests: concurrency.maxConcurrentRequests != null ? concurrency.maxConcurrentRequests : 1,
+      activeRequests: concurrency.activeRequests != null ? concurrency.activeRequests : 0,
+      queueDepth: concurrency.queueDepth != null ? concurrency.queueDepth : 0,
+      gpuCount: concurrency.gpuCount != null ? concurrency.gpuCount : 0,
     };
 
     const result = await this._meshFetch('POST', '/api/hollers/heartbeat', body);
@@ -968,17 +1039,7 @@ class MeshConnector {
         this._processedJobs.add(jobId);
         this._trimProcessedJobs();
 
-        // If job includes signaling data, attempt WebRTC peer-to-peer
-        if (job.signaling_url && job.ice_servers && this.peerHandler) {
-          var webrtcResult = await this.peerHandler.handleJobAssignment(job);
-          if (webrtcResult.success) {
-            this.jobsProcessed++;
-            continue; // Job will be processed via data channel
-          }
-          log('WebRTC failed (' + webrtcResult.reason + ') for job ' + jobId + ' — falling back to HTTP');
-        }
-
-        await this._processJob(job);
+        await this._handleMeshJob(job, 'poll');
       }
     } finally {
       this._processing = false;
@@ -999,6 +1060,8 @@ class MeshConnector {
 
     const startTime = Date.now();
     try {
+      await this._assertModelLoaded(model);
+
       // Call local Ollama for inference
       const ollamaResult = await this._ollamaChat(model, messages, params);
       const processingTime = Date.now() - startTime;
@@ -1035,7 +1098,9 @@ class MeshConnector {
       log('Job ' + jobId + ' completed in ' + (processingTime / 1000).toFixed(1) + 's (' + tokensUsed + ' tokens)');
     } catch (err) {
       const processingTime = Date.now() - startTime;
-      log('Job ' + jobId + ' failed: ' + err.message);
+      const isTimeout = /timeout|timed out/i.test(err && err.message ? err.message : '');
+      log('Job ' + jobId + ' failed (model: ' + model + '): ' + err.message + (isTimeout ? ' [timeout]' : ''));
+      this._addLog('error', 'Inference failed for model ' + model + ': ' + err.message + (isTimeout ? ' [timeout]' : ''));
       await stats.failRequest(tracking, err).catch(function () {});
       try {
         dbClient.logRequest({
@@ -1061,6 +1126,32 @@ class MeshConnector {
         log('Failed to report job failure: ' + reportErr.message);
       }
     }
+  }
+
+  async _assertModelLoaded(model) {
+    if (!model) throw new Error('Job missing model');
+    const loadedModels = await this._getLoadedOllamaModelNames();
+    if (loadedModels.length === 0) {
+      throw new Error('No loaded Ollama models available; cannot run model "' + model + '"');
+    }
+
+    const target = String(model).toLowerCase();
+    const found = loadedModels.some(function (name) {
+      const n = String(name || '').toLowerCase();
+      return n === target || n.startsWith(target + ':') || target.startsWith(n + ':');
+    });
+
+    if (!found) {
+      throw new Error('Model "' + model + '" is not currently loaded in Ollama');
+    }
+  }
+
+  async _getLoadedOllamaModelNames() {
+    const result = await this._ollamaFetch('GET', '/api/ps');
+    if (!result || !Array.isArray(result.models)) return [];
+    return result.models
+      .map(function (m) { return m.name || m.model || ''; })
+      .filter(Boolean);
   }
 
   async _completeJob(jobId, result) {

@@ -1866,6 +1866,7 @@ function handleMeshConnect(req, res, config) {
       db: config.db,
       version: require('./package.json').version,
       hollerName: hollerName || undefined,
+      getConcurrencyStats: config.getConcurrencyStats,
     });
     config.setMeshConnector(connector);
     connector.start();
@@ -1956,6 +1957,7 @@ function handleMeshConnectStored(res, config) {
     db: config.db,
     version: require('./package.json').version,
     hollerName: hollerName || undefined,
+    getConcurrencyStats: config.getConcurrencyStats,
   });
   config.setMeshConnector(connector);
   connector.start();
@@ -2008,6 +2010,7 @@ function handleMeshReconnect(res, config) {
     db: config.db,
     version: require('./package.json').version,
     hollerName: hollerName || undefined,
+    getConcurrencyStats: config.getConcurrencyStats,
   });
   config.setMeshConnector(connector);
   connector.start();
