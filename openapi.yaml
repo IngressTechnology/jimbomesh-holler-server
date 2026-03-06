@@ -2,6 +2,8 @@ openapi: 3.0.3
 info:
   title: JimboMesh Holler Server API
   version: 0.6.0
+  contact:
+    email: security@jimbomesh.ai
   description: |
     Full API surface for JimboMesh Holler Server.
 
