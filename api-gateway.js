@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const url = require('url');
 const crypto = require('crypto');
+const { execSync } = require('child_process');
 const db = require('./db');
 const stats = require('./stats-collector');
 const { createAdminRoutes } = require('./admin-routes');
@@ -81,8 +82,32 @@ function RATE_LIMIT_BURST()       { return cfg('rate_limit_burst', 10); }
 function MAX_REQUEST_BODY_BYTES() { return cfg('max_request_body_bytes', 1048576); }
 function MAX_BATCH_SIZE()         { return cfg('max_batch_size', 100); }
 function OLLAMA_TIMEOUT_MS()      { return cfg('ollama_timeout_ms', 120000); }
-function MAX_CONCURRENT_REQUESTS(){ return cfg('max_concurrent_requests', 4); }
+let detectedGpuCount = 0;
+function MAX_CONCURRENT_REQUESTS(){
+  const configured = cfg('max_concurrent_requests', null);
+  if (configured !== null) return configured;
+  return Math.max(1, detectedGpuCount);
+}
 function MAX_QUEUE_SIZE()         { return cfg('max_queue_size', 50); }
+
+async function detectGpuCount() {
+  try {
+    const output = execSync('nvidia-smi --query-gpu=name --format=csv,noheader', { timeout: 5000 }).toString().trim();
+    const gpus = output.split('\n').filter((line) => line.trim().length > 0);
+    console.log(`[api-gateway] Detected ${gpus.length} GPU(s): ${gpus.join(', ')}`);
+    return gpus.length;
+  } catch {
+    try {
+      const resp = await fetch(`${OLLAMA_URL}/api/ps`);
+      if (resp.ok) {
+        console.log('[api-gateway] nvidia-smi not available, defaulting GPU count from Ollama');
+        return 1;
+      }
+    } catch {}
+    console.log('[api-gateway] No GPU detected, defaulting to CPU-only mode');
+    return 0;
+  }
+}
 
 function clearCfgCache() {
   Object.keys(_cfgCache).forEach(function (k) { delete _cfgCache[k]; });
@@ -225,6 +250,7 @@ const handleAdmin = createAdminRoutes({
   jwtValidator,
   getMeshConnector: () => meshConnector,
   setMeshConnector: (mc) => { meshConnector = mc; },
+  getConcurrencyStats,
   meshUrl: MESH_URL,
 });
 
@@ -234,26 +260,29 @@ if (adminEnabled) {
 }
 
 // ── Mesh Connectivity ──────────────────────────────────────────
-const storedMeshApiKey = db.getSetting('mesh_api_key') || '';
-const storedAutoConnect = db.getSetting('mesh_auto_connect');
-const meshApiKeyForStartup = MESH_API_KEY || storedMeshApiKey;
-const autoConnectForStartup = storedAutoConnect == null ? AUTO_CONNECT : storedAutoConnect === 'true';
+function initMeshConnectivity() {
+  const storedMeshApiKey = db.getSetting('mesh_api_key') || '';
+  const storedAutoConnect = db.getSetting('mesh_auto_connect');
+  const meshApiKeyForStartup = MESH_API_KEY || storedMeshApiKey;
+  const autoConnectForStartup = storedAutoConnect == null ? AUTO_CONNECT : storedAutoConnect === 'true';
 
-if (meshApiKeyForStartup && autoConnectForStartup) {
-  meshConnector = new MeshConnector({
-    meshUrl: MESH_URL,
-    apiKey: meshApiKeyForStartup,
-    ollamaUrl: OLLAMA_URL,
-    hollerEndpoint: HOLLER_ENDPOINT,
-    db,
-    version: require('./package.json').version,
-    hollerName: HOLLER_NAME || undefined,
-  });
-  meshConnector.start();
-} else if (meshApiKeyForStartup) {
-  console.log('[mesh] API key present but JIMBOMESH_AUTO_CONNECT=false — not connecting');
-} else {
-  console.log('[mesh] Mesh mode disabled — running standalone');
+  if (meshApiKeyForStartup && autoConnectForStartup) {
+    meshConnector = new MeshConnector({
+      meshUrl: MESH_URL,
+      apiKey: meshApiKeyForStartup,
+      ollamaUrl: OLLAMA_URL,
+      hollerEndpoint: HOLLER_ENDPOINT,
+      db,
+      version: require('./package.json').version,
+      hollerName: HOLLER_NAME || undefined,
+      getConcurrencyStats,
+    });
+    meshConnector.start();
+  } else if (meshApiKeyForStartup) {
+    console.log('[mesh] API key present but JIMBOMESH_AUTO_CONNECT=false — not connecting');
+  } else {
+    console.log('[mesh] Mesh mode disabled — running standalone');
+  }
 }
 
 // ── Swagger UI (/docs) ──────────────────────────────────────
@@ -423,6 +452,15 @@ setInterval(() => {
 
 let activeOllamaRequests = 0;
 const requestQueue = [];
+
+function getConcurrencyStats() {
+  return {
+    maxConcurrentRequests: MAX_CONCURRENT_REQUESTS(),
+    activeRequests: activeOllamaRequests,
+    queueDepth: requestQueue.length,
+    gpuCount: detectedGpuCount,
+  };
+}
 
 function acquireSlot() {
   return new Promise((resolve, reject) => {
@@ -1598,7 +1636,22 @@ process.on('SIGTERM', () => gracefulShutdown('SIGTERM'));
 process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start server
-server.listen(PORT, '0.0.0.0', () => {
-  console.log(`[api-gateway] Listening on 0.0.0.0:${PORT} (${protocol})`);
-  console.log(`[api-gateway] Rate limit: ${RATE_LIMIT()}/min per IP (burst: ${RATE_LIMIT_BURST()})`);
+async function startServer() {
+  detectedGpuCount = await detectGpuCount();
+  const concurrencyStats = getConcurrencyStats();
+  console.log(
+    `[api-gateway] Concurrency config: maxConcurrent=${concurrencyStats.maxConcurrentRequests}, gpuCount=${concurrencyStats.gpuCount}, queueSize=${MAX_QUEUE_SIZE()}`
+  );
+
+  initMeshConnectivity();
+
+  server.listen(PORT, '0.0.0.0', () => {
+    console.log(`[api-gateway] Listening on 0.0.0.0:${PORT} (${protocol})`);
+    console.log(`[api-gateway] Rate limit: ${RATE_LIMIT()}/min per IP (burst: ${RATE_LIMIT_BURST()})`);
+  });
+}
+
+startServer().catch((err) => {
+  console.error('[api-gateway] Failed to start server:', err.message);
+  process.exit(1);
 });

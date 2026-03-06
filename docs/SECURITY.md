@@ -226,7 +226,7 @@ The `.env` file is listed in `.gitignore`. Never commit it to version control.
 Found a security issue? Please report it responsibly:
 
 1. **Do not** open a public GitHub issue for security vulnerabilities
-2. Email the maintainers directly, or
+2. Email **security@jimbomesh.ai**, or
 3. Use [GitHub Security Advisories](https://github.com/IngressTechnology/jimbomesh-holler-server/security/advisories) to report privately
 
 Include:

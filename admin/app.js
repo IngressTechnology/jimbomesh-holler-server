@@ -3009,6 +3009,23 @@
         '</div>';
       }
 
+      if (meshState === 'reconnecting') {
+        var attemptNum = data.reconnectAttempt || 0;
+        var retryText = '\u2014';
+        if (data.nextReconnectAt) {
+          var retrySeconds = Math.max(0, Math.ceil((data.nextReconnectAt - Date.now()) / 1000));
+          retryText = retrySeconds + 's';
+        }
+        html += '<div class="config-item">' +
+          '<span class="key">Reconnect Attempt</span>' +
+          '<span class="value" id="mesh-reconnect-attempt">' + attemptNum + '</span>' +
+        '</div>';
+        html += '<div class="config-item">' +
+          '<span class="key">Next Retry</span>' +
+          '<span class="value" id="mesh-next-retry">' + retryText + '</span>' +
+        '</div>';
+      }
+
       // Peer connections table
       if (data.peerConnections && data.peerConnections.jobs && data.peerConnections.jobs.length > 0) {
         html += '<div style="margin-top:0.5rem">' +
@@ -3257,6 +3274,19 @@
         if (el && d.lastHeartbeat) {
           var sAgo = Math.round((Date.now() - d.lastHeartbeat) / 1000);
           el.textContent = sAgo < 60 ? t('mesh.secondsAgo', { seconds: sAgo }) : t('mesh.minutesAgo', { minutes: Math.round(sAgo / 60) });
+        }
+        var retryEl = $('#mesh-next-retry');
+        if (retryEl) {
+          if (d.nextReconnectAt) {
+            var retryIn = Math.max(0, Math.ceil((d.nextReconnectAt - Date.now()) / 1000));
+            retryEl.textContent = retryIn + 's';
+          } else {
+            retryEl.textContent = '\u2014';
+          }
+        }
+        var attemptEl = $('#mesh-reconnect-attempt');
+        if (attemptEl) {
+          attemptEl.textContent = String(d.reconnectAttempt || 0);
         }
       }).catch(function () {});
     }, 5000);
