@@ -9,8 +9,8 @@
 #
 # Applied via: COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml
 # Host gateway port is managed in .env via OLLAMA_HOST_PORT.
-# Default gateway port (1920) does not collide with native Ollama (11434).
-# setup.sh only overrides if someone manually sets OLLAMA_HOST_PORT=11434.
+# In Performance Mode setup.sh defaults OLLAMA_HOST_PORT=1920.
+# No collision with native Ollama on localhost:11434.
 
 services:
   jimbomesh-still:
