@@ -2185,9 +2185,13 @@
               '</span>' +
             '</div>';
           }).join('');
-          return '<div class="card config-group">' +
-            '<h3>' + esc(t(group.titleKey)) + '</h3>' +
-            rows +
+          return '<div class="card config-group config-card">' +
+            '<div class="card-header">' +
+              '<h3>' + esc(t(group.titleKey)) + '</h3>' +
+            '</div>' +
+            '<div class="card-body">' +
+              rows +
+            '</div>' +
           '</div>';
         }).join('');
 
@@ -2276,6 +2280,8 @@
         ct.innerHTML =
           '<div class="config-grid">' +
             groupsHTML +
+          '</div>' +
+          '<div class="config-sections">' +
             securityHTML +
             enhancedSecHTML +
             saasHTML +
