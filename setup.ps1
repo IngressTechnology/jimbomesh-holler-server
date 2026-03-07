@@ -670,7 +670,7 @@ if (-not (Get-EnvVar $envFile "HOLLER_MODELS")) { Set-EnvVar $envFile "HOLLER_MO
 if (-not (Get-EnvVar $envFile "OLLAMA_EMBED_MODEL")) { Set-EnvVar $envFile "OLLAMA_EMBED_MODEL" "nomic-embed-text" }
 if (-not (Get-EnvVar $envFile "ADMIN_ENABLED")) { Set-EnvVar $envFile "ADMIN_ENABLED" "true" }
 if (-not (Get-EnvVar $envFile "JIMBOMESH_HOLLER_NAME")) {
-    Set-EnvVar $envFile "JIMBOMESH_HOLLER_NAME" (Get-EnvVar $envFile "HOLLER_SERVER_NAME")
+    Set-EnvVar $envFile "JIMBOMESH_HOLLER_NAME" $env:COMPUTERNAME
 }
 
 # Persist compose selection even when -NoStart is used.
@@ -694,9 +694,13 @@ if ($meshChoice -match '^[Yy]') {
     if ($meshUrl -eq '') { $meshUrl = 'https://api.jimbomesh.ai' }
     $meshKey = Read-Host "  API Key"
     if ($meshKey -ne '') {
+        $defaultName = $env:COMPUTERNAME
+        $hollerName = Read-Host "  Holler name (default: $defaultName)"
+        if ([string]::IsNullOrWhiteSpace($hollerName)) { $hollerName = $defaultName }
         $WithMesh = $true
         Set-EnvVar $envFile "JIMBOMESH_API_KEY" $meshKey
         Set-EnvVar $envFile "JIMBOMESH_MESH_URL" $meshUrl
+        Set-EnvVar $envFile "JIMBOMESH_HOLLER_NAME" $hollerName
         Set-EnvVar $envFile "JIMBOMESH_AUTO_CONNECT" "true"
         Write-Success "Mesh connectivity configured"
     } else {

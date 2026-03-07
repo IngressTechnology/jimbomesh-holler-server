@@ -187,6 +187,9 @@ class MeshConnector {
       this._state = 'error';
       this.errorMessage = err.message;
       this._addLog('error', 'Registration failed: ' + err.message);
+      if (err && err.noRetry) {
+        return;
+      }
       this._scheduleRetry();
     }
   }
@@ -872,6 +875,9 @@ class MeshConnector {
         return; // success
       } catch (err) {
         if (this._stopped || this._aborted) return;
+        if (err && err.noRetry) {
+          throw err;
+        }
         const delay = BACKOFF_SCHEDULE[Math.min(attempt, BACKOFF_SCHEDULE.length - 1)];
         this._addLog('warning', 'Attempt ' + (attempt + 1) + ' failed: ' + err.message + ' — retrying in ' + (delay / 1000) + 's');
         await this._sleep(delay);
@@ -918,6 +924,23 @@ class MeshConnector {
     };
 
     const result = await this._meshFetch('POST', '/api/hollers/register', body);
+
+    if (result.status === 409) {
+      const conflictMessage = (result.data && result.data.message) ? result.data.message : 'This Holler name is already in use.';
+      console.error('═══════════════════════════════════════════════════');
+      console.error('❌ REGISTRATION FAILED: Duplicate Holler name');
+      console.error('   ' + conflictMessage);
+      console.error('');
+      console.error('   FIX: Add this to your .env file:');
+      console.error('   JIMBOMESH_HOLLER_NAME=your-unique-name');
+      console.error('');
+      console.error('   Then restart your Holler.');
+      console.error('═══════════════════════════════════════════════════');
+
+      const err = new Error('Duplicate Holler name. Set JIMBOMESH_HOLLER_NAME in .env and restart.');
+      err.noRetry = true;
+      throw err;
+    }
 
     if (result.status === 201 || result.status === 200) {
       this.hollerId = result.data.hollerId || result.data.holler_id;

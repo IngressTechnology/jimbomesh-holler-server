@@ -1099,11 +1099,11 @@ if [ -z "$CURRENT_ADMIN_ENABLED" ]; then
 fi
 set_env_var "$SCRIPT_DIR/.env" "ADMIN_ENABLED" "$CURRENT_ADMIN_ENABLED"
 
-# Keep mesh name aligned with branded server name unless explicitly set.
+# Default mesh name to hostname unless explicitly set.
 CURRENT_MESH_HOLLER_NAME=$(get_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME")
 if [ -z "$CURRENT_MESH_HOLLER_NAME" ] || grep -q '^# *JIMBOMESH_HOLLER_NAME=' "$SCRIPT_DIR/.env"; then
-    SERVER_NAME_DEFAULT=$(get_env_var "$SCRIPT_DIR/.env" "HOLLER_SERVER_NAME")
-    set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME" "$SERVER_NAME_DEFAULT"
+    HOSTNAME_DEFAULT=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "unknown")
+    set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME" "$HOSTNAME_DEFAULT"
 fi
 
 # Mesh connectivity interactive prompt
@@ -1119,8 +1119,12 @@ if echo "$mesh_choice" | grep -qi '^y'; then
     mesh_url="${mesh_url:-https://api.jimbomesh.ai}"
     read -r -p "  API Key: " mesh_key
     if [ -n "$mesh_key" ]; then
+        HOSTNAME_DEFAULT=$(hostname -s 2>/dev/null || hostname 2>/dev/null || echo "unknown")
+        read -r -p "  Holler name (default: $HOSTNAME_DEFAULT): " holler_name
+        holler_name="${holler_name:-$HOSTNAME_DEFAULT}"
         set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_API_KEY" "$mesh_key"
         set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_MESH_URL" "$mesh_url"
+        set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_HOLLER_NAME" "$holler_name"
         set_env_var "$SCRIPT_DIR/.env" "JIMBOMESH_AUTO_CONNECT" "true"
         log_success "Mesh connectivity configured"
     else
