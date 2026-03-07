@@ -867,7 +867,6 @@ tr:hover td { background: var(--bg-tertiary); }
 @media (max-width: 768px) {
   .stats-grid { grid-template-columns: repeat(2, 1fr); }
   .playground-grid { grid-template-columns: 1fr; }
-  .config-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .system-two-col { grid-template-columns: 1fr; }
   .tab-content { padding: 1rem; }
   .app-header { padding: 0 1rem; }
@@ -878,11 +877,11 @@ tr:hover td { background: var(--bg-tertiary); }
   .stats-grid { grid-template-columns: 1fr; }
 }
 
-@media (max-width: 992px) {
+@media (max-width: 991.98px) {
   .config-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
-@media (max-width: 576px) {
+@media (max-width: 575.98px) {
   .config-grid { grid-template-columns: 1fr; }
   .config-item {
     flex-direction: column;
