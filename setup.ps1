@@ -18,15 +18,25 @@ param(
 
 if ($PSVersionTable.PSVersion.Major -lt 7) {
     Write-Host ""
-    Write-Host "  PowerShell 7+ is required to run this script." -ForegroundColor Yellow
+    Write-Host "  PowerShell 7+ is required." -ForegroundColor Yellow
     Write-Host "  You are running PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
     Write-Host ""
-    Write-Host "  Install PowerShell 7:" -ForegroundColor Cyan
-    Write-Host "    winget install Microsoft.PowerShell" -ForegroundColor White
-    Write-Host ""
-    Write-Host "  Then re-run this script with:" -ForegroundColor Cyan
-    Write-Host "    pwsh .\setup.ps1" -ForegroundColor White
-    Write-Host ""
+    $install = Read-Host "  Install PowerShell 7 now? (Y/n)"
+    if ($install -ne 'n') {
+        Write-Host "  Installing PowerShell 7..." -ForegroundColor Cyan
+        winget install Microsoft.PowerShell --accept-source-agreements --accept-package-agreements
+        Write-Host ""
+        Write-Host "  Installed! Now re-run with:" -ForegroundColor Green
+        Write-Host "    pwsh .\setup.ps1" -ForegroundColor White
+        Write-Host ""
+    } else {
+        Write-Host ""
+        Write-Host "  Install manually:" -ForegroundColor Cyan
+        Write-Host "    winget install Microsoft.PowerShell" -ForegroundColor White
+        Write-Host "  Then re-run with:" -ForegroundColor Cyan
+        Write-Host "    pwsh .\setup.ps1" -ForegroundColor White
+        Write-Host ""
+    }
     exit 1
 }
 
