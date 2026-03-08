@@ -35,10 +35,14 @@
     if (AVAILABLE.indexOf(code) === -1) return;
     currentLang = code;
     localStorage.setItem(STORAGE_KEY, code);
-    changeCallbacks.forEach(function (cb) { cb(code); });
+    changeCallbacks.forEach(function (cb) {
+      cb(code);
+    });
   }
 
-  function getLang() { return currentLang; }
+  function getLang() {
+    return currentLang;
+  }
 
   function getAvailable() {
     return AVAILABLE.map(function (code) {
@@ -47,15 +51,23 @@
     });
   }
 
-  function onChange(cb) { changeCallbacks.push(cb); }
+  function onChange(cb) {
+    changeCallbacks.push(cb);
+  }
 
   function loadAll() {
-    return Promise.all(AVAILABLE.map(function (code) {
-      return fetch('/admin/locales/' + code + '.json')
-        .then(function (r) { return r.json(); })
-        .then(function (data) { locales[code] = data; })
-        .catch(function () {});
-    }));
+    return Promise.all(
+      AVAILABLE.map(function (code) {
+        return fetch('/admin/locales/' + code + '.json')
+          .then(function (r) {
+            return r.json();
+          })
+          .then(function (data) {
+            locales[code] = data;
+          })
+          .catch(function () {});
+      })
+    );
   }
 
   window.i18n = {

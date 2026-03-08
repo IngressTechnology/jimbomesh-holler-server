@@ -9,10 +9,7 @@ test.describe('IDE Integration Guides', () => {
   });
 
   test('IDE guide content endpoint is reachable when exposed', async ({ page }) => {
-    const candidates = [
-      `${BASE_URL}/docs/IDE_INTEGRATIONS.md`,
-      `${BASE_URL}/IDE_INTEGRATIONS.md`,
-    ];
+    const candidates = [`${BASE_URL}/docs/IDE_INTEGRATIONS.md`, `${BASE_URL}/IDE_INTEGRATIONS.md`];
 
     let loaded = false;
     for (const url of candidates) {

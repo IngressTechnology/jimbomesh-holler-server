@@ -66,10 +66,13 @@ test.describe('Theme Consistency', () => {
 
   test('card radius and background stay consistent between dashboard and models', async ({ page }) => {
     await navigateToAdmin(page, 'dashboard');
-    const dash = await page.locator('.stat-card').first().evaluate((el) => {
-      const cs = getComputedStyle(el);
-      return { radius: cs.borderRadius, bg: cs.backgroundColor, padding: cs.padding };
-    });
+    const dash = await page
+      .locator('.stat-card')
+      .first()
+      .evaluate((el) => {
+        const cs = getComputedStyle(el);
+        return { radius: cs.borderRadius, bg: cs.backgroundColor, padding: cs.padding };
+      });
 
     await navigateToAdmin(page, 'models');
     const modelCard = page.locator('.card, .model-card').first();

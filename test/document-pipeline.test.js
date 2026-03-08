@@ -21,8 +21,12 @@ describe('document-pipeline', function () {
     it('splits on paragraph boundaries', function () {
       const paragraphs = [];
       for (let i = 0; i < 20; i++) {
-        paragraphs.push('Paragraph ' + i + ' with enough words to take up some space in the chunk budget. ' +
-          'This sentence is padding to make the paragraph meaningfully long so that chunking is triggered.');
+        paragraphs.push(
+          'Paragraph ' +
+            i +
+            ' with enough words to take up some space in the chunk budget. ' +
+            'This sentence is padding to make the paragraph meaningfully long so that chunking is triggered.'
+        );
       }
       const text = paragraphs.join('\n\n');
       const chunks = pipeline.chunkText(text);
@@ -71,8 +75,10 @@ describe('document-pipeline', function () {
     });
 
     it('identifies DOCX', function () {
-      assert.equal(pipeline.guessMime('report.docx'),
-        'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      assert.equal(
+        pipeline.guessMime('report.docx'),
+        'application/vnd.openxmlformats-officedocument.wordprocessingml.document'
+      );
     });
 
     it('returns octet-stream for unknown', function () {

@@ -1,10 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const {
-  ADMIN_URL,
-  navigateToAdmin,
-  requireServer,
-  hasAdminKey,
-} = require('../fixtures/test-helpers');
+const { ADMIN_URL, navigateToAdmin, requireServer, hasAdminKey } = require('../fixtures/test-helpers');
 
 async function snap(page, name) {
   await page.screenshot({ path: `test-results/${name}.png`, fullPage: true });
@@ -66,10 +61,10 @@ test.describe('Admin UI Performance', () => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         const txt = msg.text();
-        const isKnownDataImageNoise = txt.includes('Loading the image \'data:image/svg+xml');
+        const isKnownDataImageNoise = txt.includes("Loading the image 'data:image/svg+xml");
         const isKnownBootstrapCspNoise =
           txt.includes('Executing inline script violates the following Content Security Policy directive') &&
-          txt.includes('script-src \'self\'');
+          txt.includes("script-src 'self'");
         if (!isKnownDataImageNoise && !isKnownBootstrapCspNoise) {
           errors.push(txt);
         }
@@ -106,9 +101,7 @@ test.describe('Admin UI Performance', () => {
     await page.waitForLoadState('networkidle');
     await snap(page, 'perf-static-cache-headers');
 
-    const withCacheMetadata = assetHeaders.filter(
-      (h) => h.cacheControl || h.etag || h.lastModified
-    );
+    const withCacheMetadata = assetHeaders.filter((h) => h.cacheControl || h.etag || h.lastModified);
     test.skip(withCacheMetadata.length === 0, 'Static cache headers are not configured in this environment');
     expect(withCacheMetadata.length).toBeGreaterThan(0);
   });

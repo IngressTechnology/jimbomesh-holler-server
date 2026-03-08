@@ -85,9 +85,14 @@ function deleteCollection(name) {
 // ── Point Operations ──────────────────────────────────────────
 
 function upsertPoints(collection, points) {
-  return qdrantFetch('PUT', '/collections/' + encodeURIComponent(collection) + '/points?wait=true', {
-    points: points,
-  }, 120000).then(function (r) {
+  return qdrantFetch(
+    'PUT',
+    '/collections/' + encodeURIComponent(collection) + '/points?wait=true',
+    {
+      points: points,
+    },
+    120000
+  ).then(function (r) {
     if (r.status !== 200) throw new Error('Qdrant upsertPoints: HTTP ' + r.status);
     return r.data;
   });
@@ -109,10 +114,12 @@ function searchPoints(collection, vector, filter, limit) {
     with_payload: true,
   };
   if (filter) body.filter = filter;
-  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/search', body).then(function (r) {
-    if (r.status !== 200) throw new Error('Qdrant searchPoints: HTTP ' + r.status);
-    return (r.data.result) || [];
-  });
+  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/search', body).then(
+    function (r) {
+      if (r.status !== 200) throw new Error('Qdrant searchPoints: HTTP ' + r.status);
+      return r.data.result || [];
+    }
+  );
 }
 
 function scrollPoints(collection, filter, limit, offset) {
@@ -122,19 +129,23 @@ function scrollPoints(collection, filter, limit, offset) {
   };
   if (filter) body.filter = filter;
   if (offset) body.offset = offset;
-  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/scroll', body).then(function (r) {
-    if (r.status !== 200) throw new Error('Qdrant scrollPoints: HTTP ' + r.status);
-    return r.data.result || { points: [], next_page_offset: null };
-  });
+  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/scroll', body).then(
+    function (r) {
+      if (r.status !== 200) throw new Error('Qdrant scrollPoints: HTTP ' + r.status);
+      return r.data.result || { points: [], next_page_offset: null };
+    }
+  );
 }
 
 function countPoints(collection, filter) {
   const body = { exact: true };
   if (filter) body.filter = filter;
-  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/count', body).then(function (r) {
-    if (r.status !== 200) throw new Error('Qdrant countPoints: HTTP ' + r.status);
-    return (r.data.result && r.data.result.count) || 0;
-  });
+  return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/count', body).then(
+    function (r) {
+      if (r.status !== 200) throw new Error('Qdrant countPoints: HTTP ' + r.status);
+      return (r.data.result && r.data.result.count) || 0;
+    }
+  );
 }
 
 module.exports = {

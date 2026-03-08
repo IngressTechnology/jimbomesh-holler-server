@@ -1,10 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const {
-  navigateToAdmin,
-  requireServer,
-  isOllamaAvailable,
-  hasAdminKey,
-} = require('../fixtures/test-helpers');
+const { navigateToAdmin, requireServer, isOllamaAvailable, hasAdminKey } = require('../fixtures/test-helpers');
 
 async function snap(page, name) {
   await page.screenshot({ path: `test-results/${name}.png`, fullPage: true });
@@ -112,7 +107,9 @@ test.describe('Playground Deep Interactions', () => {
     await page.locator('#chat-send').first().click();
 
     await page.waitForTimeout(600);
-    const stopBtn = page.locator('#chat-stop, [data-testid="chat-stop"], button:has-text("Stop"), button:has-text("Cancel")').first();
+    const stopBtn = page
+      .locator('#chat-stop, [data-testid="chat-stop"], button:has-text("Stop"), button:has-text("Cancel")')
+      .first();
     const hasStop = (await stopBtn.count()) > 0;
     if (hasStop) {
       await expect(stopBtn).toBeVisible({ timeout: 10000 });

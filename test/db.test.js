@@ -18,9 +18,21 @@ describe('db', function () {
 
   after(function () {
     db.close();
-    try { fs.unlinkSync(TEST_DB_PATH); } catch (_) { /* intentionally empty */ }
-    try { fs.unlinkSync(TEST_DB_PATH + '-wal'); } catch (_) { /* intentionally empty */ }
-    try { fs.unlinkSync(TEST_DB_PATH + '-shm'); } catch (_) { /* intentionally empty */ }
+    try {
+      fs.unlinkSync(TEST_DB_PATH);
+    } catch (_) {
+      /* intentionally empty */
+    }
+    try {
+      fs.unlinkSync(TEST_DB_PATH + '-wal');
+    } catch (_) {
+      /* intentionally empty */
+    }
+    try {
+      fs.unlinkSync(TEST_DB_PATH + '-shm');
+    } catch (_) {
+      /* intentionally empty */
+    }
   });
 
   describe('settings', function () {
@@ -152,20 +164,20 @@ describe('db', function () {
   describe('runSql / getSql / allSql', function () {
     it('runSql executes arbitrary SQL', function () {
       const result = db.runSql(
-        "INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        'INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT(key) DO UPDATE SET value = excluded.value',
         ['run_sql_test', 'works']
       );
       assert.ok(result);
     });
 
     it('getSql returns a single row', function () {
-      const row = db.getSql("SELECT value FROM settings WHERE key = ?", ['run_sql_test']);
+      const row = db.getSql('SELECT value FROM settings WHERE key = ?', ['run_sql_test']);
       assert.ok(row);
       assert.equal(row.value, 'works');
     });
 
     it('allSql returns multiple rows', function () {
-      const rows = db.allSql("SELECT key, value FROM settings WHERE key = ?", ['run_sql_test']);
+      const rows = db.allSql('SELECT key, value FROM settings WHERE key = ?', ['run_sql_test']);
       assert.ok(Array.isArray(rows));
       assert.equal(rows.length, 1);
     });

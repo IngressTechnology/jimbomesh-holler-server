@@ -59,17 +59,17 @@ body {
 
 /* Show our brand text via ::after pseudo-element */
 .swagger-ui .topbar-wrapper .link::before {
-  content: "\1F943";
+  content: '\1F943';
   font-size: 24px;
 }
 
 .swagger-ui .topbar-wrapper .link::after {
-  content: "JimboMesh Holler Server";
+  content: 'JimboMesh Holler Server';
   font-size: 18px;
   font-weight: 700;
   color: #f8fafc;
   letter-spacing: 1px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
 
 /* Hide the Explore bar (URL input + Explore button) */
@@ -85,7 +85,7 @@ body {
 
 .swagger-ui .info .title {
   color: #f8fafc;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
 }
 
 .swagger-ui .info .title small {
@@ -180,15 +180,15 @@ body {
 /* POST — orange */
 .swagger-ui .opblock.opblock-post {
   background: rgba(252, 104, 6, 0.08);
-  border-color: #FC6806;
+  border-color: #fc6806;
 }
 
 .swagger-ui .opblock.opblock-post .opblock-summary-method {
-  background: #FC6806;
+  background: #fc6806;
 }
 
 .swagger-ui .opblock.opblock-post .opblock-summary {
-  border-color: #FC6806;
+  border-color: #fc6806;
 }
 
 /* DELETE — red */
@@ -404,11 +404,11 @@ body {
 
 /* ── Inputs / Selects ─────────────────────────────────────────── */
 
-.swagger-ui input[type=text],
-.swagger-ui input[type=search],
-.swagger-ui input[type=email],
-.swagger-ui input[type=file],
-.swagger-ui input[type=password],
+.swagger-ui input[type='text'],
+.swagger-ui input[type='search'],
+.swagger-ui input[type='email'],
+.swagger-ui input[type='file'],
+.swagger-ui input[type='password'],
 .swagger-ui textarea,
 .swagger-ui select {
   background: #0f3460;
@@ -574,7 +574,7 @@ body {
   padding: 24px 16px 32px;
   color: #707090;
   font-size: 13px;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
   border-top: 1px solid #2a2a4a;
   margin-top: 40px;
 }

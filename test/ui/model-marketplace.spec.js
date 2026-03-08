@@ -1,10 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const {
-  navigateToAdmin,
-  requireServer,
-  isOllamaAvailable,
-  hasAdminKey,
-} = require('../fixtures/test-helpers');
+const { navigateToAdmin, requireServer, isOllamaAvailable, hasAdminKey } = require('../fixtures/test-helpers');
 
 test.describe('Model Marketplace', () => {
   test.beforeAll(async () => {

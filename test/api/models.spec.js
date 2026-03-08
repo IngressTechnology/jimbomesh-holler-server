@@ -1,11 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const {
-  requireServer,
-  BASE_URL,
-  isOllamaAvailable,
-  ADMIN_KEY,
-  buildAuthHeaders,
-} = require('../fixtures/test-helpers');
+const { requireServer, BASE_URL, isOllamaAvailable, ADMIN_KEY, buildAuthHeaders } = require('../fixtures/test-helpers');
 
 test.describe('GET /v1/models', () => {
   test.beforeAll(async () => {

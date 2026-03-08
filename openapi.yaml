@@ -57,7 +57,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/StructuredError"
+            $ref: '#/components/schemas/StructuredError'
           example:
             error:
               code: auth_required
@@ -68,7 +68,7 @@ components:
       content:
         application/json:
           schema:
-            $ref: "#/components/schemas/StructuredError"
+            $ref: '#/components/schemas/StructuredError'
 
   schemas:
     StructuredError:
@@ -83,7 +83,7 @@ components:
               example: auth_required
             message:
               type: string
-              example: "Missing X-API-Key or Authorization: Bearer header"
+              example: 'Missing X-API-Key or Authorization: Bearer header'
             type:
               type: string
               example: client_error
@@ -125,8 +125,8 @@ components:
       example:
         model: nomic-embed-text
         input:
-          - "First text"
-          - "Second text"
+          - 'First text'
+          - 'Second text'
 
     OpenAIEmbeddingsResponse:
       type: object
@@ -225,9 +225,9 @@ components:
         stream: false
         messages:
           - role: system
-            content: "You are concise."
+            content: 'You are concise.'
           - role: user
-            content: "Explain vector embeddings in one paragraph."
+            content: 'Explain vector embeddings in one paragraph.'
 
     OpenAIChatResponse:
       type: object
@@ -378,7 +378,7 @@ components:
           type: integer
           default: 5
       example:
-        query: "What are the GPU requirements?"
+        query: 'What are the GPU requirements?'
         collection: documents
         limit: 5
 
@@ -466,7 +466,7 @@ components:
         requests:
           type: array
           items:
-            $ref: "#/components/schemas/AdminActivityEntry"
+            $ref: '#/components/schemas/AdminActivityEntry'
         total:
           type: integer
         limit:
@@ -490,7 +490,7 @@ components:
         settings:
           type: array
           items:
-            $ref: "#/components/schemas/SettingItem"
+            $ref: '#/components/schemas/SettingItem'
 
     UpdateSettingRequest:
       type: object
@@ -511,7 +511,7 @@ components:
         settings:
           type: array
           items:
-            $ref: "#/components/schemas/UpdateSettingRequest"
+            $ref: '#/components/schemas/UpdateSettingRequest'
 
     AdminApiKeyMaskedResponse:
       type: object
@@ -953,7 +953,7 @@ components:
         documents:
           type: array
           items:
-            $ref: "#/components/schemas/AdminDocument"
+            $ref: '#/components/schemas/AdminDocument'
 
     AdminDocumentQueryRequest:
       type: object
@@ -1003,12 +1003,12 @@ paths:
       summary: Gateway liveness
       security: []
       responses:
-        "200":
+        '200':
           description: Gateway is alive
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthOk"
+                $ref: '#/components/schemas/HealthOk'
 
   /readyz:
     get:
@@ -1016,23 +1016,23 @@ paths:
       summary: Gateway readiness
       security: []
       responses:
-        "200":
+        '200':
           description: Gateway is ready
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/HealthOk"
-        "503":
+                $ref: '#/components/schemas/HealthOk'
+        '503':
           description: Gateway is draining/shutting down
           headers:
             Retry-After:
               schema:
                 type: string
-                example: "5"
+                example: '5'
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/ReadyzShuttingDown"
+                $ref: '#/components/schemas/ReadyzShuttingDown'
 
   /healthz:
     get:
@@ -1040,7 +1040,7 @@ paths:
       summary: Health-server liveness probe
       security: []
       responses:
-        "200":
+        '200':
           description: Health check passed
           content:
             application/json:
@@ -1054,7 +1054,7 @@ paths:
       summary: Health-server status payload
       security: []
       responses:
-        "200":
+        '200':
           description: Status payload
           content:
             application/json:
@@ -1074,48 +1074,48 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OpenAIEmbeddingsRequest"
+              $ref: '#/components/schemas/OpenAIEmbeddingsRequest'
       responses:
-        "200":
+        '200':
           description: Embedding vectors
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OpenAIEmbeddingsResponse"
-        "400":
+                $ref: '#/components/schemas/OpenAIEmbeddingsResponse'
+        '400':
           description: Invalid request / batch too large
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "413":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '413':
           description: Payload too large
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "429":
+                $ref: '#/components/schemas/StructuredError'
+        '429':
           description: Rate limited or queue full
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "502":
+                $ref: '#/components/schemas/StructuredError'
+        '502':
           description: Backend unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "504":
+                $ref: '#/components/schemas/StructuredError'
+        '504':
           description: Backend timeout
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /v1/models:
     get:
@@ -1125,22 +1125,22 @@ paths:
         - ApiKeyAuth: []
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: OpenAI-style model list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OpenAIModelListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "503":
+                $ref: '#/components/schemas/OpenAIModelListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '503':
           description: Model list unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /v1/chat/completions:
     post:
@@ -1157,14 +1157,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OpenAIChatRequest"
+              $ref: '#/components/schemas/OpenAIChatRequest'
       responses:
-        "200":
+        '200':
           description: Chat completion (JSON or stream)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OpenAIChatResponse"
+                $ref: '#/components/schemas/OpenAIChatResponse'
             text/event-stream:
               schema:
                 type: string
@@ -1176,52 +1176,52 @@ paths:
                   data: {"id":"chatcmpl-holler-123","object":"chat.completion.chunk","choices":[{"index":0,"delta":{},"finish_reason":"stop"}]}
 
                   data: [DONE]
-        "400":
+        '400':
           description: Invalid request format
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
           description: Requested model not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "413":
+                $ref: '#/components/schemas/StructuredError'
+        '413':
           description: Payload too large
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "429":
+                $ref: '#/components/schemas/StructuredError'
+        '429':
           description: Rate limited or queue full
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "502":
+                $ref: '#/components/schemas/StructuredError'
+        '502':
           description: Backend unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "503":
+                $ref: '#/components/schemas/StructuredError'
+        '503':
           description: Model list unavailable during validation
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "504":
+                $ref: '#/components/schemas/StructuredError'
+        '504':
           description: Backend timeout
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /api/embed:
     post:
@@ -1235,18 +1235,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OllamaEmbedRequest"
+              $ref: '#/components/schemas/OllamaEmbedRequest'
       responses:
-        "200":
+        '200':
           description: Ollama embed response
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/OllamaEmbedResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+                $ref: '#/components/schemas/OllamaEmbedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/generate:
     post:
@@ -1260,9 +1260,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OllamaGenerateRequest"
+              $ref: '#/components/schemas/OllamaGenerateRequest'
       responses:
-        "200":
+        '200':
           description: Generated text (streaming or single JSON)
           content:
             application/json:
@@ -1272,10 +1272,10 @@ paths:
             application/x-ndjson:
               schema:
                 type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/chat:
     post:
@@ -1289,9 +1289,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/OllamaChatRequest"
+              $ref: '#/components/schemas/OllamaChatRequest'
       responses:
-        "200":
+        '200':
           description: Chat response (streaming or single JSON)
           content:
             application/json:
@@ -1301,10 +1301,10 @@ paths:
             application/x-ndjson:
               schema:
                 type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/tags:
     get:
@@ -1314,16 +1314,16 @@ paths:
         - ApiKeyAuth: []
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: Installed model list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TagsResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+                $ref: '#/components/schemas/TagsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /api/ps:
     get:
@@ -1333,16 +1333,16 @@ paths:
         - ApiKeyAuth: []
         - BearerAuth: []
       responses:
-        "200":
+        '200':
           description: Running models
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PsResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
+                $ref: '#/components/schemas/PsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
 
   /v1/documents/search:
     post:
@@ -1356,36 +1356,36 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PublicDocumentQueryRequest"
+              $ref: '#/components/schemas/PublicDocumentQueryRequest'
       responses:
-        "200":
+        '200':
           description: Ranked search results
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PublicDocumentQueryResponse"
-        "400":
+                $ref: '#/components/schemas/PublicDocumentQueryResponse'
+        '400':
           description: Missing query
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "500":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
           description: Search execution failed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '501':
           description: Document pipeline not available
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /v1/documents/ask:
     post:
@@ -1404,9 +1404,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PublicDocumentQueryRequest"
+              $ref: '#/components/schemas/PublicDocumentQueryRequest'
       responses:
-        "200":
+        '200':
           description: Answer as JSON or SSE stream
           content:
             application/json:
@@ -1429,28 +1429,28 @@ paths:
                   data: {"type":"token","content":"Based on your documents, ..."}
 
                   data: {"type":"done"}
-        "400":
+        '400':
           description: Missing query
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "500":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '500':
           description: Ask pipeline failed
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '501':
           description: Document pipeline not available
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/branding:
     get:
@@ -1458,7 +1458,7 @@ paths:
       summary: Public branding metadata (login page)
       security: []
       responses:
-        "200":
+        '200':
           description: Branding values
           content:
             application/json:
@@ -1477,14 +1477,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Current status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatusResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/config:
     get:
@@ -1493,14 +1493,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Config groups
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminConfigResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminConfigResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/activity:
     get:
@@ -1520,21 +1520,21 @@ paths:
             type: integer
             default: 0
       responses:
-        "200":
+        '200':
           description: Activity records
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminActivityResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminActivityResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     delete:
       tags: [Admin Core]
       summary: Clear activity log
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Number of deleted rows
           content:
             application/json:
@@ -1543,14 +1543,14 @@ paths:
                 properties:
                   deleted:
                     type: integer
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: SQLite not available
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/settings:
     get:
@@ -1559,15 +1559,15 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Setting list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/SettingsResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+                $ref: '#/components/schemas/SettingsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: SQLite not available
           content:
             application/json:
@@ -1589,9 +1589,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateSettingRequest"
+              $ref: '#/components/schemas/UpdateSettingRequest'
       responses:
-        "200":
+        '200':
           description: Updated setting
           content:
             application/json:
@@ -1604,16 +1604,16 @@ paths:
                     type: string
                   value:
                     type: string
-        "400":
+        '400':
           description: Missing key/value
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: SQLite not available
           content:
             application/json:
@@ -1632,9 +1632,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/UpdateSettingsBatchRequest"
+              $ref: '#/components/schemas/UpdateSettingsBatchRequest'
       responses:
-        "200":
+        '200':
           description: Batch save summary
           content:
             application/json:
@@ -1652,16 +1652,16 @@ paths:
                           type: string
                         value:
                           type: string
-        "400":
+        '400':
           description: Missing settings array
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: SQLite not available
           content:
             application/json:
@@ -1676,12 +1676,12 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Stats data
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsResponse"
+                $ref: '#/components/schemas/AdminStatsResponse'
               example:
                 global:
                   total_requests: 2847
@@ -1700,9 +1700,9 @@ paths:
                   today_total: 188
                   today_embed: 129
                   today_chat: 59
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Stats query failed
           content:
             application/json:
@@ -1714,7 +1714,7 @@ paths:
                   code: stats_query_failed
                   message: database is locked
                   type: server_error
-        "501":
+        '501':
           description: SQLite not available
           content:
             application/json:
@@ -1746,12 +1746,12 @@ paths:
             type: integer
           description: Unix timestamp (seconds) lower-bound filter
       responses:
-        "200":
+        '200':
           description: Per-model stats payload
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsModelResponse"
+                $ref: '#/components/schemas/AdminStatsModelResponse'
               example:
                 model: llama3.1:8b
                 stats:
@@ -1759,17 +1759,17 @@ paths:
                   errors: 14
                   avg_latency_ms: 947
                 hourly:
-                  - hour: "2026-03-01T14:00:00Z"
+                  - hour: '2026-03-01T14:00:00Z'
                     requests: 18
                     errors: 0
                     avg_latency_ms: 902
-                  - hour: "2026-03-01T15:00:00Z"
+                  - hour: '2026-03-01T15:00:00Z'
                     requests: 22
                     errors: 1
                     avg_latency_ms: 1017
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Stats query failed
           content:
             application/json:
@@ -1800,29 +1800,29 @@ paths:
             type: integer
             default: 50
       responses:
-        "200":
+        '200':
           description: Recent requests
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsRequestsResponse"
+                $ref: '#/components/schemas/AdminStatsRequestsResponse'
               example:
                 requests:
-                  - timestamp: "2026-03-01T15:41:28.121Z"
+                  - timestamp: '2026-03-01T15:41:28.121Z'
                     model: llama3.1:8b
                     path: /v1/chat/completions
                     status: 200
                     duration_ms: 1114
                     connection_type: webrtc
-                  - timestamp: "2026-03-01T15:42:07.513Z"
+                  - timestamp: '2026-03-01T15:42:07.513Z'
                     model: nomic-embed-text
                     path: /v1/embeddings
                     status: 200
                     duration_ms: 86
                     connection_type: http
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Stats query failed
           content:
             application/json:
@@ -1848,25 +1848,25 @@ paths:
             type: string
           description: Optional model filter
       responses:
-        "200":
+        '200':
           description: Hourly usage buckets
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsHourlyResponse"
+                $ref: '#/components/schemas/AdminStatsHourlyResponse'
               example:
                 hourly:
-                  - hour: "2026-03-01T13:00:00Z"
+                  - hour: '2026-03-01T13:00:00Z'
                     requests: 37
                     errors: 1
                     avg_latency_ms: 505
-                  - hour: "2026-03-01T14:00:00Z"
+                  - hour: '2026-03-01T14:00:00Z'
                     requests: 44
                     errors: 0
                     avg_latency_ms: 472
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Stats query failed
           content:
             application/json:
@@ -1890,11 +1890,11 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminStatsResetRequest"
+              $ref: '#/components/schemas/AdminStatsResetRequest'
             example:
               model: llama3.1:8b
       responses:
-        "200":
+        '200':
           description: Reset result payload
           content:
             application/json:
@@ -1906,9 +1906,9 @@ paths:
                 reset_scope: model
                 model: llama3.1:8b
                 rows_deleted: 96
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Stats reset failed
           content:
             application/json:
@@ -1928,12 +1928,12 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Pricing map
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsPricingResponse"
+                $ref: '#/components/schemas/AdminStatsPricingResponse'
               example:
                 pricing:
                   llama3.1:8b:
@@ -1944,9 +1944,9 @@ paths:
                     model: nomic-embed-text
                     input_per_1k: 0.0001
                     output_per_1k: null
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Pricing query failed
           content:
             application/json:
@@ -1968,24 +1968,24 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminStatsPricingRequest"
+              $ref: '#/components/schemas/AdminStatsPricingRequest'
             example:
               model: llama3.1:8b
               input_per_1k: 0.0015
               output_per_1k: 0.002
       responses:
-        "200":
+        '200':
           description: Saved pricing record
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminStatsPricingResponse"
+                $ref: '#/components/schemas/AdminStatsPricingResponse'
               example:
                 pricing:
                   model: llama3.1:8b
                   input_per_1k: 0.0015
                   output_per_1k: 0.002
-        "400":
+        '400':
           description: Missing or invalid pricing fields
           content:
             application/json:
@@ -1997,9 +1997,9 @@ paths:
                   code: invalid_request
                   message: Missing model or input_per_1k
                   type: client_error
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Pricing save failed
           content:
             application/json:
@@ -2019,12 +2019,12 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Host, Docker, network, and security checks
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSystemResponse"
+                $ref: '#/components/schemas/AdminSystemResponse'
               example:
                 hostname: holler-host
                 platform: linux
@@ -2055,18 +2055,18 @@ paths:
                 docker:
                   containerized: true
                   composeProject: jimbomesh-holler
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Failed to gather system info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
               example:
                 error:
                   code: system_info_error
-                  message: "Failed to gather system info: timeout while collecting host data"
+                  message: 'Failed to gather system info: timeout while collecting host data'
                   type: server_error
 
   /admin/api/models:
@@ -2076,14 +2076,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Installed models
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TagsResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/TagsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/models/running:
     get:
@@ -2092,14 +2092,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Running models
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/PsResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/PsResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/models/show:
     post:
@@ -2112,23 +2112,23 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/ShowRequest"
+              $ref: '#/components/schemas/ShowRequest'
       responses:
-        "200":
+        '200':
           description: Model details
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        "400":
+        '400':
           description: Missing model name
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/models/pull:
     post:
@@ -2141,9 +2141,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/PullRequest"
+              $ref: '#/components/schemas/PullRequest'
       responses:
-        "200":
+        '200':
           description: SSE progress
           content:
             text/event-stream:
@@ -2153,14 +2153,14 @@ paths:
                   data: {"status":"pulling manifest"}
 
                   data: {"status":"success","done":true}
-        "400":
+        '400':
           description: Missing required field
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/models/{name}:
     delete:
@@ -2176,7 +2176,7 @@ paths:
             type: string
           description: URL-encoded model name (for example `llama3.1%3A8b`)
       responses:
-        "200":
+        '200':
           description: Model removed
           content:
             application/json:
@@ -2187,14 +2187,14 @@ paths:
                     type: boolean
                   message:
                     type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Model not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/apikey:
     get:
@@ -2203,14 +2203,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Masked key
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminApiKeyMaskedResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminApiKeyMaskedResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/apikey/regenerate:
     post:
@@ -2223,22 +2223,22 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminApiKeyRegenerateRequest"
+              $ref: '#/components/schemas/AdminApiKeyRegenerateRequest'
       responses:
-        "200":
+        '200':
           description: New key generated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminApiKeyRegenerateResponse"
-        "400":
+                $ref: '#/components/schemas/AdminApiKeyRegenerateResponse'
+        '400':
           description: Confirmation missing/invalid
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/qdrantkey:
     get:
@@ -2247,14 +2247,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Qdrant key information
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminQdrantKeyResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminQdrantKeyResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/gpu-info:
     get:
@@ -2263,20 +2263,20 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: GPU and system info
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminGpuInfoResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+                $ref: '#/components/schemas/AdminGpuInfoResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: GPU detection error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/github/status:
     get:
@@ -2285,14 +2285,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Whether GitHub token is configured
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminGitHubStatusResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminGitHubStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/github/issue:
     post:
@@ -2305,41 +2305,41 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminGitHubIssueRequest"
+              $ref: '#/components/schemas/AdminGitHubIssueRequest'
             example:
               type: bug
-              title: "Upload fails for large DOCX"
-              description: "Uploading a 30MB DOCX stalls at 40%."
+              title: 'Upload fails for large DOCX'
+              description: 'Uploading a 30MB DOCX stalls at 40%.'
               steps: "1. Open Documents tab\n2. Upload file\n3. Observe stall"
-              expected: "Upload completes"
-              actual: "Stream ends early with error"
+              expected: 'Upload completes'
+              actual: 'Stream ends early with error'
       responses:
-        "201":
+        '201':
           description: Issue created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminGitHubIssueResponse"
-        "400":
+                $ref: '#/components/schemas/AdminGitHubIssueResponse'
+        '400':
           description: Validation failure
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: GitHub integration disabled
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "502":
+                $ref: '#/components/schemas/StructuredError'
+        '502':
           description: GitHub API failure
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/marketplace/ollama:
     get:
@@ -2348,7 +2348,7 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Catalog plus installed tag hints
           content:
             application/json:
@@ -2363,14 +2363,14 @@ paths:
                   cached_at:
                     type: string
                     format: date-time
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Catalog load error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/marketplace/huggingface:
     get:
@@ -2399,7 +2399,7 @@ paths:
             default: 24
             maximum: 100
       responses:
-        "200":
+        '200':
           description: HuggingFace model list
           content:
             application/json:
@@ -2414,14 +2414,14 @@ paths:
                   cached_at:
                     type: string
                     format: date-time
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "502":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
           description: HuggingFace upstream failure
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/marketplace/huggingface/files:
     get:
@@ -2436,7 +2436,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: GGUF files
           content:
             application/json:
@@ -2452,20 +2452,20 @@ paths:
                           type: string
                         size:
                           type: integer
-        "400":
+        '400':
           description: Missing repo parameter
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "502":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '502':
           description: HuggingFace upstream failure
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/models/import-hf:
     post:
@@ -2489,11 +2489,11 @@ paths:
                 model_name:
                   type: string
             example:
-              repo_id: "TheBloke/Llama-3.1-8B-Instruct-GGUF"
-              filename: "llama-3.1-8b-instruct.Q4_K_M.gguf"
-              model_name: "llama3.1:8b-hf"
+              repo_id: 'TheBloke/Llama-3.1-8B-Instruct-GGUF'
+              filename: 'llama-3.1-8b-instruct.Q4_K_M.gguf'
+              model_name: 'llama3.1:8b-hf'
       responses:
-        "200":
+        '200':
           description: SSE progress stream
           content:
             text/event-stream:
@@ -2507,14 +2507,14 @@ paths:
                   data: {"phase":"import","status":"Registering model with Ollama..."}
 
                   data: {"done":true}
-        "400":
+        '400':
           description: Missing required fields
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/auth/status:
     get:
@@ -2523,14 +2523,14 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Tier status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminAuthStatusResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminAuthStatusResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/tokens:
     get:
@@ -2539,7 +2539,7 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Token list
           content:
             application/json:
@@ -2551,8 +2551,8 @@ paths:
                     items:
                       type: object
                       additionalProperties: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
     post:
       tags: [Admin Tokens]
       summary: Create bearer token
@@ -2563,28 +2563,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/TokenCreateRequest"
+              $ref: '#/components/schemas/TokenCreateRequest'
       responses:
-        "201":
+        '201':
           description: Token created
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/TokenCreateResponse"
-        "400":
+                $ref: '#/components/schemas/TokenCreateResponse'
+        '400':
           description: Missing token name
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: Token manager unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/tokens/{tokenId}:
     delete:
@@ -2599,7 +2599,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Revoked
           content:
             application/json:
@@ -2610,20 +2610,20 @@ paths:
                     type: boolean
                   id:
                     type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Token not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '501':
           description: Token manager unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
     patch:
       tags: [Admin Tokens]
       summary: Update token metadata/limits
@@ -2643,33 +2643,33 @@ paths:
               type: object
               additionalProperties: true
       responses:
-        "200":
+        '200':
           description: Updated token
           content:
             application/json:
               schema:
                 type: object
                 additionalProperties: true
-        "400":
+        '400':
           description: Missing body
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Token not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '501':
           description: Token manager unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/tokens/{tokenId}/usage:
     get:
@@ -2684,7 +2684,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Hourly usage history
           content:
             application/json:
@@ -2696,20 +2696,20 @@ paths:
                     items:
                       type: object
                       additionalProperties: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Token not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "501":
+                $ref: '#/components/schemas/StructuredError'
+        '501':
           description: Token manager unavailable
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/documents/upload:
     post:
@@ -2737,7 +2737,7 @@ paths:
                   type: string
                   format: binary
       responses:
-        "200":
+        '200':
           description: SSE upload/index progress
           content:
             text/event-stream:
@@ -2749,14 +2749,14 @@ paths:
                   data: {"phase":"embed","status":"Embedding chunks...","completed":12,"total":34}
 
                   data: {"done":true,"document_id":"uuid","chunks":34}
-        "400":
+        '400':
           description: Invalid content type or upload request
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/documents:
     get:
@@ -2770,14 +2770,14 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Document list
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminDocumentListResponse"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/AdminDocumentListResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/documents/query:
     post:
@@ -2790,28 +2790,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminDocumentQueryRequest"
+              $ref: '#/components/schemas/AdminDocumentQueryRequest'
       responses:
-        "200":
+        '200':
           description: Query results
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminDocumentQueryResponse"
-        "400":
+                $ref: '#/components/schemas/AdminDocumentQueryResponse'
+        '400':
           description: Missing query
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Query execution error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/documents/ask:
     post:
@@ -2824,9 +2824,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminDocumentQueryRequest"
+              $ref: '#/components/schemas/AdminDocumentQueryRequest'
       responses:
-        "200":
+        '200':
           description: SSE with sources + answer chunks
           content:
             text/event-stream:
@@ -2838,20 +2838,20 @@ paths:
                   data: {"phase":"answer","message":{"role":"assistant","content":"..."},"done":false}
 
                   data: {"done":true}
-        "400":
+        '400':
           description: Missing query
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Ask execution error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/documents/{documentId}:
     get:
@@ -2866,20 +2866,20 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Document metadata
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminDocument"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+                $ref: '#/components/schemas/AdminDocument'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
     delete:
       tags: [Admin Documents]
       summary: Delete document and vectors
@@ -2892,7 +2892,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Deletion result
           content:
             application/json:
@@ -2906,14 +2906,14 @@ paths:
                   qdrant_warning:
                     type: string
                     nullable: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/documents/{documentId}/chunks:
     get:
@@ -2928,7 +2928,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Document and chunk list
           content:
             application/json:
@@ -2936,7 +2936,7 @@ paths:
                 type: object
                 properties:
                   document:
-                    $ref: "#/components/schemas/AdminDocument"
+                    $ref: '#/components/schemas/AdminDocument'
                   chunks:
                     type: array
                     items:
@@ -2950,14 +2950,14 @@ paths:
                           type: integer
                         total_chunks:
                           type: integer
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Document not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/documents/{documentId}/reindex:
     post:
@@ -2973,20 +2973,20 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: SSE reindex progress
           content:
             text/event-stream:
               schema:
                 type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
           description: Document or file not found
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/collections:
     get:
@@ -2995,7 +2995,7 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Collection names
           content:
             application/json:
@@ -3006,14 +3006,14 @@ paths:
                     type: array
                     items:
                       type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Qdrant error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
     post:
       tags: [Admin Collections]
       summary: Create collection
@@ -3024,9 +3024,9 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/CreateCollectionRequest"
+              $ref: '#/components/schemas/CreateCollectionRequest'
       responses:
-        "200":
+        '200':
           description: Created
           content:
             application/json:
@@ -3037,20 +3037,20 @@ paths:
                     type: boolean
                   name:
                     type: string
-        "400":
+        '400':
           description: Missing collection name
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Qdrant error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/collections/{name}:
     delete:
@@ -3065,7 +3065,7 @@ paths:
           schema:
             type: string
       responses:
-        "200":
+        '200':
           description: Deleted
           content:
             application/json:
@@ -3076,14 +3076,14 @@ paths:
                     type: boolean
                   name:
                     type: string
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "500":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '500':
           description: Qdrant error
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/mesh/status:
     get:
@@ -3092,12 +3092,12 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Current mesh connectivity status
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminMeshStatusResponse"
+                $ref: '#/components/schemas/AdminMeshStatusResponse'
               example:
                 state: connected
                 connected: true
@@ -3113,8 +3113,8 @@ paths:
                 lastHeartbeat: 1709312400114
                 errorMessage: null
                 log: []
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/connect:
     post:
@@ -3127,34 +3127,34 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminMeshConnectRequest"
+              $ref: '#/components/schemas/AdminMeshConnectRequest'
             example:
               apiKey: jmsh_abc123_example
               meshUrl: https://api.jimbomesh.ai
               hollerName: warehouse-holler-1
               autoConnect: true
       responses:
-        "200":
+        '200':
           description: Connector initialization started
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "400":
+        '400':
           description: Missing apiKey
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
               example:
                 error:
                   code: invalid_request
                   message: Missing apiKey
                   type: client_error
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/cancel:
     post:
@@ -3163,16 +3163,16 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Connect attempt cancelled (or no-op if idle)
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/settings:
     post:
@@ -3185,28 +3185,28 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminMeshSettingsRequest"
+              $ref: '#/components/schemas/AdminMeshSettingsRequest'
             example:
               meshUrl: https://api.jimbomesh.ai
               hollerName: warehouse-holler-1
               autoConnect: true
       responses:
-        "200":
+        '200':
           description: Settings saved
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "400":
+        '400':
           description: Invalid request body
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/auto-connect:
     post:
@@ -3220,32 +3220,32 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminMeshAutoConnectRequest"
+              $ref: '#/components/schemas/AdminMeshAutoConnectRequest'
             example:
               enabled: true
       responses:
-        "200":
+        '200':
           description: Auto-connect preference updated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminMeshAutoConnectResponse"
+                $ref: '#/components/schemas/AdminMeshAutoConnectResponse'
               example:
                 success: true
                 autoConnect: true
-        "400":
+        '400':
           description: Missing boolean enabled
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
               example:
                 error:
                   code: invalid_request
                   message: Missing boolean enabled
                   type: client_error
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/disconnect:
     post:
@@ -3258,16 +3258,16 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Mesh disconnected
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/peers:
     get:
@@ -3277,7 +3277,7 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Peer connection status
           content:
             application/json:
@@ -3309,16 +3309,16 @@ paths:
                 activeConnections: 2
                 maxConnections: 10
                 jobs:
-                  - jobId: "job_a1b2c3d4"
-                    model: "llama3.1:8b"
-                    state: "streaming"
+                  - jobId: 'job_a1b2c3d4'
+                    model: 'llama3.1:8b'
+                    state: 'streaming'
                     startedAt: 1709312400000
-                  - jobId: "job_e5f6g7h8"
-                    model: "nomic-embed-text"
-                    state: "connected"
+                  - jobId: 'job_e5f6g7h8'
+                    model: 'nomic-embed-text'
+                    state: 'connected'
                     startedAt: 1709312403000
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/connect-stored:
     post:
@@ -3328,33 +3328,33 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Connection initiated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "400":
+        '400':
           description: No stored mesh API key
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
               example:
                 error:
                   code: no_key
-                  message: "No stored mesh API key. Enter one first."
+                  message: 'No stored mesh API key. Enter one first.'
                   type: client_error
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "501":
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '501':
           description: SQLite not available
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
+                $ref: '#/components/schemas/StructuredError'
 
   /admin/api/mesh/forget-key:
     post:
@@ -3364,16 +3364,16 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Key cleared
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/mesh/reconnect:
     post:
@@ -3383,22 +3383,22 @@ paths:
       security:
         - ApiKeyAuth: []
       responses:
-        "200":
+        '200':
           description: Reconnection initiated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminSuccessResponse"
+                $ref: '#/components/schemas/AdminSuccessResponse'
               example:
                 success: true
-        "400":
+        '400':
           description: No stored mesh API key or no active connection
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/StructuredError"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
 
   /admin/api/restart:
     post:
@@ -3416,18 +3416,18 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminRestartRequest"
+              $ref: '#/components/schemas/AdminRestartRequest'
             example:
               target: holler
       responses:
-        "200":
+        '200':
           description: Restart initiated
           content:
             application/json:
               schema:
-                $ref: "#/components/schemas/AdminRestartResponse"
+                $ref: '#/components/schemas/AdminRestartResponse'
               example:
                 success: true
-                message: "Restarting holler..."
-        "401":
-          $ref: "#/components/responses/Unauthorized"
+                message: 'Restarting holler...'
+        '401':
+          $ref: '#/components/responses/Unauthorized'

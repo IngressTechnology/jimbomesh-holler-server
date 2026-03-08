@@ -20,4 +20,4 @@ services:
       # Container gateway still listens on 1920 internally.
       - GATEWAY_PORT=1920
     extra_hosts:
-      - "host.docker.internal:host-gateway"
+      - 'host.docker.internal:host-gateway'

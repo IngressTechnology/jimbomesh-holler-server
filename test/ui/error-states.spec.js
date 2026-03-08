@@ -25,7 +25,9 @@ test.describe('UI Error States and Edge Cases', () => {
     await navigateToAdmin(page, 'dashboard');
     await page.waitForTimeout(800);
     await snap(page, 'errors-dashboard-stats-500');
-    await expect(page.locator('#tab-content .stat-card, #tab-content .stats-grid').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#tab-content .stat-card, #tab-content .stats-grid').first()).toBeVisible({
+      timeout: 10000,
+    });
     await expect(page.locator('body')).not.toContainText(/stack|exception|traceback/i);
   });
 
@@ -75,10 +77,13 @@ test.describe('UI Error States and Edge Cases', () => {
     const longText = 'x'.repeat(10000);
     await page.locator('#chat-input').first().fill(longText);
 
-    const size = await page.locator('#chat-input').first().evaluate((el) => ({
-      clientWidth: el.clientWidth,
-      scrollWidth: el.scrollWidth,
-    }));
+    const size = await page
+      .locator('#chat-input')
+      .first()
+      .evaluate((el) => ({
+        clientWidth: el.clientWidth,
+        scrollWidth: el.scrollWidth,
+      }));
     await snap(page, 'errors-long-chat-input');
     expect(size.clientWidth).toBeGreaterThan(0);
     await expect(page.locator('#chat-send').first()).toBeVisible({ timeout: 10000 });

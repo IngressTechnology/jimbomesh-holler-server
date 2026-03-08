@@ -20,9 +20,7 @@ const MAX_UPLOAD_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '50', 10);
 const CHARS_PER_TOKEN = 4; // heuristic matching api-gateway.js
 
 const DOCUMENTS_DIR = path.join(
-  process.env.SQLITE_DB_PATH
-    ? path.dirname(process.env.SQLITE_DB_PATH)
-    : path.join(__dirname, 'data'),
+  process.env.SQLITE_DB_PATH ? path.dirname(process.env.SQLITE_DB_PATH) : path.join(__dirname, 'data'),
   'documents'
 );
 
@@ -38,8 +36,12 @@ function computeFileHash(filePath) {
   return new Promise(function (resolve, reject) {
     const hash = crypto.createHash('sha256');
     const stream = fs.createReadStream(filePath);
-    stream.on('data', function (chunk) { hash.update(chunk); });
-    stream.on('end', function () { resolve(hash.digest('hex')); });
+    stream.on('data', function (chunk) {
+      hash.update(chunk);
+    });
+    stream.on('end', function () {
+      resolve(hash.digest('hex'));
+    });
     stream.on('error', reject);
   });
 }
@@ -69,7 +71,13 @@ async function extractText(filePath, mimeType) {
       for (let i = 1; i <= pages; i++) {
         const page = await doc.getPage(i);
         const content = await page.getTextContent();
-        textParts.push(content.items.map(function (item) { return item.str; }).join(' '));
+        textParts.push(
+          content.items
+            .map(function (item) {
+              return item.str;
+            })
+            .join(' ')
+        );
       }
       return { text: textParts.join('\n'), pages: pages };
     }
@@ -92,7 +100,9 @@ async function extractText(filePath, mimeType) {
 }
 
 function csvToText(raw) {
-  const lines = raw.split('\n').filter(function (l) { return l.trim(); });
+  const lines = raw.split('\n').filter(function (l) {
+    return l.trim();
+  });
   if (lines.length < 2) return raw;
   const header = lines[0];
   const rows = lines.slice(1).map(function (row) {
@@ -170,34 +180,41 @@ function ollamaEmbed(texts) {
   return new Promise(function (resolve, reject) {
     const parsed = new URL(OLLAMA_URL);
     const body = JSON.stringify({ model: EMBED_MODEL, input: texts });
-    const req = http.request({
-      hostname: parsed.hostname,
-      port: parseInt(parsed.port) || 11435,
-      path: '/api/embed',
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Content-Length': Buffer.byteLength(body),
+    const req = http.request(
+      {
+        hostname: parsed.hostname,
+        port: parseInt(parsed.port) || 11435,
+        path: '/api/embed',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        },
+        timeout: 120000,
       },
-      timeout: 120000,
-    }, function (res) {
-      let data = '';
-      res.on('data', function (chunk) { data += chunk; });
-      res.on('end', function () {
-        try {
-          const parsed2 = JSON.parse(data);
-          if (res.statusCode !== 200) {
-            reject(new Error(parsed2.error || 'Ollama embed failed: HTTP ' + res.statusCode));
-            return;
+      function (res) {
+        let data = '';
+        res.on('data', function (chunk) {
+          data += chunk;
+        });
+        res.on('end', function () {
+          try {
+            const parsed2 = JSON.parse(data);
+            if (res.statusCode !== 200) {
+              reject(new Error(parsed2.error || 'Ollama embed failed: HTTP ' + res.statusCode));
+              return;
+            }
+            resolve(parsed2);
+          } catch (_e) {
+            reject(new Error('Failed to parse Ollama embed response'));
           }
-          resolve(parsed2);
-        } catch (_e) {
-          reject(new Error('Failed to parse Ollama embed response'));
-        }
-      });
-    });
+        });
+      }
+    );
     req.on('error', reject);
-    req.on('timeout', function () { req.destroy(new Error('Ollama embed timeout')); });
+    req.on('timeout', function () {
+      req.destroy(new Error('Ollama embed timeout'));
+    });
     req.write(body);
     req.end();
   });
@@ -259,7 +276,9 @@ async function processDocument(docId, filePath, mimeType, collection, onProgress
 
   // Phase 3: Embed
   onProgress({ phase: 'embedding', status: 'Generating embeddings...', completed: 0, total: chunks.length });
-  const chunkTexts = chunks.map(function (c) { return c.text; });
+  const chunkTexts = chunks.map(function (c) {
+    return c.text;
+  });
   const embeddings = await embedBatch(chunkTexts, onProgress);
 
   // Phase 4: Ensure collection exists
@@ -327,19 +346,29 @@ async function askDocuments(query, collection, chatModel, limit) {
   }
 
   // 2. Build context with trust boundary wrappers (matching embed.sh pattern)
-  const context = hits.map(function (h) {
-    return '<retrieved_context source="' + (h.payload.filename || 'unknown') +
-      '" chunk="' + (h.payload.chunk_index || 0) + '">\n' +
-      h.payload.text + '\n</retrieved_context>';
-  }).join('\n\n');
+  const context = hits
+    .map(function (h) {
+      return (
+        '<retrieved_context source="' +
+        (h.payload.filename || 'unknown') +
+        '" chunk="' +
+        (h.payload.chunk_index || 0) +
+        '">\n' +
+        h.payload.text +
+        '\n</retrieved_context>'
+      );
+    })
+    .join('\n\n');
 
   // 3. Create chat messages
   const messages = [
     {
       role: 'system',
-      content: 'Answer the user\'s question based on the following document context. ' +
+      content:
+        "Answer the user's question based on the following document context. " +
         'Cite the source document and chunk when referencing information. ' +
-        'If the answer is not in the provided context, say so clearly.\n\n' + context,
+        'If the answer is not in the provided context, say so clearly.\n\n' +
+        context,
     },
     { role: 'user', content: query },
   ];

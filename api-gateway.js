@@ -69,7 +69,7 @@ const CFG_TTL_MS = 5000;
 function cfg(key, fallback) {
   const now = Date.now();
   const cached = _cfgCache[key];
-  if (cached && (now - cached.t) < CFG_TTL_MS) return cached.v;
+  if (cached && now - cached.t < CFG_TTL_MS) return cached.v;
   try {
     const row = db.getSetting(key);
     const val = row != null ? parseInt(row) : fallback;
@@ -80,18 +80,30 @@ function cfg(key, fallback) {
   }
 }
 
-function RATE_LIMIT()             { return cfg('rate_limit_per_min', 60); }
-function RATE_LIMIT_BURST()       { return cfg('rate_limit_burst', 10); }
-function MAX_REQUEST_BODY_BYTES() { return cfg('max_request_body_bytes', 1048576); }
-function MAX_BATCH_SIZE()         { return cfg('max_batch_size', 100); }
-function OLLAMA_TIMEOUT_MS()      { return cfg('ollama_timeout_ms', 120000); }
+function RATE_LIMIT() {
+  return cfg('rate_limit_per_min', 60);
+}
+function RATE_LIMIT_BURST() {
+  return cfg('rate_limit_burst', 10);
+}
+function MAX_REQUEST_BODY_BYTES() {
+  return cfg('max_request_body_bytes', 1048576);
+}
+function MAX_BATCH_SIZE() {
+  return cfg('max_batch_size', 100);
+}
+function OLLAMA_TIMEOUT_MS() {
+  return cfg('ollama_timeout_ms', 120000);
+}
 let detectedGpuCount = 0;
-function MAX_CONCURRENT_REQUESTS(){
+function MAX_CONCURRENT_REQUESTS() {
   const configured = cfg('max_concurrent_requests', null);
   if (configured !== null) return configured;
   return Math.max(1, detectedGpuCount);
 }
-function MAX_QUEUE_SIZE()         { return cfg('max_queue_size', 50); }
+function MAX_QUEUE_SIZE() {
+  return cfg('max_queue_size', 50);
+}
 
 function _execFileAsync(cmd, args, opts) {
   return new Promise(function (resolve, reject) {
@@ -104,7 +116,9 @@ function _execFileAsync(cmd, args, opts) {
 
 async function detectGpuCount() {
   try {
-    const output = (await _execFileAsync('nvidia-smi', ['--query-gpu=name', '--format=csv,noheader'], { timeout: 5000 })).trim();
+    const output = (
+      await _execFileAsync('nvidia-smi', ['--query-gpu=name', '--format=csv,noheader'], { timeout: 5000 })
+    ).trim();
     const gpus = output.split('\n').filter((line) => line.trim().length > 0);
     console.log(`[api-gateway] Detected ${gpus.length} GPU(s): ${gpus.join(', ')}`);
     return gpus.length;
@@ -124,13 +138,19 @@ async function detectGpuCount() {
 }
 
 function clearCfgCache() {
-  Object.keys(_cfgCache).forEach(function (k) { delete _cfgCache[k]; });
+  Object.keys(_cfgCache).forEach(function (k) {
+    delete _cfgCache[k];
+  });
 }
 
 function estimateInputTokens(input) {
   let text = '';
   if (Array.isArray(input)) {
-    text = input.map(function (v) { return typeof v === 'string' ? v : JSON.stringify(v); }).join(' ');
+    text = input
+      .map(function (v) {
+        return typeof v === 'string' ? v : JSON.stringify(v);
+      })
+      .join(' ');
   } else if (typeof input === 'string') {
     text = input;
   } else if (input != null) {
@@ -162,14 +182,20 @@ if (!currentApiKey) {
 
 // Key cross-contamination guards
 if (currentApiKey.startsWith('jmsh_')) {
-  console.error('[api-gateway] ERROR: JIMBOMESH_HOLLER_API_KEY contains a SaaS mesh key (jmsh_*). This should be your LOCAL inference key. SaaS keys belong in JIMBOMESH_API_KEY.');
+  console.error(
+    '[api-gateway] ERROR: JIMBOMESH_HOLLER_API_KEY contains a SaaS mesh key (jmsh_*). This should be your LOCAL inference key. SaaS keys belong in JIMBOMESH_API_KEY.'
+  );
   process.exit(1);
 }
 if (MESH_API_KEY && !MESH_API_KEY.startsWith('jmsh_')) {
-  console.warn('[api-gateway] WARNING: JIMBOMESH_API_KEY does not look like a SaaS key (expected jmsh_ prefix). Mesh connection may fail.');
+  console.warn(
+    '[api-gateway] WARNING: JIMBOMESH_API_KEY does not look like a SaaS key (expected jmsh_ prefix). Mesh connection may fail.'
+  );
 }
 if (currentApiKey && MESH_API_KEY && currentApiKey === MESH_API_KEY) {
-  console.error('[api-gateway] ERROR: JIMBOMESH_HOLLER_API_KEY and JIMBOMESH_API_KEY must be different keys! Local inference and SaaS mesh credentials must never be the same.');
+  console.error(
+    '[api-gateway] ERROR: JIMBOMESH_HOLLER_API_KEY and JIMBOMESH_API_KEY must be different keys! Local inference and SaaS mesh credentials must never be the same.'
+  );
   process.exit(1);
 }
 
@@ -180,7 +206,9 @@ try {
     currentApiKey = dbKey;
     console.log('[api-gateway] Using rotated API key from database');
   }
-} catch { /* SQLite not ready yet, use env var */ }
+} catch {
+  /* SQLite not ready yet, use env var */
+}
 
 // Initialize Tier 2 (Bearer Tokens) and Tier 3 (Auth0 JWT)
 tokenManager.init(db);
@@ -263,7 +291,9 @@ const handleAdmin = createAdminRoutes({
   tokenManager,
   jwtValidator,
   getMeshConnector: () => meshConnector,
-  setMeshConnector: (mc) => { meshConnector = mc; },
+  setMeshConnector: (mc) => {
+    meshConnector = mc;
+  },
   getConcurrencyStats,
   meshUrl: MESH_URL,
   hollerVersion: HOLLER_VERSION,
@@ -348,13 +378,8 @@ const SWAGGER_INDEX_HTML = `<!DOCTYPE html>
 function handleDocs(req, res) {
   const pathname = req.url.split('?')[0];
 
-  const isDocsPath =
-    pathname === '/docs' ||
-    pathname === '/docs/' ||
-    pathname.startsWith('/docs/');
-  const isSpecAlias =
-    pathname === '/openapi.yaml' ||
-    pathname === '/openapi.json';
+  const isDocsPath = pathname === '/docs' || pathname === '/docs/' || pathname.startsWith('/docs/');
+  const isSpecAlias = pathname === '/openapi.yaml' || pathname === '/openapi.json';
 
   if (!isDocsPath && !isSpecAlias) return false;
 
@@ -508,7 +533,8 @@ function releaseSlot() {
 
 function routeToScope(method, pathname) {
   if (pathname === '/v1/embeddings' || pathname.startsWith('/api/embed')) return 'embeddings';
-  if (pathname === '/v1/chat/completions' || pathname.startsWith('/api/chat') || pathname.startsWith('/api/generate')) return 'chat';
+  if (pathname === '/v1/chat/completions' || pathname.startsWith('/api/chat') || pathname.startsWith('/api/generate'))
+    return 'chat';
   if (pathname.startsWith('/v1/documents/')) return 'documents';
   return 'full';
 }
@@ -522,7 +548,11 @@ function tokenHasPermission(token, scope) {
 let _pipeline = null;
 function getPipeline() {
   if (!_pipeline) {
-    try { _pipeline = require('./document-pipeline'); } catch (_) { _pipeline = null; }
+    try {
+      _pipeline = require('./document-pipeline');
+    } catch (_) {
+      _pipeline = null;
+    }
   }
   return _pipeline;
 }
@@ -531,35 +561,40 @@ function getPipeline() {
 function fetchModelList() {
   return new Promise((resolve, reject) => {
     const now = Date.now();
-    if (modelListCache && (now - modelListCacheTime) < MODEL_CACHE_TTL_MS) {
+    if (modelListCache && now - modelListCacheTime < MODEL_CACHE_TTL_MS) {
       resolve(modelListCache);
       return;
     }
 
-    const req = http.request({
-      hostname: OLLAMA_PARSED.hostname,
-      port: parseInt(OLLAMA_PARSED.port) || 11435,
-      path: '/api/tags',
-      method: 'GET',
-      timeout: 5000,
-    }, (res) => {
-      let data = '';
-      res.on('data', (chunk) => { data += chunk; });
-      res.on('end', () => {
-        if (res.statusCode !== 200) {
-          reject(new Error(`Ollama returned ${res.statusCode}`));
-          return;
-        }
-        try {
-          const parsed = JSON.parse(data);
-          modelListCache = parsed.models || [];
-          modelListCacheTime = now;
-          resolve(modelListCache);
-        } catch {
-          reject(new Error('Invalid JSON from Ollama'));
-        }
-      });
-    });
+    const req = http.request(
+      {
+        hostname: OLLAMA_PARSED.hostname,
+        port: parseInt(OLLAMA_PARSED.port) || 11435,
+        path: '/api/tags',
+        method: 'GET',
+        timeout: 5000,
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
+        res.on('end', () => {
+          if (res.statusCode !== 200) {
+            reject(new Error(`Ollama returned ${res.statusCode}`));
+            return;
+          }
+          try {
+            const parsed = JSON.parse(data);
+            modelListCache = parsed.models || [];
+            modelListCacheTime = now;
+            resolve(modelListCache);
+          } catch {
+            reject(new Error('Invalid JSON from Ollama'));
+          }
+        });
+      }
+    );
 
     req.on('timeout', () => {
       req.destroy();
@@ -576,980 +611,1534 @@ function fetchModelList() {
 
 function createRequestHandler() {
   return async (req, res) => {
-  // Security headers on all responses
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
-  if (TLS_CERT_PATH) res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
+    // Security headers on all responses
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'DENY');
+    res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    if (TLS_CERT_PATH) res.setHeader('Strict-Transport-Security', 'max-age=63072000; includeSubDomains');
 
-  try {
-  const clientIp = TRUST_PROXY
-    ? (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || req.socket.remoteAddress
-    : req.socket.remoteAddress;
-  const reqStart = Date.now();
+    try {
+      const clientIp = TRUST_PROXY
+        ? (req.headers['x-forwarded-for'] || '').split(',').pop().trim() || req.socket.remoteAddress
+        : req.socket.remoteAddress;
+      const reqStart = Date.now();
 
-  // Health/readiness probes (always available, even during shutdown)
-  if (req.url === '/health') {
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
-    return;
-  }
-
-  if (req.url === '/readyz') {
-    if (isShuttingDown) {
-      res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '5' });
-      res.end(JSON.stringify({ status: 'shutting_down' }));
-      return;
-    }
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
-    return;
-  }
-
-  // Swagger UI (unauthenticated, always available)
-  if (handleDocs(req, res)) {
-    return;
-  }
-
-  // Reject new requests during shutdown drain
-  if (isShuttingDown) {
-    console.log(`[api-gateway] ${clientIp} - 503 ${req.method} ${req.url} (shutting down)`);
-    sendError(res, 503, 'shutting_down', 'Server is shutting down. Not accepting new requests.', { retry_after: 5 });
-    return;
-  }
-
-  // Admin routes (handles own auth)
-  if (handleAdmin(req, res)) {
-    return;
-  }
-
-  // ── Tiered Authentication ──────────────────────────────────
-  // Resolution order: Bearer token → X-API-Key → 401
-  const pathname = req.url.split('?')[0];
-  const authHeader = req.headers['authorization'];
-  const xApiKey = req.headers['x-api-key'];
-  let authResult = null; // { keyType, tokenObj? }
-
-  if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
-    // Tier 2 or 3: Bearer token
-    const bearerToken = authHeader.slice(7).trim();
-
-    if (!bearerToken) {
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-      sendError(res, 401, 'auth_required', 'Empty bearer token');
-      return;
-    }
-
-    if (bearerToken.startsWith('jmh_')) {
-      // Tier 2: Bearer token (jmh_ prefix)
-      if (!tokenManager.isEnabled()) {
-        console.log(`[api-gateway] ${clientIp} - 403 Enhanced security disabled`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 403, ip: clientIp, duration_ms: Date.now() - reqStart });
-        sendError(res, 403, 'enhanced_security_disabled', 'Bearer token auth is not enabled. Enable Enhanced Security in Admin UI.');
+      // Health/readiness probes (always available, even during shutdown)
+      if (req.url === '/health') {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
         return;
       }
 
-      const validatedToken = tokenManager.validateToken(bearerToken);
-      if (!validatedToken) {
-        console.log(`[api-gateway] ${clientIp} - 401 Invalid or expired bearer token`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-        sendError(res, 401, 'auth_invalid', 'Invalid or expired bearer token');
+      if (req.url === '/readyz') {
+        if (isShuttingDown) {
+          res.writeHead(503, { 'Content-Type': 'application/json', 'Retry-After': '5' });
+          res.end(JSON.stringify({ status: 'shutting_down' }));
+          return;
+        }
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ status: 'ok', timestamp: new Date().toISOString() }));
         return;
       }
 
-      // Check permission scope
-      const scope = routeToScope(req.method, pathname);
-      if (!tokenHasPermission(validatedToken, scope)) {
-        console.log(`[api-gateway] ${clientIp} - 403 Token "${validatedToken.name}" lacks ${scope} permission`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 403, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: 'bearer-token:' + validatedToken.name });
-        sendError(res, 403, 'permission_denied', `Token does not have "${scope}" permission`);
+      // Swagger UI (unauthenticated, always available)
+      if (handleDocs(req, res)) {
         return;
       }
 
-      // Per-token rate limiting
-      const tokenRate = tokenManager.checkTokenRateLimit(validatedToken.id, validatedToken.rpm, validatedToken.rph);
-      if (!tokenRate.allowed) {
-        console.log(`[api-gateway] ${clientIp} - 429 Token "${validatedToken.name}" rate limit (${tokenRate.reason})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: 'bearer-token:' + validatedToken.name });
-        sendError(res, 429, 'rate_limited', `Token rate limit exceeded (${tokenRate.reason}). Try again in ${tokenRate.retryAfterSec} seconds.`, { retry_after: tokenRate.retryAfterSec });
+      // Reject new requests during shutdown drain
+      if (isShuttingDown) {
+        console.log(`[api-gateway] ${clientIp} - 503 ${req.method} ${req.url} (shutting down)`);
+        sendError(res, 503, 'shutting_down', 'Server is shutting down. Not accepting new requests.', {
+          retry_after: 5,
+        });
         return;
       }
 
-      // Record usage
-      tokenManager.recordTokenUsage(validatedToken.id);
-      authResult = { keyType: 'bearer-token:' + validatedToken.name, tokenObj: validatedToken };
-
-    } else if (bearerToken.startsWith('eyJ')) {
-      // Tier 3: Auth0 JWT
-      if (!jwtValidator.isConfigured()) {
-        console.log(`[api-gateway] ${clientIp} - 401 JWT auth not configured`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-        sendError(res, 401, 'auth_invalid', 'JWT authentication is not configured on this server');
+      // Admin routes (handles own auth)
+      if (handleAdmin(req, res)) {
         return;
       }
 
-      try {
-        const jwtResult = await jwtValidator.validateJwt(bearerToken);
+      // ── Tiered Authentication ──────────────────────────────────
+      // Resolution order: Bearer token → X-API-Key → 401
+      const pathname = req.url.split('?')[0];
+      const authHeader = req.headers['authorization'];
+      const xApiKey = req.headers['x-api-key'];
+      let authResult = null; // { keyType, tokenObj? }
 
-        // Per-buyer rate limiting
-        const buyerRate = jwtValidator.checkBuyerRateLimit(
-          jwtResult.buyerId,
-          jwtResult.rateLimits.rpm || 60,
-          jwtResult.rateLimits.rph || 1000
-        );
-        if (!buyerRate.allowed) {
-          console.log(`[api-gateway] ${clientIp} - 429 JWT buyer "${jwtResult.buyerId}" rate limit (${buyerRate.reason})`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: 'jwt:' + jwtResult.buyerId });
-          sendError(res, 429, 'rate_limited', `Rate limit exceeded (${buyerRate.reason}). Try again in ${buyerRate.retryAfterSec} seconds.`, { retry_after: buyerRate.retryAfterSec });
+      if (authHeader && authHeader.toLowerCase().startsWith('bearer ')) {
+        // Tier 2 or 3: Bearer token
+        const bearerToken = authHeader.slice(7).trim();
+
+        if (!bearerToken) {
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 401,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+          });
+          sendError(res, 401, 'auth_required', 'Empty bearer token');
           return;
         }
 
-        authResult = { keyType: 'jwt:' + jwtResult.buyerId, jwtClaims: jwtResult };
-      } catch (jwtErr) {
-        console.log(`[api-gateway] ${clientIp} - 401 JWT validation failed: ${jwtErr.message}`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-        sendError(res, 401, 'auth_invalid', 'Invalid or expired JWT');
-        return;
-      }
+        if (bearerToken.startsWith('jmh_')) {
+          // Tier 2: Bearer token (jmh_ prefix)
+          if (!tokenManager.isEnabled()) {
+            console.log(`[api-gateway] ${clientIp} - 403 Enhanced security disabled`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 403,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+            });
+            sendError(
+              res,
+              403,
+              'enhanced_security_disabled',
+              'Bearer token auth is not enabled. Enable Enhanced Security in Admin UI.'
+            );
+            return;
+          }
 
-    } else {
-      // Unrecognized bearer token format
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-      sendError(res, 401, 'auth_invalid', 'Unrecognized bearer token format');
-      return;
-    }
+          const validatedToken = tokenManager.validateToken(bearerToken);
+          if (!validatedToken) {
+            console.log(`[api-gateway] ${clientIp} - 401 Invalid or expired bearer token`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 401,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+            });
+            sendError(res, 401, 'auth_invalid', 'Invalid or expired bearer token');
+            return;
+          }
 
-  } else if (xApiKey) {
-    // Tier 1: X-API-Key header (existing behavior)
-    const isInferenceKey = safeCompare(xApiKey, currentApiKey);
-    const isAdminKey = ADMIN_API_KEY && safeCompare(xApiKey, ADMIN_API_KEY);
+          // Check permission scope
+          const scope = routeToScope(req.method, pathname);
+          if (!tokenHasPermission(validatedToken, scope)) {
+            console.log(`[api-gateway] ${clientIp} - 403 Token "${validatedToken.name}" lacks ${scope} permission`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 403,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: 'bearer-token:' + validatedToken.name,
+            });
+            sendError(res, 403, 'permission_denied', `Token does not have "${scope}" permission`);
+            return;
+          }
 
-    if (!isInferenceKey && !isAdminKey) {
-      console.log(`[api-gateway] ${clientIp} - 403 Invalid API key`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 403, ip: clientIp, duration_ms: Date.now() - reqStart });
-      sendError(res, 403, 'auth_invalid', 'Invalid API key');
-      return;
-    }
+          // Per-token rate limiting
+          const tokenRate = tokenManager.checkTokenRateLimit(validatedToken.id, validatedToken.rpm, validatedToken.rph);
+          if (!tokenRate.allowed) {
+            console.log(
+              `[api-gateway] ${clientIp} - 429 Token "${validatedToken.name}" rate limit (${tokenRate.reason})`
+            );
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 429,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: 'bearer-token:' + validatedToken.name,
+            });
+            sendError(
+              res,
+              429,
+              'rate_limited',
+              `Token rate limit exceeded (${tokenRate.reason}). Try again in ${tokenRate.retryAfterSec} seconds.`,
+              { retry_after: tokenRate.retryAfterSec }
+            );
+            return;
+          }
 
-    authResult = { keyType: isAdminKey ? 'admin-key' : 'inference-key' };
+          // Record usage
+          tokenManager.recordTokenUsage(validatedToken.id);
+          authResult = { keyType: 'bearer-token:' + validatedToken.name, tokenObj: validatedToken };
+        } else if (bearerToken.startsWith('eyJ')) {
+          // Tier 3: Auth0 JWT
+          if (!jwtValidator.isConfigured()) {
+            console.log(`[api-gateway] ${clientIp} - 401 JWT auth not configured`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 401,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+            });
+            sendError(res, 401, 'auth_invalid', 'JWT authentication is not configured on this server');
+            return;
+          }
 
-    // IP-based rate limiting (existing behavior for X-API-Key)
-    const rateResult = checkRateLimit(clientIp);
-    if (!rateResult.allowed) {
-      console.log(`[api-gateway] ${clientIp} - 429 Rate limit exceeded`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: authResult.keyType });
-      sendError(res, 429, 'rate_limited', `Rate limit exceeded. Try again in ${rateResult.retryAfterSec} seconds.`, { retry_after: rateResult.retryAfterSec });
-      return;
-    }
+          try {
+            const jwtResult = await jwtValidator.validateJwt(bearerToken);
 
-  } else {
-    // No auth provided
-    console.log(`[api-gateway] ${clientIp} - 401 Missing API key`);
-    recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 401, ip: clientIp, duration_ms: Date.now() - reqStart });
-    sendError(res, 401, 'auth_required', 'Missing X-API-Key or Authorization: Bearer header');
-    return;
-  }
-
-  const keyType = authResult.keyType;
-
-  // ── OpenAI-compatible /v1/embeddings endpoint ───────────────
-  if (req.method === 'POST' && req.url === '/v1/embeddings') {
-    const maxBody = MAX_REQUEST_BODY_BYTES();
-    const maxBatch = MAX_BATCH_SIZE();
-    const ollamaTimeout = OLLAMA_TIMEOUT_MS();
-
-    // Early Content-Length check
-    const declaredLength = parseInt(req.headers['content-length']);
-    if (declaredLength > maxBody) {
-      console.log(`[api-gateway] ${clientIp} - 413 POST /v1/embeddings (body ${declaredLength} > limit ${maxBody})`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 413, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 413, 'payload_too_large', `Request body of ${declaredLength} bytes exceeds ${maxBody} byte limit`);
-      req.resume();
-      return;
-    }
-
-    let body = '';
-    let bytesRead = 0;
-    let aborted = false;
-
-    req.on('data', (chunk) => {
-      bytesRead += chunk.length;
-      if (bytesRead > maxBody && !aborted) {
-        aborted = true;
-        console.log(`[api-gateway] ${clientIp} - 413 POST /v1/embeddings (body ${bytesRead} > limit ${maxBody})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 413, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 413, 'payload_too_large', `Request body exceeds ${maxBody} byte limit`);
-        req.destroy();
-        return;
-      }
-      body += chunk;
-    });
-
-    req.on('end', () => {
-      if (aborted) return;
-
-      let parsed;
-      try {
-        parsed = JSON.parse(body);
-      } catch {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'invalid_request', 'Request body is not valid JSON');
-        return;
-      }
-
-      const model = parsed.model || process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
-      const input = parsed.input;
-      if (!input) {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'invalid_request', 'Missing required field: input');
-        return;
-      }
-
-      const inputs = Array.isArray(input) ? input : [input];
-      const tracking = stats.startRequest(crypto.randomUUID(), model);
-      tracking.inputTokens = estimateInputTokens(input);
-
-      // Batch size check
-      if (inputs.length > maxBatch) {
-        console.log(`[api-gateway] ${clientIp} - 400 POST /v1/embeddings (batch ${inputs.length} > limit ${maxBatch})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'batch_too_large', `Batch size ${inputs.length} exceeds maximum of ${maxBatch}`);
-        stats.failRequest(tracking, new Error('Batch size exceeded')).catch(function () {});
-        return;
-      }
-
-      // Acquire concurrency slot
-      acquireSlot().then(() => {
-        let slotReleased = false;
-        function releaseOnce() { if (!slotReleased) { slotReleased = true; releaseSlot(); } }
-
-        const ollamaBody = JSON.stringify({ model, input: inputs });
-        const ollamaReq = http.request({
-          hostname: OLLAMA_PARSED.hostname,
-          port: parseInt(OLLAMA_PARSED.port) || 11435,
-          path: '/api/embed',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
-          timeout: ollamaTimeout,
-        }, (ollamaRes) => {
-          let ollamaData = '';
-          ollamaRes.on('data', (chunk) => { ollamaData += chunk; });
-          ollamaRes.on('end', () => {
-            releaseOnce();
-
-            if (ollamaRes.statusCode !== 200) {
-              stats.failRequest(tracking, new Error('Ollama HTTP ' + ollamaRes.statusCode)).catch(function () {});
-              recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: ollamaRes.statusCode, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-              res.writeHead(ollamaRes.statusCode, { 'Content-Type': 'application/json' });
-              res.end(ollamaData);
+            // Per-buyer rate limiting
+            const buyerRate = jwtValidator.checkBuyerRateLimit(
+              jwtResult.buyerId,
+              jwtResult.rateLimits.rpm || 60,
+              jwtResult.rateLimits.rph || 1000
+            );
+            if (!buyerRate.allowed) {
+              console.log(
+                `[api-gateway] ${clientIp} - 429 JWT buyer "${jwtResult.buyerId}" rate limit (${buyerRate.reason})`
+              );
+              recordActivity({
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                path: req.url,
+                status: 429,
+                ip: clientIp,
+                duration_ms: Date.now() - reqStart,
+                auth_type: 'jwt:' + jwtResult.buyerId,
+              });
+              sendError(
+                res,
+                429,
+                'rate_limited',
+                `Rate limit exceeded (${buyerRate.reason}). Try again in ${buyerRate.retryAfterSec} seconds.`,
+                { retry_after: buyerRate.retryAfterSec }
+              );
               return;
             }
 
-            let ollamaResult;
-            try {
-              ollamaResult = JSON.parse(ollamaData);
-            } catch {
-              stats.failRequest(tracking, new Error('Invalid JSON from Ollama embed response')).catch(function () {});
-              recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 502, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-              sendError(res, 502, 'model_error', 'Invalid response from Ollama backend');
-              return;
-            }
+            authResult = { keyType: 'jwt:' + jwtResult.buyerId, jwtClaims: jwtResult };
+          } catch (jwtErr) {
+            console.log(`[api-gateway] ${clientIp} - 401 JWT validation failed: ${jwtErr.message}`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 401,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+            });
+            sendError(res, 401, 'auth_invalid', 'Invalid or expired JWT');
+            return;
+          }
+        } else {
+          // Unrecognized bearer token format
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 401,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+          });
+          sendError(res, 401, 'auth_invalid', 'Unrecognized bearer token format');
+          return;
+        }
+      } else if (xApiKey) {
+        // Tier 1: X-API-Key header (existing behavior)
+        const isInferenceKey = safeCompare(xApiKey, currentApiKey);
+        const isAdminKey = ADMIN_API_KEY && safeCompare(xApiKey, ADMIN_API_KEY);
 
-            const embeddings = ollamaResult.embeddings || [];
-            const data = embeddings.map((embedding, index) => ({
-              object: 'embedding',
-              embedding,
-              index,
+        if (!isInferenceKey && !isAdminKey) {
+          console.log(`[api-gateway] ${clientIp} - 403 Invalid API key`);
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 403,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+          });
+          sendError(res, 403, 'auth_invalid', 'Invalid API key');
+          return;
+        }
+
+        authResult = { keyType: isAdminKey ? 'admin-key' : 'inference-key' };
+
+        // IP-based rate limiting (existing behavior for X-API-Key)
+        const rateResult = checkRateLimit(clientIp);
+        if (!rateResult.allowed) {
+          console.log(`[api-gateway] ${clientIp} - 429 Rate limit exceeded`);
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 429,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: authResult.keyType,
+          });
+          sendError(
+            res,
+            429,
+            'rate_limited',
+            `Rate limit exceeded. Try again in ${rateResult.retryAfterSec} seconds.`,
+            { retry_after: rateResult.retryAfterSec }
+          );
+          return;
+        }
+      } else {
+        // No auth provided
+        console.log(`[api-gateway] ${clientIp} - 401 Missing API key`);
+        recordActivity({
+          timestamp: new Date().toISOString(),
+          method: req.method,
+          path: req.url,
+          status: 401,
+          ip: clientIp,
+          duration_ms: Date.now() - reqStart,
+        });
+        sendError(res, 401, 'auth_required', 'Missing X-API-Key or Authorization: Bearer header');
+        return;
+      }
+
+      const keyType = authResult.keyType;
+
+      // ── OpenAI-compatible /v1/embeddings endpoint ───────────────
+      if (req.method === 'POST' && req.url === '/v1/embeddings') {
+        const maxBody = MAX_REQUEST_BODY_BYTES();
+        const maxBatch = MAX_BATCH_SIZE();
+        const ollamaTimeout = OLLAMA_TIMEOUT_MS();
+
+        // Early Content-Length check
+        const declaredLength = parseInt(req.headers['content-length']);
+        if (declaredLength > maxBody) {
+          console.log(
+            `[api-gateway] ${clientIp} - 413 POST /v1/embeddings (body ${declaredLength} > limit ${maxBody})`
+          );
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 413,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: keyType,
+          });
+          sendError(
+            res,
+            413,
+            'payload_too_large',
+            `Request body of ${declaredLength} bytes exceeds ${maxBody} byte limit`
+          );
+          req.resume();
+          return;
+        }
+
+        let body = '';
+        let bytesRead = 0;
+        let aborted = false;
+
+        req.on('data', (chunk) => {
+          bytesRead += chunk.length;
+          if (bytesRead > maxBody && !aborted) {
+            aborted = true;
+            console.log(`[api-gateway] ${clientIp} - 413 POST /v1/embeddings (body ${bytesRead} > limit ${maxBody})`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 413,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 413, 'payload_too_large', `Request body exceeds ${maxBody} byte limit`);
+            req.destroy();
+            return;
+          }
+          body += chunk;
+        });
+
+        req.on('end', () => {
+          if (aborted) return;
+
+          let parsed;
+          try {
+            parsed = JSON.parse(body);
+          } catch {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'invalid_request', 'Request body is not valid JSON');
+            return;
+          }
+
+          const model = parsed.model || process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
+          const input = parsed.input;
+          if (!input) {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'invalid_request', 'Missing required field: input');
+            return;
+          }
+
+          const inputs = Array.isArray(input) ? input : [input];
+          const tracking = stats.startRequest(crypto.randomUUID(), model);
+          tracking.inputTokens = estimateInputTokens(input);
+
+          // Batch size check
+          if (inputs.length > maxBatch) {
+            console.log(
+              `[api-gateway] ${clientIp} - 400 POST /v1/embeddings (batch ${inputs.length} > limit ${maxBatch})`
+            );
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'batch_too_large', `Batch size ${inputs.length} exceeds maximum of ${maxBatch}`);
+            stats.failRequest(tracking, new Error('Batch size exceeded')).catch(function () {});
+            return;
+          }
+
+          // Acquire concurrency slot
+          acquireSlot()
+            .then(() => {
+              let slotReleased = false;
+              function releaseOnce() {
+                if (!slotReleased) {
+                  slotReleased = true;
+                  releaseSlot();
+                }
+              }
+
+              const ollamaBody = JSON.stringify({ model, input: inputs });
+              const ollamaReq = http.request(
+                {
+                  hostname: OLLAMA_PARSED.hostname,
+                  port: parseInt(OLLAMA_PARSED.port) || 11435,
+                  path: '/api/embed',
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
+                  timeout: ollamaTimeout,
+                },
+                (ollamaRes) => {
+                  let ollamaData = '';
+                  ollamaRes.on('data', (chunk) => {
+                    ollamaData += chunk;
+                  });
+                  ollamaRes.on('end', () => {
+                    releaseOnce();
+
+                    if (ollamaRes.statusCode !== 200) {
+                      stats
+                        .failRequest(tracking, new Error('Ollama HTTP ' + ollamaRes.statusCode))
+                        .catch(function () {});
+                      recordActivity({
+                        timestamp: new Date().toISOString(),
+                        method: req.method,
+                        path: req.url,
+                        status: ollamaRes.statusCode,
+                        ip: clientIp,
+                        duration_ms: Date.now() - reqStart,
+                        auth_type: keyType,
+                      });
+                      res.writeHead(ollamaRes.statusCode, { 'Content-Type': 'application/json' });
+                      res.end(ollamaData);
+                      return;
+                    }
+
+                    let ollamaResult;
+                    try {
+                      ollamaResult = JSON.parse(ollamaData);
+                    } catch {
+                      stats
+                        .failRequest(tracking, new Error('Invalid JSON from Ollama embed response'))
+                        .catch(function () {});
+                      recordActivity({
+                        timestamp: new Date().toISOString(),
+                        method: req.method,
+                        path: req.url,
+                        status: 502,
+                        ip: clientIp,
+                        duration_ms: Date.now() - reqStart,
+                        auth_type: keyType,
+                      });
+                      sendError(res, 502, 'model_error', 'Invalid response from Ollama backend');
+                      return;
+                    }
+
+                    const embeddings = ollamaResult.embeddings || [];
+                    const data = embeddings.map((embedding, index) => ({
+                      object: 'embedding',
+                      embedding,
+                      index,
+                    }));
+
+                    const totalChars = inputs.reduce((sum, t) => sum + (typeof t === 'string' ? t.length : 0), 0);
+                    const estimatedTokens = Math.ceil(totalChars / 4);
+
+                    const openaiResponse = {
+                      object: 'list',
+                      data,
+                      model: ollamaResult.model || model,
+                      usage: { prompt_tokens: estimatedTokens, total_tokens: estimatedTokens },
+                    };
+
+                    console.log(
+                      `[api-gateway] ${clientIp} - 200 POST /v1/embeddings (${inputs.length} input(s), ${keyType})`
+                    );
+                    stats
+                      .completeRequest(tracking, {
+                        prompt_eval_count: tracking.inputTokens,
+                        eval_count: 0,
+                        isToolCall: false,
+                      })
+                      .catch(function () {});
+                    recordActivity({
+                      timestamp: new Date().toISOString(),
+                      method: req.method,
+                      path: req.url,
+                      status: 200,
+                      ip: clientIp,
+                      duration_ms: Date.now() - reqStart,
+                      auth_type: keyType,
+                    });
+                    res.writeHead(200, { 'Content-Type': 'application/json' });
+                    res.end(JSON.stringify(openaiResponse));
+                  });
+                }
+              );
+
+              ollamaReq.on('timeout', () => {
+                ollamaReq.destroy();
+                releaseOnce();
+                stats.failRequest(tracking, new Error('Ollama embed timeout')).catch(function () {});
+                console.log(`[api-gateway] ${clientIp} - 504 POST /v1/embeddings (timeout ${ollamaTimeout}ms)`);
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 504,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeout}ms`);
+              });
+
+              ollamaReq.on('error', (err) => {
+                releaseOnce();
+                stats.failRequest(tracking, err).catch(function () {});
+                console.error(`[api-gateway] /v1/embeddings proxy error:`, err.message);
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 502,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 502, 'model_error', 'Ollama service unavailable');
+              });
+
+              ollamaReq.write(ollamaBody);
+              ollamaReq.end();
+            })
+            .catch((err) => {
+              if (err.message === 'queue_full') {
+                stats.failRequest(tracking, err).catch(function () {});
+                console.log(`[api-gateway] ${clientIp} - 429 POST /v1/embeddings (queue full: ${requestQueue.length})`);
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 429,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, {
+                  retry_after: 5,
+                });
+              }
+            });
+        });
+        return;
+      }
+
+      // ── OpenAI-compatible GET /v1/models endpoint ───────────────
+      if (req.method === 'GET' && req.url === '/v1/models') {
+        fetchModelList()
+          .then((models) => {
+            const openaiModels = models.map((m) => ({
+              id: m.name,
+              object: 'model',
+              created: m.modified_at
+                ? Math.floor(new Date(m.modified_at).getTime() / 1000)
+                : Math.floor(Date.now() / 1000),
+              owned_by: 'jimbomesh-holler',
             }));
 
-            const totalChars = inputs.reduce((sum, t) => sum + (typeof t === 'string' ? t.length : 0), 0);
-            const estimatedTokens = Math.ceil(totalChars / 4);
-
-            const openaiResponse = {
+            const response = {
               object: 'list',
-              data,
-              model: ollamaResult.model || model,
-              usage: { prompt_tokens: estimatedTokens, total_tokens: estimatedTokens },
+              data: openaiModels,
             };
 
-            console.log(`[api-gateway] ${clientIp} - 200 POST /v1/embeddings (${inputs.length} input(s), ${keyType})`);
-            stats.completeRequest(tracking, {
-              prompt_eval_count: tracking.inputTokens,
-              eval_count: 0,
-              isToolCall: false,
-            }).catch(function () {});
-            recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
+            console.log(`[api-gateway] ${clientIp} - 200 GET /v1/models (${openaiModels.length} models, ${keyType})`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 200,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
             res.writeHead(200, { 'Content-Type': 'application/json' });
-            res.end(JSON.stringify(openaiResponse));
+            res.end(JSON.stringify(response));
+          })
+          .catch((err) => {
+            console.error(`[api-gateway] GET /v1/models error:`, err.message);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 503,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 503, 'model_list_unavailable', 'Could not fetch model list from Ollama');
           });
-        });
-
-        ollamaReq.on('timeout', () => {
-          ollamaReq.destroy();
-          releaseOnce();
-          stats.failRequest(tracking, new Error('Ollama embed timeout')).catch(function () {});
-          console.log(`[api-gateway] ${clientIp} - 504 POST /v1/embeddings (timeout ${ollamaTimeout}ms)`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 504, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeout}ms`);
-        });
-
-        ollamaReq.on('error', (err) => {
-          releaseOnce();
-          stats.failRequest(tracking, err).catch(function () {});
-          console.error(`[api-gateway] /v1/embeddings proxy error:`, err.message);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 502, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 502, 'model_error', 'Ollama service unavailable');
-        });
-
-        ollamaReq.write(ollamaBody);
-        ollamaReq.end();
-      }).catch((err) => {
-        if (err.message === 'queue_full') {
-          stats.failRequest(tracking, err).catch(function () {});
-          console.log(`[api-gateway] ${clientIp} - 429 POST /v1/embeddings (queue full: ${requestQueue.length})`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, { retry_after: 5 });
-        }
-      });
-    });
-    return;
-  }
-
-  // ── OpenAI-compatible GET /v1/models endpoint ───────────────
-  if (req.method === 'GET' && req.url === '/v1/models') {
-    fetchModelList()
-      .then((models) => {
-        const openaiModels = models.map((m) => ({
-          id: m.name,
-          object: 'model',
-          created: m.modified_at ? Math.floor(new Date(m.modified_at).getTime() / 1000) : Math.floor(Date.now() / 1000),
-          owned_by: 'jimbomesh-holler',
-        }));
-
-        const response = {
-          object: 'list',
-          data: openaiModels,
-        };
-
-        console.log(`[api-gateway] ${clientIp} - 200 GET /v1/models (${openaiModels.length} models, ${keyType})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify(response));
-      })
-      .catch((err) => {
-        console.error(`[api-gateway] GET /v1/models error:`, err.message);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 503, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 503, 'model_list_unavailable', 'Could not fetch model list from Ollama');
-      });
-    return;
-  }
-
-  // ── OpenAI-compatible POST /v1/chat/completions endpoint ────
-  if (req.method === 'POST' && req.url === '/v1/chat/completions') {
-    const maxBody = MAX_REQUEST_BODY_BYTES();
-    const ollamaTimeout = OLLAMA_TIMEOUT_MS();
-
-    // Early Content-Length check
-    const declaredLength = parseInt(req.headers['content-length']);
-    if (declaredLength > maxBody) {
-      console.log(`[api-gateway] ${clientIp} - 413 POST /v1/chat/completions (body ${declaredLength} > limit ${maxBody})`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 413, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 413, 'payload_too_large', `Request body of ${declaredLength} bytes exceeds ${maxBody} byte limit`);
-      req.resume();
-      return;
-    }
-
-    let body = '';
-    let bytesRead = 0;
-    let aborted = false;
-
-    req.on('data', (chunk) => {
-      bytesRead += chunk.length;
-      if (bytesRead > maxBody && !aborted) {
-        aborted = true;
-        console.log(`[api-gateway] ${clientIp} - 413 POST /v1/chat/completions (body ${bytesRead} > limit ${maxBody})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 413, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 413, 'payload_too_large', `Request body exceeds ${maxBody} byte limit`);
-        req.destroy();
-        return;
-      }
-      body += chunk;
-    });
-
-    req.on('end', async () => {
-      if (aborted) return;
-
-      let parsed;
-      try {
-        parsed = JSON.parse(body);
-      } catch {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'invalid_request', 'Request body is not valid JSON');
         return;
       }
 
-      // Extract and validate parameters
-      const messages = parsed.messages;
-      if (!messages || !Array.isArray(messages) || messages.length === 0) {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'invalid_request', 'Missing or invalid "messages" array');
-        return;
-      }
+      // ── OpenAI-compatible POST /v1/chat/completions endpoint ────
+      if (req.method === 'POST' && req.url === '/v1/chat/completions') {
+        const maxBody = MAX_REQUEST_BODY_BYTES();
+        const ollamaTimeout = OLLAMA_TIMEOUT_MS();
 
-      // Validate message format
-      for (let i = 0; i < messages.length; i++) {
-        const msg = messages[i];
-        if (!msg.role || !msg.content) {
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 400, 'invalid_request', `Message at index ${i} missing "role" or "content"`);
+        // Early Content-Length check
+        const declaredLength = parseInt(req.headers['content-length']);
+        if (declaredLength > maxBody) {
+          console.log(
+            `[api-gateway] ${clientIp} - 413 POST /v1/chat/completions (body ${declaredLength} > limit ${maxBody})`
+          );
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 413,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: keyType,
+          });
+          sendError(
+            res,
+            413,
+            'payload_too_large',
+            `Request body of ${declaredLength} bytes exceeds ${maxBody} byte limit`
+          );
+          req.resume();
           return;
         }
-      }
 
-      // Determine model (use default if not specified)
-      let model = parsed.model;
-      if (!model) {
-        const defaultChatModel = process.env.HOLLER_DEFAULT_CHAT_MODEL;
-        if (defaultChatModel) {
-          model = defaultChatModel;
-        } else {
-          // Auto-detect first non-embedding model
+        let body = '';
+        let bytesRead = 0;
+        let aborted = false;
+
+        req.on('data', (chunk) => {
+          bytesRead += chunk.length;
+          if (bytesRead > maxBody && !aborted) {
+            aborted = true;
+            console.log(
+              `[api-gateway] ${clientIp} - 413 POST /v1/chat/completions (body ${bytesRead} > limit ${maxBody})`
+            );
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 413,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 413, 'payload_too_large', `Request body exceeds ${maxBody} byte limit`);
+            req.destroy();
+            return;
+          }
+          body += chunk;
+        });
+
+        req.on('end', async () => {
+          if (aborted) return;
+
+          let parsed;
+          try {
+            parsed = JSON.parse(body);
+          } catch {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'invalid_request', 'Request body is not valid JSON');
+            return;
+          }
+
+          // Extract and validate parameters
+          const messages = parsed.messages;
+          if (!messages || !Array.isArray(messages) || messages.length === 0) {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'invalid_request', 'Missing or invalid "messages" array');
+            return;
+          }
+
+          // Validate message format
+          for (let i = 0; i < messages.length; i++) {
+            const msg = messages[i];
+            if (!msg.role || !msg.content) {
+              recordActivity({
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                path: req.url,
+                status: 400,
+                ip: clientIp,
+                duration_ms: Date.now() - reqStart,
+                auth_type: keyType,
+              });
+              sendError(res, 400, 'invalid_request', `Message at index ${i} missing "role" or "content"`);
+              return;
+            }
+          }
+
+          // Determine model (use default if not specified)
+          let model = parsed.model;
+          if (!model) {
+            const defaultChatModel = process.env.HOLLER_DEFAULT_CHAT_MODEL;
+            if (defaultChatModel) {
+              model = defaultChatModel;
+            } else {
+              // Auto-detect first non-embedding model
+              try {
+                const models = await fetchModelList();
+                const chatModel = models.find((m) => !m.name.includes('embed'));
+                model = chatModel ? chatModel.name : models[0] ? models[0].name : null;
+              } catch {
+                // Fallback
+                model = 'llama3.1:8b';
+              }
+            }
+          }
+
+          if (!model) {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 400,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 400, 'invalid_request', 'No model specified and no default available');
+            return;
+          }
+
+          // Validate model exists
           try {
             const models = await fetchModelList();
-            const chatModel = models.find(m => !m.name.includes('embed'));
-            model = chatModel ? chatModel.name : (models[0] ? models[0].name : null);
-          } catch {
-            // Fallback
-            model = 'llama3.1:8b';
+            const modelExists = models.some((m) => m.name === model);
+            if (!modelExists) {
+              const availableModels = models.map((m) => m.name).join(', ');
+              recordActivity({
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                path: req.url,
+                status: 404,
+                ip: clientIp,
+                duration_ms: Date.now() - reqStart,
+                auth_type: keyType,
+              });
+              sendError(
+                res,
+                404,
+                'model_not_found',
+                `Model '${model}' not found. Available models: ${availableModels}`
+              );
+              return;
+            }
+          } catch (err) {
+            console.error(`[api-gateway] Model validation error:`, err.message);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 503,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 503, 'model_list_unavailable', 'Could not validate model availability');
+            return;
           }
-        }
-      }
 
-      if (!model) {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 400, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 400, 'invalid_request', 'No model specified and no default available');
+          const stream = parsed.stream === true;
+          const tracking = stats.startRequest(crypto.randomUUID(), model);
+
+          // Build Ollama request (translate OpenAI params to Ollama format)
+          const ollamaReqBody = {
+            model: model,
+            messages: messages,
+            stream: stream,
+          };
+
+          // Map options
+          const options = {};
+          if (parsed.temperature !== undefined) options.temperature = parsed.temperature;
+          if (parsed.top_p !== undefined) options.top_p = parsed.top_p;
+          if (parsed.max_tokens !== undefined) options.num_predict = parsed.max_tokens;
+          if (parsed.stop !== undefined) options.stop = Array.isArray(parsed.stop) ? parsed.stop : [parsed.stop];
+          if (parsed.presence_penalty !== undefined) options.presence_penalty = parsed.presence_penalty;
+          if (parsed.frequency_penalty !== undefined) options.frequency_penalty = parsed.frequency_penalty;
+
+          if (Object.keys(options).length > 0) {
+            ollamaReqBody.options = options;
+          }
+
+          // Acquire concurrency slot
+          acquireSlot()
+            .then(() => {
+              let slotReleased = false;
+              function releaseOnce() {
+                if (!slotReleased) {
+                  slotReleased = true;
+                  releaseSlot();
+                }
+              }
+
+              const ollamaBody = JSON.stringify(ollamaReqBody);
+              const ollamaReq = http.request(
+                {
+                  hostname: OLLAMA_PARSED.hostname,
+                  port: parseInt(OLLAMA_PARSED.port) || 11435,
+                  path: '/api/chat',
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
+                  timeout: ollamaTimeout,
+                },
+                (ollamaRes) => {
+                  if (stream) {
+                    // ── Streaming Response (SSE) ──────────────────────────
+                    res.writeHead(200, {
+                      'Content-Type': 'text/event-stream',
+                      'Cache-Control': 'no-cache',
+                      Connection: 'keep-alive',
+                    });
+
+                    const chatId = 'chatcmpl-holler-' + crypto.randomUUID();
+                    const created = Math.floor(Date.now() / 1000);
+                    let isFirstChunk = true;
+                    let streamBuffer = '';
+                    let sawToolCalls = false;
+                    let streamRecorded = false;
+
+                    ollamaRes.on('data', (chunk) => {
+                      streamBuffer += chunk.toString();
+                      const lines = streamBuffer.split('\n');
+                      streamBuffer = lines.pop();
+                      for (let i = 0; i < lines.length; i++) {
+                        try {
+                          const obj = JSON.parse(lines[i]);
+
+                          if (isFirstChunk && obj.message) {
+                            stats.onFirstToken(tracking);
+                            // First chunk: send role
+                            const firstChunk = {
+                              id: chatId,
+                              object: 'chat.completion.chunk',
+                              created: created,
+                              model: model,
+                              choices: [
+                                {
+                                  index: 0,
+                                  delta: { role: 'assistant' },
+                                  finish_reason: null,
+                                },
+                              ],
+                            };
+                            res.write('data: ' + JSON.stringify(firstChunk) + '\n\n');
+                            isFirstChunk = false;
+                          }
+
+                          if (obj.message && obj.message.content) {
+                            // Content chunk
+                            const contentChunk = {
+                              id: chatId,
+                              object: 'chat.completion.chunk',
+                              created: created,
+                              model: model,
+                              choices: [
+                                {
+                                  index: 0,
+                                  delta: { content: obj.message.content },
+                                  finish_reason: null,
+                                },
+                              ],
+                            };
+                            res.write('data: ' + JSON.stringify(contentChunk) + '\n\n');
+                          }
+
+                          if (obj.message && hasToolCallsInMessage(obj.message)) {
+                            sawToolCalls = true;
+                          }
+
+                          if (obj.done) {
+                            // Final chunk
+                            const finishReason = obj.done_reason === 'length' ? 'length' : 'stop';
+                            const finalChunk = {
+                              id: chatId,
+                              object: 'chat.completion.chunk',
+                              created: created,
+                              model: model,
+                              choices: [
+                                {
+                                  index: 0,
+                                  delta: {},
+                                  finish_reason: finishReason,
+                                },
+                              ],
+                            };
+                            res.write('data: ' + JSON.stringify(finalChunk) + '\n\n');
+                            res.write('data: [DONE]\n\n');
+                            if (!streamRecorded) {
+                              streamRecorded = true;
+                              stats
+                                .completeRequest(tracking, {
+                                  prompt_eval_count: obj.prompt_eval_count || 0,
+                                  eval_count: obj.eval_count || 0,
+                                  isToolCall: sawToolCalls,
+                                })
+                                .catch(function () {});
+                            }
+                          }
+                        } catch (_parseErr) {
+                          // Partial JSON line, skip
+                        }
+                      }
+                    });
+
+                    ollamaRes.on('end', () => {
+                      if (!streamRecorded) {
+                        streamRecorded = true;
+                        stats
+                          .completeRequest(tracking, {
+                            prompt_eval_count: 0,
+                            eval_count: 0,
+                            isToolCall: sawToolCalls,
+                          })
+                          .catch(function () {});
+                      }
+                      releaseOnce();
+                      console.log(`[api-gateway] ${clientIp} - 200 POST /v1/chat/completions (stream, ${keyType})`);
+                      recordActivity({
+                        timestamp: new Date().toISOString(),
+                        method: req.method,
+                        path: req.url,
+                        status: 200,
+                        ip: clientIp,
+                        duration_ms: Date.now() - reqStart,
+                        auth_type: keyType,
+                        request_type: 'chat',
+                      });
+                      res.end();
+                    });
+
+                    ollamaRes.on('error', () => {
+                      releaseOnce();
+                      if (!streamRecorded) {
+                        streamRecorded = true;
+                        stats.failRequest(tracking, new Error('Streaming response error')).catch(function () {});
+                      }
+                    });
+                  } else {
+                    // ── Non-Streaming Response ───────────────────────────
+                    let ollamaData = '';
+                    ollamaRes.on('data', (chunk) => {
+                      ollamaData += chunk;
+                    });
+                    ollamaRes.on('end', () => {
+                      releaseOnce();
+
+                      if (ollamaRes.statusCode !== 200) {
+                        stats
+                          .failRequest(tracking, new Error('Ollama HTTP ' + ollamaRes.statusCode))
+                          .catch(function () {});
+                        recordActivity({
+                          timestamp: new Date().toISOString(),
+                          method: req.method,
+                          path: req.url,
+                          status: ollamaRes.statusCode,
+                          ip: clientIp,
+                          duration_ms: Date.now() - reqStart,
+                          auth_type: keyType,
+                        });
+                        res.writeHead(ollamaRes.statusCode, { 'Content-Type': 'application/json' });
+                        res.end(ollamaData);
+                        return;
+                      }
+
+                      let ollamaResult;
+                      try {
+                        ollamaResult = JSON.parse(ollamaData);
+                      } catch {
+                        stats
+                          .failRequest(tracking, new Error('Invalid JSON from Ollama chat response'))
+                          .catch(function () {});
+                        recordActivity({
+                          timestamp: new Date().toISOString(),
+                          method: req.method,
+                          path: req.url,
+                          status: 502,
+                          ip: clientIp,
+                          duration_ms: Date.now() - reqStart,
+                          auth_type: keyType,
+                        });
+                        sendError(res, 502, 'model_error', 'Invalid response from Ollama backend');
+                        return;
+                      }
+
+                      // Build OpenAI-format response
+                      const finishReason = ollamaResult.done_reason === 'length' ? 'length' : 'stop';
+                      const promptTokens = ollamaResult.prompt_eval_count || 0;
+                      const completionTokens = ollamaResult.eval_count || 0;
+                      const toolCall = hasToolCallsInMessage(ollamaResult.message);
+
+                      const openaiResponse = {
+                        id: 'chatcmpl-holler-' + crypto.randomUUID(),
+                        object: 'chat.completion',
+                        created: Math.floor(Date.now() / 1000),
+                        model: ollamaResult.model || model,
+                        choices: [
+                          {
+                            index: 0,
+                            message: {
+                              role: 'assistant',
+                              content: ollamaResult.message ? ollamaResult.message.content : '',
+                            },
+                            finish_reason: finishReason,
+                          },
+                        ],
+                        usage: {
+                          prompt_tokens: promptTokens,
+                          completion_tokens: completionTokens,
+                          total_tokens: promptTokens + completionTokens,
+                        },
+                      };
+
+                      console.log(`[api-gateway] ${clientIp} - 200 POST /v1/chat/completions (${keyType})`);
+                      stats
+                        .completeRequest(tracking, {
+                          prompt_eval_count: promptTokens,
+                          eval_count: completionTokens,
+                          isToolCall: toolCall,
+                        })
+                        .catch(function () {});
+                      recordActivity({
+                        timestamp: new Date().toISOString(),
+                        method: req.method,
+                        path: req.url,
+                        status: 200,
+                        ip: clientIp,
+                        duration_ms: Date.now() - reqStart,
+                        auth_type: keyType,
+                        request_type: 'chat',
+                      });
+                      res.writeHead(200, { 'Content-Type': 'application/json' });
+                      res.end(JSON.stringify(openaiResponse));
+                    });
+                  }
+                }
+              );
+
+              ollamaReq.on('timeout', () => {
+                ollamaReq.destroy();
+                releaseOnce();
+                stats.failRequest(tracking, new Error('Ollama chat timeout')).catch(function () {});
+                console.log(`[api-gateway] ${clientIp} - 504 POST /v1/chat/completions (timeout ${ollamaTimeout}ms)`);
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 504,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeout}ms`);
+              });
+
+              ollamaReq.on('error', (err) => {
+                releaseOnce();
+                stats.failRequest(tracking, err).catch(function () {});
+                console.error(`[api-gateway] /v1/chat/completions proxy error:`, err.message);
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 502,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 502, 'model_error', 'Ollama service unavailable');
+              });
+
+              ollamaReq.write(ollamaBody);
+              ollamaReq.end();
+            })
+            .catch((err) => {
+              if (err.message === 'queue_full') {
+                stats.failRequest(tracking, err).catch(function () {});
+                console.log(
+                  `[api-gateway] ${clientIp} - 429 POST /v1/chat/completions (queue full: ${requestQueue.length})`
+                );
+                recordActivity({
+                  timestamp: new Date().toISOString(),
+                  method: req.method,
+                  path: req.url,
+                  status: 429,
+                  ip: clientIp,
+                  duration_ms: Date.now() - reqStart,
+                  auth_type: keyType,
+                });
+                sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, {
+                  retry_after: 5,
+                });
+              }
+            });
+        });
         return;
       }
 
-      // Validate model exists
-      try {
-        const models = await fetchModelList();
-        const modelExists = models.some(m => m.name === model);
-        if (!modelExists) {
-          const availableModels = models.map(m => m.name).join(', ');
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 404, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 404, 'model_not_found', `Model '${model}' not found. Available models: ${availableModels}`);
+      // ── Public Document Routes (bearer token with documents scope) ─
+      if (req.method === 'POST' && pathname === '/v1/documents/search') {
+        const pipeline = getPipeline();
+        if (!pipeline) {
+          sendError(res, 501, 'not_available', 'Document pipeline not available');
           return;
         }
-      } catch (err) {
-        console.error(`[api-gateway] Model validation error:`, err.message);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 503, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 503, 'model_list_unavailable', 'Could not validate model availability');
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk;
+        });
+        req.on('end', async () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (!parsed.query) {
+              sendError(res, 400, 'invalid_request', 'Missing query');
+              return;
+            }
+            const collection = parsed.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
+            const hits = await pipeline.searchDocuments(parsed.query, collection, parsed.limit || 5);
+            const results = hits.map(function (h) {
+              return { score: h.score, payload: h.payload };
+            });
+            console.log(`[api-gateway] ${clientIp} - 200 POST /v1/documents/search (${keyType})`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 200,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            res.writeHead(200, { 'Content-Type': 'application/json' });
+            res.end(JSON.stringify({ results: results }));
+          } catch (err) {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 500,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 500, 'search_error', err.message);
+          }
+        });
         return;
       }
 
-      const stream = parsed.stream === true;
-      const tracking = stats.startRequest(crypto.randomUUID(), model);
+      if (req.method === 'POST' && pathname === '/v1/documents/ask') {
+        const pipeline = getPipeline();
+        if (!pipeline) {
+          sendError(res, 501, 'not_available', 'Document pipeline not available');
+          return;
+        }
+        let body = '';
+        req.on('data', (chunk) => {
+          body += chunk;
+        });
+        req.on('end', async () => {
+          try {
+            const parsed = JSON.parse(body);
+            if (!parsed.query) {
+              sendError(res, 400, 'invalid_request', 'Missing query');
+              return;
+            }
+            const collection = parsed.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
+            const chatModel =
+              parsed.model || process.env.HOLLER_MODELS?.split(',').find((m) => !m.includes('embed')) || 'llama3.1:8b';
+            const askResult = await pipeline.askDocuments(parsed.query, collection, chatModel, parsed.limit || 5);
 
-      // Build Ollama request (translate OpenAI params to Ollama format)
-      const ollamaReqBody = {
-        model: model,
-        messages: messages,
-        stream: stream,
-      };
+            if (!askResult.messages) {
+              console.log(`[api-gateway] ${clientIp} - 200 POST /v1/documents/ask — no results (${keyType})`);
+              recordActivity({
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                path: req.url,
+                status: 200,
+                ip: clientIp,
+                duration_ms: Date.now() - reqStart,
+                auth_type: keyType,
+              });
+              res.writeHead(200, { 'Content-Type': 'application/json' });
+              res.end(JSON.stringify({ answer: 'No relevant documents found.', sources: [] }));
+              return;
+            }
 
-      // Map options
-      const options = {};
-      if (parsed.temperature !== undefined) options.temperature = parsed.temperature;
-      if (parsed.top_p !== undefined) options.top_p = parsed.top_p;
-      if (parsed.max_tokens !== undefined) options.num_predict = parsed.max_tokens;
-      if (parsed.stop !== undefined) options.stop = Array.isArray(parsed.stop) ? parsed.stop : [parsed.stop];
-      if (parsed.presence_penalty !== undefined) options.presence_penalty = parsed.presence_penalty;
-      if (parsed.frequency_penalty !== undefined) options.frequency_penalty = parsed.frequency_penalty;
-
-      if (Object.keys(options).length > 0) {
-        ollamaReqBody.options = options;
-      }
-
-      // Acquire concurrency slot
-      acquireSlot().then(() => {
-        let slotReleased = false;
-        function releaseOnce() { if (!slotReleased) { slotReleased = true; releaseSlot(); } }
-
-        const ollamaBody = JSON.stringify(ollamaReqBody);
-        const ollamaReq = http.request({
-          hostname: OLLAMA_PARSED.hostname,
-          port: parseInt(OLLAMA_PARSED.port) || 11435,
-          path: '/api/chat',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
-          timeout: ollamaTimeout,
-        }, (ollamaRes) => {
-          if (stream) {
-            // ── Streaming Response (SSE) ──────────────────────────
+            // Stream SSE response (same format as admin ask endpoint)
             res.writeHead(200, {
               'Content-Type': 'text/event-stream',
               'Cache-Control': 'no-cache',
-              'Connection': 'keep-alive',
+              Connection: 'keep-alive',
             });
+            const sources = askResult.hits.map(function (h) {
+              return {
+                score: h.score,
+                filename: h.payload.filename,
+                chunk_index: h.payload.chunk_index,
+                text: h.payload.text,
+              };
+            });
+            res.write('data: ' + JSON.stringify({ type: 'sources', sources: sources }) + '\n\n');
 
-            const chatId = 'chatcmpl-holler-' + crypto.randomUUID();
-            const created = Math.floor(Date.now() / 1000);
-            let isFirstChunk = true;
-            let streamBuffer = '';
-            let sawToolCalls = false;
-            let streamRecorded = false;
-
-            ollamaRes.on('data', (chunk) => {
-              streamBuffer += chunk.toString();
-              const lines = streamBuffer.split('\n');
-              streamBuffer = lines.pop();
-              for (let i = 0; i < lines.length; i++) {
-                try {
-                  const obj = JSON.parse(lines[i]);
-
-                  if (isFirstChunk && obj.message) {
-                    stats.onFirstToken(tracking);
-                    // First chunk: send role
-                    const firstChunk = {
-                      id: chatId,
-                      object: 'chat.completion.chunk',
-                      created: created,
-                      model: model,
-                      choices: [{
-                        index: 0,
-                        delta: { role: 'assistant' },
-                        finish_reason: null,
-                      }],
-                    };
-                    res.write('data: ' + JSON.stringify(firstChunk) + '\n\n');
-                    isFirstChunk = false;
-                  }
-
-                  if (obj.message && obj.message.content) {
-                    // Content chunk
-                    const contentChunk = {
-                      id: chatId,
-                      object: 'chat.completion.chunk',
-                      created: created,
-                      model: model,
-                      choices: [{
-                        index: 0,
-                        delta: { content: obj.message.content },
-                        finish_reason: null,
-                      }],
-                    };
-                    res.write('data: ' + JSON.stringify(contentChunk) + '\n\n');
-                  }
-
-                  if (obj.message && hasToolCallsInMessage(obj.message)) {
-                    sawToolCalls = true;
-                  }
-
-                  if (obj.done) {
-                    // Final chunk
-                    const finishReason = obj.done_reason === 'length' ? 'length' : 'stop';
-                    const finalChunk = {
-                      id: chatId,
-                      object: 'chat.completion.chunk',
-                      created: created,
-                      model: model,
-                      choices: [{
-                        index: 0,
-                        delta: {},
-                        finish_reason: finishReason,
-                      }],
-                    };
-                    res.write('data: ' + JSON.stringify(finalChunk) + '\n\n');
-                    res.write('data: [DONE]\n\n');
-                    if (!streamRecorded) {
-                      streamRecorded = true;
-                      stats.completeRequest(tracking, {
-                        prompt_eval_count: obj.prompt_eval_count || 0,
-                        eval_count: obj.eval_count || 0,
-                        isToolCall: sawToolCalls,
-                      }).catch(function () {});
+            // Chat with Ollama
+            const ollamaBody = JSON.stringify({ model: chatModel, messages: askResult.messages, stream: true });
+            const chatReq = http.request(
+              {
+                hostname: OLLAMA_PARSED.hostname,
+                port: parseInt(OLLAMA_PARSED.port) || 11435,
+                path: '/api/chat',
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
+              },
+              (chatRes) => {
+                chatRes.on('data', (chunk) => {
+                  const lines = chunk.toString().split('\n').filter(Boolean);
+                  for (let i = 0; i < lines.length; i++) {
+                    try {
+                      const obj = JSON.parse(lines[i]);
+                      if (obj.message && obj.message.content) {
+                        res.write('data: ' + JSON.stringify({ type: 'token', content: obj.message.content }) + '\n\n');
+                      }
+                      if (obj.done) {
+                        res.write('data: ' + JSON.stringify({ type: 'done' }) + '\n\n');
+                      }
+                    } catch (_) {
+                      /* partial JSON line */
                     }
                   }
-                } catch (_parseErr) {
-                  // Partial JSON line, skip
-                }
+                });
+                chatRes.on('end', () => {
+                  recordActivity({
+                    timestamp: new Date().toISOString(),
+                    method: req.method,
+                    path: req.url,
+                    status: 200,
+                    ip: clientIp,
+                    duration_ms: Date.now() - reqStart,
+                    auth_type: keyType,
+                  });
+                  res.end();
+                });
               }
-            });
-
-            ollamaRes.on('end', () => {
-              if (!streamRecorded) {
-                streamRecorded = true;
-                stats.completeRequest(tracking, {
-                  prompt_eval_count: 0,
-                  eval_count: 0,
-                  isToolCall: sawToolCalls,
-                }).catch(function () {});
-              }
-              releaseOnce();
-              console.log(`[api-gateway] ${clientIp} - 200 POST /v1/chat/completions (stream, ${keyType})`);
-              recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType, request_type: 'chat' });
+            );
+            chatReq.on('error', (err) => {
+              res.write('data: ' + JSON.stringify({ type: 'error', error: err.message }) + '\n\n');
               res.end();
             });
-
-            ollamaRes.on('error', () => {
-              releaseOnce();
-              if (!streamRecorded) {
-                streamRecorded = true;
-                stats.failRequest(tracking, new Error('Streaming response error')).catch(function () {});
-              }
+            chatReq.write(ollamaBody);
+            chatReq.end();
+          } catch (err) {
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 500,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
             });
-
-          } else {
-            // ── Non-Streaming Response ───────────────────────────
-            let ollamaData = '';
-            ollamaRes.on('data', (chunk) => { ollamaData += chunk; });
-            ollamaRes.on('end', () => {
-              releaseOnce();
-
-              if (ollamaRes.statusCode !== 200) {
-                stats.failRequest(tracking, new Error('Ollama HTTP ' + ollamaRes.statusCode)).catch(function () {});
-                recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: ollamaRes.statusCode, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-                res.writeHead(ollamaRes.statusCode, { 'Content-Type': 'application/json' });
-                res.end(ollamaData);
-                return;
-              }
-
-              let ollamaResult;
-              try {
-                ollamaResult = JSON.parse(ollamaData);
-              } catch {
-                stats.failRequest(tracking, new Error('Invalid JSON from Ollama chat response')).catch(function () {});
-                recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 502, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-                sendError(res, 502, 'model_error', 'Invalid response from Ollama backend');
-                return;
-              }
-
-              // Build OpenAI-format response
-              const finishReason = ollamaResult.done_reason === 'length' ? 'length' : 'stop';
-              const promptTokens = ollamaResult.prompt_eval_count || 0;
-              const completionTokens = ollamaResult.eval_count || 0;
-              const toolCall = hasToolCallsInMessage(ollamaResult.message);
-
-              const openaiResponse = {
-                id: 'chatcmpl-holler-' + crypto.randomUUID(),
-                object: 'chat.completion',
-                created: Math.floor(Date.now() / 1000),
-                model: ollamaResult.model || model,
-                choices: [{
-                  index: 0,
-                  message: {
-                    role: 'assistant',
-                    content: ollamaResult.message ? ollamaResult.message.content : '',
-                  },
-                  finish_reason: finishReason,
-                }],
-                usage: {
-                  prompt_tokens: promptTokens,
-                  completion_tokens: completionTokens,
-                  total_tokens: promptTokens + completionTokens,
-                },
-              };
-
-              console.log(`[api-gateway] ${clientIp} - 200 POST /v1/chat/completions (${keyType})`);
-              stats.completeRequest(tracking, {
-                prompt_eval_count: promptTokens,
-                eval_count: completionTokens,
-                isToolCall: toolCall,
-              }).catch(function () {});
-              recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType, request_type: 'chat' });
-              res.writeHead(200, { 'Content-Type': 'application/json' });
-              res.end(JSON.stringify(openaiResponse));
-            });
+            sendError(res, 500, 'ask_error', err.message);
           }
         });
-
-        ollamaReq.on('timeout', () => {
-          ollamaReq.destroy();
-          releaseOnce();
-          stats.failRequest(tracking, new Error('Ollama chat timeout')).catch(function () {});
-          console.log(`[api-gateway] ${clientIp} - 504 POST /v1/chat/completions (timeout ${ollamaTimeout}ms)`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 504, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeout}ms`);
-        });
-
-        ollamaReq.on('error', (err) => {
-          releaseOnce();
-          stats.failRequest(tracking, err).catch(function () {});
-          console.error(`[api-gateway] /v1/chat/completions proxy error:`, err.message);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 502, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 502, 'model_error', 'Ollama service unavailable');
-        });
-
-        ollamaReq.write(ollamaBody);
-        ollamaReq.end();
-      }).catch((err) => {
-        if (err.message === 'queue_full') {
-          stats.failRequest(tracking, err).catch(function () {});
-          console.log(`[api-gateway] ${clientIp} - 429 POST /v1/chat/completions (queue full: ${requestQueue.length})`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, { retry_after: 5 });
-        }
-      });
-    });
-    return;
-  }
-
-  // ── Public Document Routes (bearer token with documents scope) ─
-  if (req.method === 'POST' && pathname === '/v1/documents/search') {
-    const pipeline = getPipeline();
-    if (!pipeline) {
-      sendError(res, 501, 'not_available', 'Document pipeline not available');
-      return;
-    }
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', async () => {
-      try {
-        const parsed = JSON.parse(body);
-        if (!parsed.query) { sendError(res, 400, 'invalid_request', 'Missing query'); return; }
-        const collection = parsed.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
-        const hits = await pipeline.searchDocuments(parsed.query, collection, parsed.limit || 5);
-        const results = hits.map(function (h) { return { score: h.score, payload: h.payload }; });
-        console.log(`[api-gateway] ${clientIp} - 200 POST /v1/documents/search (${keyType})`);
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        res.writeHead(200, { 'Content-Type': 'application/json' });
-        res.end(JSON.stringify({ results: results }));
-      } catch (err) {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 500, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 500, 'search_error', err.message);
+        return;
       }
-    });
-    return;
-  }
 
-  if (req.method === 'POST' && pathname === '/v1/documents/ask') {
-    const pipeline = getPipeline();
-    if (!pipeline) {
-      sendError(res, 501, 'not_available', 'Document pipeline not available');
-      return;
-    }
-    let body = '';
-    req.on('data', (chunk) => { body += chunk; });
-    req.on('end', async () => {
-      try {
-        const parsed = JSON.parse(body);
-        if (!parsed.query) { sendError(res, 400, 'invalid_request', 'Missing query'); return; }
-        const collection = parsed.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
-        const chatModel = parsed.model || process.env.HOLLER_MODELS?.split(',').find(m => !m.includes('embed')) || 'llama3.1:8b';
-        const askResult = await pipeline.askDocuments(parsed.query, collection, chatModel, parsed.limit || 5);
+      // ── Proxy to Ollama (with resource limits) ──────────────────
+      const maxBodyProxy = MAX_REQUEST_BODY_BYTES();
+      const ollamaTimeoutProxy = OLLAMA_TIMEOUT_MS();
 
-        if (!askResult.messages) {
-          console.log(`[api-gateway] ${clientIp} - 200 POST /v1/documents/ask — no results (${keyType})`);
-          recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-          res.writeHead(200, { 'Content-Type': 'application/json' });
-          res.end(JSON.stringify({ answer: 'No relevant documents found.', sources: [] }));
+      // Early Content-Length check for methods with a body
+      const hasBody = ['POST', 'PUT', 'PATCH'].includes(req.method);
+      if (hasBody) {
+        const declaredLen = parseInt(req.headers['content-length']);
+        if (declaredLen > maxBodyProxy) {
+          console.log(
+            `[api-gateway] ${clientIp} - 413 ${req.method} ${req.url} (body ${declaredLen} > limit ${maxBodyProxy})`
+          );
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 413,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: keyType,
+          });
+          sendError(
+            res,
+            413,
+            'payload_too_large',
+            `Request body of ${declaredLen} bytes exceeds ${maxBodyProxy} byte limit`
+          );
+          req.resume();
           return;
         }
+      }
 
-        // Stream SSE response (same format as admin ask endpoint)
-        res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
-        const sources = askResult.hits.map(function (h) { return { score: h.score, filename: h.payload.filename, chunk_index: h.payload.chunk_index, text: h.payload.text }; });
-        res.write('data: ' + JSON.stringify({ type: 'sources', sources: sources }) + '\n\n');
+      const proxyHeaders = { ...req.headers };
+      delete proxyHeaders['x-api-key'];
 
-        // Chat with Ollama
-        const ollamaBody = JSON.stringify({ model: chatModel, messages: askResult.messages, stream: true });
-        const chatReq = http.request({
-          hostname: OLLAMA_PARSED.hostname,
-          port: parseInt(OLLAMA_PARSED.port) || 11435,
-          path: '/api/chat',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
-        }, (chatRes) => {
-          chatRes.on('data', (chunk) => {
-            const lines = chunk.toString().split('\n').filter(Boolean);
-            for (let i = 0; i < lines.length; i++) {
-              try {
-                const obj = JSON.parse(lines[i]);
-                if (obj.message && obj.message.content) {
-                  res.write('data: ' + JSON.stringify({ type: 'token', content: obj.message.content }) + '\n\n');
-                }
-                if (obj.done) {
-                  res.write('data: ' + JSON.stringify({ type: 'done' }) + '\n\n');
-                }
-              } catch (_) { /* partial JSON line */ }
+      const proxyOpts = {
+        hostname: OLLAMA_PARSED.hostname,
+        port: parseInt(OLLAMA_PARSED.port) || 11435,
+        path: req.url,
+        method: req.method,
+        headers: proxyHeaders,
+        timeout: ollamaTimeoutProxy,
+      };
+      const nativeInference =
+        req.method === 'POST' &&
+        (pathname === '/api/chat' || pathname === '/api/generate' || pathname === '/api/embed');
+      const nativeTracking = nativeInference ? stats.startRequest(crypto.randomUUID(), 'unknown') : null;
+
+      acquireSlot()
+        .then(() => {
+          let slotReleased = false;
+          function releaseOnce() {
+            if (!slotReleased) {
+              slotReleased = true;
+              releaseSlot();
             }
-          });
-          chatRes.on('end', () => {
-            recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 200, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-            res.end();
-          });
-        });
-        chatReq.on('error', (err) => {
-          res.write('data: ' + JSON.stringify({ type: 'error', error: err.message }) + '\n\n');
-          res.end();
-        });
-        chatReq.write(ollamaBody);
-        chatReq.end();
-      } catch (err) {
-        recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 500, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-        sendError(res, 500, 'ask_error', err.message);
-      }
-    });
-    return;
-  }
-
-  // ── Proxy to Ollama (with resource limits) ──────────────────
-  const maxBodyProxy = MAX_REQUEST_BODY_BYTES();
-  const ollamaTimeoutProxy = OLLAMA_TIMEOUT_MS();
-
-  // Early Content-Length check for methods with a body
-  const hasBody = ['POST', 'PUT', 'PATCH'].includes(req.method);
-  if (hasBody) {
-    const declaredLen = parseInt(req.headers['content-length']);
-    if (declaredLen > maxBodyProxy) {
-      console.log(`[api-gateway] ${clientIp} - 413 ${req.method} ${req.url} (body ${declaredLen} > limit ${maxBodyProxy})`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 413, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 413, 'payload_too_large', `Request body of ${declaredLen} bytes exceeds ${maxBodyProxy} byte limit`);
-      req.resume();
-      return;
-    }
-  }
-
-  const proxyHeaders = { ...req.headers };
-  delete proxyHeaders['x-api-key'];
-
-  const proxyOpts = {
-    hostname: OLLAMA_PARSED.hostname,
-    port: parseInt(OLLAMA_PARSED.port) || 11435,
-    path: req.url,
-    method: req.method,
-    headers: proxyHeaders,
-    timeout: ollamaTimeoutProxy,
-  };
-  const nativeInference = req.method === 'POST' && (
-    pathname === '/api/chat' ||
-    pathname === '/api/generate' ||
-    pathname === '/api/embed'
-  );
-  const nativeTracking = nativeInference ? stats.startRequest(crypto.randomUUID(), 'unknown') : null;
-
-  acquireSlot().then(() => {
-    let slotReleased = false;
-    function releaseOnce() { if (!slotReleased) { slotReleased = true; releaseSlot(); } }
-
-    const proxyReq = http.request(proxyOpts, (proxyRes) => {
-      let streamBuffer = '';
-      let completed = false;
-      let sawFirstToken = false;
-      let sawToolCalls = false;
-      function maybeFailNative(err) {
-        if (nativeTracking && !completed) {
-          completed = true;
-          stats.failRequest(nativeTracking, err).catch(function () {});
-        }
-      }
-
-      if (nativeTracking) {
-        proxyRes.on('data', (chunk) => {
-          const text = chunk.toString();
-          if (!sawFirstToken && text.length > 0) {
-            sawFirstToken = true;
-            stats.onFirstToken(nativeTracking);
           }
 
-          if (pathname === '/api/chat' || pathname === '/api/generate') {
-            streamBuffer += text;
-            const lines = streamBuffer.split('\n');
-            streamBuffer = lines.pop();
-            lines.forEach(function (line) {
-              if (!line.trim()) return;
-              try {
-                const obj = JSON.parse(line);
-                if (obj.model && nativeTracking.model === 'unknown') nativeTracking.model = obj.model;
-                if (obj.message && hasToolCallsInMessage(obj.message)) sawToolCalls = true;
-                if (obj.done) {
-                  completed = true;
-                  stats.completeRequest(nativeTracking, {
-                    prompt_eval_count: obj.prompt_eval_count || 0,
-                    eval_count: obj.eval_count || 0,
-                    isToolCall: sawToolCalls,
-                  }).catch(function () {});
+          const proxyReq = http.request(proxyOpts, (proxyRes) => {
+            let streamBuffer = '';
+            let completed = false;
+            let sawFirstToken = false;
+            let sawToolCalls = false;
+            function maybeFailNative(err) {
+              if (nativeTracking && !completed) {
+                completed = true;
+                stats.failRequest(nativeTracking, err).catch(function () {});
+              }
+            }
+
+            if (nativeTracking) {
+              proxyRes.on('data', (chunk) => {
+                const text = chunk.toString();
+                if (!sawFirstToken && text.length > 0) {
+                  sawFirstToken = true;
+                  stats.onFirstToken(nativeTracking);
                 }
-              } catch (_) { /* ignore partial/incompatible chunks */ }
+
+                if (pathname === '/api/chat' || pathname === '/api/generate') {
+                  streamBuffer += text;
+                  const lines = streamBuffer.split('\n');
+                  streamBuffer = lines.pop();
+                  lines.forEach(function (line) {
+                    if (!line.trim()) return;
+                    try {
+                      const obj = JSON.parse(line);
+                      if (obj.model && nativeTracking.model === 'unknown') nativeTracking.model = obj.model;
+                      if (obj.message && hasToolCallsInMessage(obj.message)) sawToolCalls = true;
+                      if (obj.done) {
+                        completed = true;
+                        stats
+                          .completeRequest(nativeTracking, {
+                            prompt_eval_count: obj.prompt_eval_count || 0,
+                            eval_count: obj.eval_count || 0,
+                            isToolCall: sawToolCalls,
+                          })
+                          .catch(function () {});
+                      }
+                    } catch (_) {
+                      /* ignore partial/incompatible chunks */
+                    }
+                  });
+                } else if (pathname === '/api/embed') {
+                  try {
+                    const obj = JSON.parse(text);
+                    if (obj.model && nativeTracking.model === 'unknown') nativeTracking.model = obj.model;
+                    completed = true;
+                    stats
+                      .completeRequest(nativeTracking, {
+                        prompt_eval_count: 0,
+                        eval_count: 0,
+                        isToolCall: false,
+                      })
+                      .catch(function () {});
+                  } catch (_) {
+                    /* ignore */
+                  }
+                }
+              });
+            }
+
+            console.log(`[api-gateway] ${clientIp} - ${proxyRes.statusCode} ${req.method} ${req.url} (${keyType})`);
+            if (nativeTracking && proxyRes.statusCode >= 400) {
+              maybeFailNative(new Error('Ollama HTTP ' + proxyRes.statusCode));
+            }
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: proxyRes.statusCode,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
             });
-          } else if (pathname === '/api/embed') {
-            try {
-              const obj = JSON.parse(text);
-              if (obj.model && nativeTracking.model === 'unknown') nativeTracking.model = obj.model;
-              completed = true;
-              stats.completeRequest(nativeTracking, {
-                prompt_eval_count: 0,
-                eval_count: 0,
-                isToolCall: false,
-              }).catch(function () {});
-            } catch (_) { /* ignore */ }
+
+            res.writeHead(proxyRes.statusCode, proxyRes.headers);
+            proxyRes.pipe(res, { end: true });
+
+            proxyRes.on('end', () => {
+              if (nativeTracking && !completed && proxyRes.statusCode < 400) {
+                stats
+                  .completeRequest(nativeTracking, {
+                    prompt_eval_count: 0,
+                    eval_count: 0,
+                    isToolCall: sawToolCalls,
+                  })
+                  .catch(function () {});
+              }
+              releaseOnce();
+            });
+            proxyRes.on('error', () => {
+              if (nativeTracking && !completed) {
+                stats.failRequest(nativeTracking, new Error('Proxy response stream error')).catch(function () {});
+              }
+              releaseOnce();
+            });
+          });
+
+          proxyReq.on('timeout', () => {
+            proxyReq.destroy();
+            releaseOnce();
+            if (nativeTracking)
+              stats.failRequest(nativeTracking, new Error('Native Ollama timeout')).catch(function () {});
+            console.log(`[api-gateway] ${clientIp} - 504 ${req.method} ${req.url} (timeout ${ollamaTimeoutProxy}ms)`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 504,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeoutProxy}ms`);
+          });
+
+          proxyReq.on('error', (err) => {
+            releaseOnce();
+            if (nativeTracking) stats.failRequest(nativeTracking, err).catch(function () {});
+            console.error(`[api-gateway] Proxy error for ${req.method} ${req.url}:`, err.message);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 502,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 502, 'model_error', 'Ollama service unavailable');
+          });
+
+          res.on('close', releaseOnce);
+          req.pipe(proxyReq, { end: true });
+        })
+        .catch((err) => {
+          if (err.message === 'queue_full') {
+            if (nativeTracking) stats.failRequest(nativeTracking, err).catch(function () {});
+            console.log(
+              `[api-gateway] ${clientIp} - 429 ${req.method} ${req.url} (queue full: ${requestQueue.length})`
+            );
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 429,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+              auth_type: keyType,
+            });
+            sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, {
+              retry_after: 5,
+            });
+            req.resume();
           }
         });
+    } catch (err) {
+      console.error('[api-gateway] Unhandled error in request handler:', err);
+      if (!res.headersSent) {
+        sendError(res, 500, 'internal_error', 'Internal server error');
       }
-
-      console.log(`[api-gateway] ${clientIp} - ${proxyRes.statusCode} ${req.method} ${req.url} (${keyType})`);
-      if (nativeTracking && proxyRes.statusCode >= 400) {
-        maybeFailNative(new Error('Ollama HTTP ' + proxyRes.statusCode));
-      }
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: proxyRes.statusCode, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
-      proxyRes.pipe(res, { end: true });
-
-      proxyRes.on('end', () => {
-        if (nativeTracking && !completed && proxyRes.statusCode < 400) {
-          stats.completeRequest(nativeTracking, {
-            prompt_eval_count: 0,
-            eval_count: 0,
-            isToolCall: sawToolCalls,
-          }).catch(function () {});
-        }
-        releaseOnce();
-      });
-      proxyRes.on('error', () => {
-        if (nativeTracking && !completed) {
-          stats.failRequest(nativeTracking, new Error('Proxy response stream error')).catch(function () {});
-        }
-        releaseOnce();
-      });
-    });
-
-    proxyReq.on('timeout', () => {
-      proxyReq.destroy();
-      releaseOnce();
-      if (nativeTracking) stats.failRequest(nativeTracking, new Error('Native Ollama timeout')).catch(function () {});
-      console.log(`[api-gateway] ${clientIp} - 504 ${req.method} ${req.url} (timeout ${ollamaTimeoutProxy}ms)`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 504, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeoutProxy}ms`);
-    });
-
-    proxyReq.on('error', (err) => {
-      releaseOnce();
-      if (nativeTracking) stats.failRequest(nativeTracking, err).catch(function () {});
-      console.error(`[api-gateway] Proxy error for ${req.method} ${req.url}:`, err.message);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 502, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 502, 'model_error', 'Ollama service unavailable');
-    });
-
-    res.on('close', releaseOnce);
-    req.pipe(proxyReq, { end: true });
-  }).catch((err) => {
-    if (err.message === 'queue_full') {
-      if (nativeTracking) stats.failRequest(nativeTracking, err).catch(function () {});
-      console.log(`[api-gateway] ${clientIp} - 429 ${req.method} ${req.url} (queue full: ${requestQueue.length})`);
-      recordActivity({ timestamp: new Date().toISOString(), method: req.method, path: req.url, status: 429, ip: clientIp, duration_ms: Date.now() - reqStart, auth_type: keyType });
-      sendError(res, 429, 'queue_full', `Server busy. ${MAX_QUEUE_SIZE()} requests already queued.`, { retry_after: 5 });
-      req.resume();
     }
-  });
-
-  } catch (err) {
-    console.error('[api-gateway] Unhandled error in request handler:', err);
-    if (!res.headersSent) {
-      sendError(res, 500, 'internal_error', 'Internal server error');
-    }
-  }
   };
 }
 
@@ -1583,31 +2172,54 @@ server.on('connection', (socket) => {
 // ── Background Tasks (SQLite maintenance) ────────────────────
 
 // Roll up hourly stats every 5 minutes
-setInterval(() => {
-  try { db.rollupHourlyStats(); }
-  catch (err) { console.error('[api-gateway] Stats rollup error:', err.message); }
-}, 5 * 60 * 1000);
+setInterval(
+  () => {
+    try {
+      db.rollupHourlyStats();
+    } catch (err) {
+      console.error('[api-gateway] Stats rollup error:', err.message);
+    }
+  },
+  5 * 60 * 1000
+);
 
 // Prune old logs every hour
-setInterval(() => {
-  try { db.pruneOldLogs(); }
-  catch (err) { console.error('[api-gateway] Log pruning error:', err.message); }
-}, 60 * 60 * 1000);
+setInterval(
+  () => {
+    try {
+      db.pruneOldLogs();
+    } catch (err) {
+      console.error('[api-gateway] Log pruning error:', err.message);
+    }
+  },
+  60 * 60 * 1000
+);
 
 // Prune high-cardinality per-request stats every hour (7-day retention).
-setInterval(() => {
-  stats.pruneOldRequestStats(7).catch(function (err) {
-    console.error('[api-gateway] Stats pruning error:', err.message);
-  });
-}, 60 * 60 * 1000);
+setInterval(
+  () => {
+    stats.pruneOldRequestStats(7).catch(function (err) {
+      console.error('[api-gateway] Stats pruning error:', err.message);
+    });
+  },
+  60 * 60 * 1000
+);
 
 // Graceful shutdown with connection draining
 function killChildProcesses() {
   if (OLLAMA_PID) {
-    try { process.kill(OLLAMA_PID, 'SIGTERM'); } catch (_e) { /* intentionally empty */ }
+    try {
+      process.kill(OLLAMA_PID, 'SIGTERM');
+    } catch (_e) {
+      /* intentionally empty */
+    }
   }
   if (HEALTH_PID) {
-    try { process.kill(HEALTH_PID, 'SIGTERM'); } catch (_e) { /* intentionally empty */ }
+    try {
+      process.kill(HEALTH_PID, 'SIGTERM');
+    } catch (_e) {
+      /* intentionally empty */
+    }
   }
 }
 
@@ -1619,7 +2231,9 @@ function gracefulShutdown(signal) {
 
   server.close(() => {
     console.log('[api-gateway] Shutdown complete');
-    if (meshConnector) { meshConnector.stop().catch(() => {}); }
+    if (meshConnector) {
+      meshConnector.stop().catch(() => {});
+    }
     tokenManager.shutdown();
     db.close();
     killChildProcesses();

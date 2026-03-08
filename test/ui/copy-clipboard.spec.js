@@ -1,20 +1,12 @@
 const { test, expect } = require('@playwright/test');
-const {
-  BASE_URL,
-  navigateToAdmin,
-  requireServer,
-  hasAdminKey,
-} = require('../fixtures/test-helpers');
+const { BASE_URL, navigateToAdmin, requireServer, hasAdminKey } = require('../fixtures/test-helpers');
 
 async function snap(page, name) {
   await page.screenshot({ path: `test-results/${name}.png`, fullPage: true });
 }
 
 async function openIdeGuidesContent(page) {
-  const candidates = [
-    `${BASE_URL}/docs/IDE_INTEGRATIONS.md`,
-    `${BASE_URL}/IDE_INTEGRATIONS.md`,
-  ];
+  const candidates = [`${BASE_URL}/docs/IDE_INTEGRATIONS.md`, `${BASE_URL}/IDE_INTEGRATIONS.md`];
   for (const url of candidates) {
     const res = await page.goto(url);
     if (res && res.status() === 200) return true;

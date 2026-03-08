@@ -1,7 +1,7 @@
 name: 🐛 Bug Report
 description: Report a bug or unexpected behavior
-title: "[Bug]: "
-labels: ["bug", "triage"]
+title: '[Bug]: '
+labels: ['bug', 'triage']
 body:
   - type: markdown
     attributes:
@@ -11,8 +11,8 @@ body:
     id: version
     attributes:
       label: Holler Version
-      description: "Run `docker exec holler cat /app/version.txt` or check Admin UI footer"
-      placeholder: "v0.2.0"
+      description: 'Run `docker exec holler cat /app/version.txt` or check Admin UI footer'
+      placeholder: 'v0.2.0'
     validations:
       required: true
   - type: dropdown
@@ -42,14 +42,14 @@ body:
     id: os
     attributes:
       label: Operating System
-      placeholder: "Ubuntu 22.04 / macOS 15.3 / Windows 11"
+      placeholder: 'Ubuntu 22.04 / macOS 15.3 / Windows 11'
     validations:
       required: true
   - type: input
     id: model
     attributes:
       label: Model (if applicable)
-      placeholder: "llama3.2:3b, mistral:7b, etc."
+      placeholder: 'llama3.2:3b, mistral:7b, etc.'
   - type: textarea
     id: description
     attributes:
@@ -79,7 +79,7 @@ body:
     id: logs
     attributes:
       label: Logs
-      description: "Paste relevant logs from `docker logs holler` or the Admin UI logs panel"
+      description: 'Paste relevant logs from `docker logs holler` or the Admin UI logs panel'
       render: shell
   - type: textarea
     id: screenshots

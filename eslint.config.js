@@ -56,13 +56,6 @@ module.exports = [
     },
   },
   {
-    ignores: [
-      'node_modules/',
-      'admin/assets/',
-      'docs/',
-      'scripts/',
-      '*.sh',
-      '*.ps1',
-    ],
+    ignores: ['node_modules/', 'admin/assets/', 'docs/', 'scripts/', '*.sh', '*.ps1'],
   },
 ];

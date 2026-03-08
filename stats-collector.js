@@ -47,19 +47,18 @@ class StatsCollector {
   async failRequest(request, error) {
     request.endTime = Date.now();
     request.status = 'error';
-    request.error = (error && error.message) ? error.message : 'Unknown error';
+    request.error = error && error.message ? error.message : 'Unknown error';
     await this.recordRequest(request);
   }
 
   async recordRequest(request) {
     const e2eLatencyMs = request.endTime - request.startTime;
-    const ttftMs = request.firstTokenTime ? (request.firstTokenTime - request.startTime) : null;
-    const durationMs = request.firstTokenTime ? (request.endTime - request.firstTokenTime) : e2eLatencyMs;
-    const tokensPerSecond = request.outputTokens > 0 && durationMs > 0
-      ? (request.outputTokens / (durationMs / 1000))
-      : 0;
+    const ttftMs = request.firstTokenTime ? request.firstTokenTime - request.startTime : null;
+    const durationMs = request.firstTokenTime ? request.endTime - request.firstTokenTime : e2eLatencyMs;
+    const tokensPerSecond = request.outputTokens > 0 && durationMs > 0 ? request.outputTokens / (durationMs / 1000) : 0;
 
-    this.db.runSql(`
+    this.db.runSql(
+      `
       INSERT INTO request_stats (
         request_id, model, started_at, ended_at,
         input_tokens, output_tokens, total_tokens,
@@ -67,23 +66,25 @@ class StatsCollector {
         tokens_per_second, status, error_message, is_tool_call,
         connection_type
       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `, [
-      request.requestId,
-      request.model,
-      request.startTime,
-      request.endTime,
-      request.inputTokens,
-      request.outputTokens,
-      request.totalTokens,
-      e2eLatencyMs,
-      ttftMs,
-      durationMs,
-      tokensPerSecond,
-      request.status,
-      request.error,
-      request.isToolCall ? 1 : 0,
-      request.connectionType || null,
-    ]);
+    `,
+      [
+        request.requestId,
+        request.model,
+        request.startTime,
+        request.endTime,
+        request.inputTokens,
+        request.outputTokens,
+        request.totalTokens,
+        e2eLatencyMs,
+        ttftMs,
+        durationMs,
+        tokensPerSecond,
+        request.status,
+        request.error,
+        request.isToolCall ? 1 : 0,
+        request.connectionType || null,
+      ]
+    );
 
     if (request.model && request.model !== 'unknown') {
       this.ensureModelMetadata(request.model).catch(function () {});
@@ -95,7 +96,8 @@ class StatsCollector {
     const whereClause = since ? 'WHERE rs.started_at >= ?' : '';
     const params = since ? [since] : [];
 
-    return this.db.allSql(`
+    return this.db.allSql(
+      `
       SELECT
         rs.model as model,
         COUNT(*) as total_requests,
@@ -131,12 +133,17 @@ class StatsCollector {
       ${whereClause}
       GROUP BY rs.model
       ORDER BY total_requests DESC
-    `, params);
+    `,
+      params
+    );
   }
 
   async getModelDetail(model, since) {
     const stats = await this.getModelStats(since);
-    const row = stats.find(function (s) { return s.model === model; }) || null;
+    const row =
+      stats.find(function (s) {
+        return s.model === model;
+      }) || null;
     if (row) {
       await this.ensureModelMetadata(model);
       await this.ensureModelPricing(model);
@@ -148,19 +155,23 @@ class StatsCollector {
     const max = Math.max(1, Math.min(parseInt(limit || '50', 10), 500));
     const whereClause = model ? 'WHERE model = ?' : '';
     const params = model ? [model, max] : [max];
-    return this.db.allSql(`
+    return this.db.allSql(
+      `
       SELECT * FROM request_stats
       ${whereClause}
       ORDER BY started_at DESC
       LIMIT ?
-    `, params);
+    `,
+      params
+    );
   }
 
   async getHourlyStats(model) {
-    const since = Date.now() - (24 * 60 * 60 * 1000);
+    const since = Date.now() - 24 * 60 * 60 * 1000;
     const whereClause = model ? 'WHERE model = ? AND started_at >= ?' : 'WHERE started_at >= ?';
     const params = model ? [model, since] : [since];
-    return this.db.allSql(`
+    return this.db.allSql(
+      `
       SELECT
         ((started_at / 3600000) * 3600000) as hour_bucket,
         COUNT(*) as requests,
@@ -175,7 +186,9 @@ class StatsCollector {
       ${whereClause}
       GROUP BY hour_bucket
       ORDER BY hour_bucket
-    `, params);
+    `,
+      params
+    );
   }
 
   async resetStats(model) {
@@ -190,7 +203,9 @@ class StatsCollector {
   async getGlobalSummary(since) {
     const whereClause = since ? 'WHERE started_at >= ?' : '';
     const params = since ? [since] : [];
-    return this.db.getSql(`
+    return (
+      this.db.getSql(
+        `
       SELECT
         COUNT(DISTINCT model) as active_models,
         COUNT(*) as total_requests,
@@ -202,12 +217,15 @@ class StatsCollector {
         MIN(started_at) as tracking_since
       FROM request_stats
       ${whereClause}
-    `, params) || {};
+    `,
+        params
+      ) || {}
+    );
   }
 
   async pruneOldRequestStats(days) {
     const keepDays = Number.isFinite(days) ? days : REQUEST_RETENTION_DAYS;
-    const cutoff = Date.now() - (keepDays * 24 * 60 * 60 * 1000);
+    const cutoff = Date.now() - keepDays * 24 * 60 * 60 * 1000;
     return this.db.runSql('DELETE FROM request_stats WHERE started_at < ?', [cutoff]).changes;
   }
 
@@ -224,7 +242,7 @@ class StatsCollector {
     const existing = this.db.getModelPricing(model);
     if (existing) return existing;
 
-    const metadata = this.db.getModelMetadata(model) || await this.ensureModelMetadata(model);
+    const metadata = this.db.getModelMetadata(model) || (await this.ensureModelMetadata(model));
     const defaults = this.getDefaultMoonshinePricing(model, metadata);
     this.db.upsertModelPricing(model, defaults.input, defaults.output);
     return this.db.getModelPricing(model);
@@ -233,7 +251,7 @@ class StatsCollector {
   async ensureModelMetadata(model) {
     if (!model) return null;
     const cached = this.modelInfoCache.get(model);
-    if (cached && (Date.now() - cached.cachedAt) < 15 * 60 * 1000) return cached.data;
+    if (cached && Date.now() - cached.cachedAt < 15 * 60 * 1000) return cached.data;
 
     const fromDb = this.db.getModelMetadata(model);
     if (fromDb) {
@@ -241,7 +259,9 @@ class StatsCollector {
       return fromDb;
     }
 
-    const remote = await this.fetchModelMetadataFromOllama(model).catch(function () { return null; });
+    const remote = await this.fetchModelMetadataFromOllama(model).catch(function () {
+      return null;
+    });
     if (!remote) return null;
     this.db.upsertModelMetadata(model, remote);
     const merged = this.db.getModelMetadata(model);
@@ -255,7 +275,7 @@ class StatsCollector {
       return { input: 0.1, output: null };
     }
 
-    const paramsText = (metadata && metadata.parameters) ? String(metadata.parameters).toUpperCase() : '';
+    const paramsText = metadata && metadata.parameters ? String(metadata.parameters).toUpperCase() : '';
     const sizeB = this.parseParamBillions(paramsText);
     if (sizeB == null) return { input: 1, output: 1 };
     if (sizeB < 3) return { input: 0.25, output: 0.25 };
@@ -277,39 +297,44 @@ class StatsCollector {
     return new Promise(function (resolve, reject) {
       const parsed = new URL(OLLAMA_URL);
       const body = JSON.stringify({ name: model });
-      const req = http.request({
-        hostname: parsed.hostname,
-        port: parseInt(parsed.port, 10) || 11435,
-        path: '/api/show',
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Content-Length': Buffer.byteLength(body),
+      const req = http.request(
+        {
+          hostname: parsed.hostname,
+          port: parseInt(parsed.port, 10) || 11435,
+          path: '/api/show',
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Content-Length': Buffer.byteLength(body),
+          },
+          timeout: 10000,
         },
-        timeout: 10000,
-      }, function (res) {
-        let data = '';
-        res.on('data', function (chunk) { data += chunk; });
-        res.on('end', function () {
-          if (res.statusCode < 200 || res.statusCode >= 300) {
-            reject(new Error('show failed: ' + res.statusCode));
-            return;
-          }
-          try {
-            const parsedBody = JSON.parse(data);
-            const details = parsedBody.details || {};
-            resolve({
-              parameters: details.parameter_size || parsedBody.parameters || null,
-              context_window: details.context_length || parsedBody.context_length || null,
-              max_output: parsedBody.max_output || 8192,
-              quantization: details.quantization_level || parsedBody.quantization || null,
-              family: details.family || parsedBody.family || null,
-            });
-          } catch (err) {
-            reject(err);
-          }
-        });
-      });
+        function (res) {
+          let data = '';
+          res.on('data', function (chunk) {
+            data += chunk;
+          });
+          res.on('end', function () {
+            if (res.statusCode < 200 || res.statusCode >= 300) {
+              reject(new Error('show failed: ' + res.statusCode));
+              return;
+            }
+            try {
+              const parsedBody = JSON.parse(data);
+              const details = parsedBody.details || {};
+              resolve({
+                parameters: details.parameter_size || parsedBody.parameters || null,
+                context_window: details.context_length || parsedBody.context_length || null,
+                max_output: parsedBody.max_output || 8192,
+                quantization: details.quantization_level || parsedBody.quantization || null,
+                family: details.family || parsedBody.family || null,
+              });
+            } catch (err) {
+              reject(err);
+            }
+          });
+        }
+      );
       req.on('timeout', function () {
         req.destroy(new Error('Timeout fetching model metadata'));
       });

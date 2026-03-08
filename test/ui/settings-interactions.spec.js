@@ -14,7 +14,11 @@ test.describe('Settings Interaction Behavior', () => {
 
   test('config form text fields are editable', async ({ page }) => {
     await navigateToAdmin(page, 'config');
-    const firstEditable = page.locator('.config-item [data-setting-key], .config-item').first().locator('input.setting-input').first();
+    const firstEditable = page
+      .locator('.config-item [data-setting-key], .config-item')
+      .first()
+      .locator('input.setting-input')
+      .first();
     await expect(firstEditable).toBeVisible({ timeout: 10000 });
 
     const original = await firstEditable.inputValue();

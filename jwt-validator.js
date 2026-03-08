@@ -12,7 +12,7 @@ const path = require('path');
 // ── State ──────────────────────────────────────────────────────
 
 let configured = false;
-let auth0Config = null;  // { domain, audience, issuer }
+let auth0Config = null; // { domain, audience, issuer }
 let jwksClient = null;
 
 const CONFIG_PATH = path.join(__dirname, 'data', 'auth0-config.json');
@@ -103,23 +103,28 @@ async function validateJwt(token) {
   const signingKey = await getSigningKey(decoded.header);
 
   return new Promise(function (resolve, reject) {
-    jwt.verify(token, signingKey, {
-      audience: auth0Config.audience,
-      issuer: auth0Config.issuer,
-      algorithms: ['RS256'],
-    }, function (err, payload) {
-      if (err) return reject(err);
+    jwt.verify(
+      token,
+      signingKey,
+      {
+        audience: auth0Config.audience,
+        issuer: auth0Config.issuer,
+        algorithms: ['RS256'],
+      },
+      function (err, payload) {
+        if (err) return reject(err);
 
-      // Extract claims
-      const result = {
-        buyerId: payload.sub || null,
-        permissions: payload.permissions || [],
-        rateLimits: payload['https://jimbomesh.ai/rate_limits'] || { rpm: 60, rph: 1000 },
-        sessionId: payload.sid || null,
-        expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : null,
-      };
-      resolve(result);
-    });
+        // Extract claims
+        const result = {
+          buyerId: payload.sub || null,
+          permissions: payload.permissions || [],
+          rateLimits: payload['https://jimbomesh.ai/rate_limits'] || { rpm: 60, rph: 1000 },
+          sessionId: payload.sid || null,
+          expiresAt: payload.exp ? new Date(payload.exp * 1000).toISOString() : null,
+        };
+        resolve(result);
+      }
+    );
   });
 }
 

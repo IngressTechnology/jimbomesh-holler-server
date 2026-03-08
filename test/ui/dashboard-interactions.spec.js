@@ -53,9 +53,7 @@ test.describe('Dashboard Deep Interactions', () => {
     const cls = (await health.locator('.status-dot').first().getAttribute('class')) || '';
     const text = ((await health.textContent()) || '').toLowerCase();
     await snap(page, 'dashboard-health-state');
-    expect(
-      /green|yellow|red/.test(cls) || /healthy|unhealthy|degraded|error/.test(text)
-    ).toBeTruthy();
+    expect(/green|yellow|red/.test(cls) || /healthy|unhealthy|degraded|error/.test(text)).toBeTruthy();
   });
 
   test('GPU info section displays valid content when present', async ({ page }) => {

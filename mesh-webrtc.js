@@ -24,7 +24,6 @@ function log(msg) {
   console.log('[webrtc] ' + msg);
 }
 
-
 // ── HollerPeerHandler ───────────────────────────────────────────
 
 class HollerPeerHandler {
@@ -68,9 +67,7 @@ class HollerPeerHandler {
     const { job_id, model, signaling_url, ice_servers } = assignment;
     log('Job ' + job_id + ': connecting for model ' + model);
 
-    const session = new PeerSession(
-      job_id, model, ice_servers, this.meshConnector, this._wrtc
-    );
+    const session = new PeerSession(job_id, model, ice_servers, this.meshConnector, this._wrtc);
     this.activeConnections.set(job_id, session);
 
     try {
@@ -157,10 +154,12 @@ class PeerSession {
     // Send ICE candidates to buyer via signaling
     this.pc.onicecandidate = function (event) {
       if (event.candidate && self.signalingWs && self.signalingWs.readyState === WebSocket.OPEN) {
-        self.signalingWs.send(JSON.stringify({
-          type: 'ice_candidate',
-          candidate: event.candidate,
-        }));
+        self.signalingWs.send(
+          JSON.stringify({
+            type: 'ice_candidate',
+            candidate: event.candidate,
+          })
+        );
       }
     };
 
@@ -251,10 +250,12 @@ class PeerSession {
         await this.pc.setRemoteDescription(new RTCSessionDescription(msg));
         const answer = await this.pc.createAnswer();
         await this.pc.setLocalDescription(answer);
-        this.signalingWs.send(JSON.stringify({
-          type: 'answer',
-          sdp: answer.sdp,
-        }));
+        this.signalingWs.send(
+          JSON.stringify({
+            type: 'answer',
+            sdp: answer.sdp,
+          })
+        );
         break;
       }
 
@@ -316,15 +317,23 @@ class PeerSession {
     if (tracking) tracking.connectionType = 'webrtc';
     let fetchTimeout;
 
-    log('Job ' + this.jobId + ': processing ' + request.model + ' (' + (request.messages ? request.messages.length : 0) + ' messages)');
+    log(
+      'Job ' +
+        this.jobId +
+        ': processing ' +
+        request.model +
+        ' (' +
+        (request.messages ? request.messages.length : 0) +
+        ' messages)'
+    );
 
     try {
-      const ollamaUrl = process.env.OLLAMA_EXTERNAL_URL
-        || process.env.OLLAMA_INTERNAL_URL
-        || 'http://127.0.0.1:11435';
+      const ollamaUrl = process.env.OLLAMA_EXTERNAL_URL || process.env.OLLAMA_INTERNAL_URL || 'http://127.0.0.1:11435';
 
       const abortController = new AbortController();
-      fetchTimeout = setTimeout(function () { abortController.abort(); }, OLLAMA_TIMEOUT_MS);
+      fetchTimeout = setTimeout(function () {
+        abortController.abort();
+      }, OLLAMA_TIMEOUT_MS);
 
       const response = await fetch(ollamaUrl + '/api/chat', {
         method: 'POST',
@@ -358,11 +367,13 @@ class PeerSession {
             const chunk = JSON.parse(lines[i]);
 
             if (chunk.message && chunk.message.content && self.dataChannel && self.dataChannel.readyState === 'open') {
-              self.dataChannel.send(JSON.stringify({
-                type: 'token',
-                token: chunk.message.content,
-                index: tokenIndex++,
-              }));
+              self.dataChannel.send(
+                JSON.stringify({
+                  type: 'token',
+                  token: chunk.message.content,
+                  index: tokenIndex++,
+                })
+              );
 
               if (!firstTokenSent) {
                 firstTokenSent = true;
@@ -376,24 +387,28 @@ class PeerSession {
               outputTokens = chunk.eval_count || 0;
               if (tracking && !statsFinalized) {
                 statsFinalized = true;
-                statsCollector.completeRequest(tracking, {
-                  prompt_eval_count: inputTokens,
-                  eval_count: outputTokens,
-                  isToolCall: false,
-                  source: 'mesh-webrtc',
-                }).catch(function () {});
+                statsCollector
+                  .completeRequest(tracking, {
+                    prompt_eval_count: inputTokens,
+                    eval_count: outputTokens,
+                    isToolCall: false,
+                    source: 'mesh-webrtc',
+                  })
+                  .catch(function () {});
               }
 
               if (self.dataChannel && self.dataChannel.readyState === 'open') {
-                self.dataChannel.send(JSON.stringify({
-                  type: 'complete',
-                  usage: {
-                    prompt_tokens: inputTokens,
-                    completion_tokens: outputTokens,
-                    total_tokens: inputTokens + outputTokens,
-                  },
-                  processing_time_ms: Date.now() - startTime,
-                }));
+                self.dataChannel.send(
+                  JSON.stringify({
+                    type: 'complete',
+                    usage: {
+                      prompt_tokens: inputTokens,
+                      completion_tokens: outputTokens,
+                      total_tokens: inputTokens + outputTokens,
+                    },
+                    processing_time_ms: Date.now() - startTime,
+                  })
+                );
               }
             }
           } catch (_parseErr) {
@@ -407,22 +422,33 @@ class PeerSession {
       const processingMs = Date.now() - startTime;
       if (tracking && !statsFinalized) {
         statsFinalized = true;
-        statsCollector.completeRequest(tracking, {
-          prompt_eval_count: inputTokens,
-          eval_count: outputTokens,
-          isToolCall: false,
-          source: 'mesh-webrtc',
-        }).catch(function () {});
+        statsCollector
+          .completeRequest(tracking, {
+            prompt_eval_count: inputTokens,
+            eval_count: outputTokens,
+            isToolCall: false,
+            source: 'mesh-webrtc',
+          })
+          .catch(function () {});
       }
       const tokPerSec = processingMs > 0 ? (outputTokens / (processingMs / 1000)).toFixed(1) : '0';
-      log('Job ' + self.jobId + ': complete (' + outputTokens + ' tokens, ' + processingMs + 'ms, ' + tokPerSec + ' tok/s)');
+      log(
+        'Job ' +
+          self.jobId +
+          ': complete (' +
+          outputTokens +
+          ' tokens, ' +
+          processingMs +
+          'ms, ' +
+          tokPerSec +
+          ' tok/s)'
+      );
 
       // Report usage to SaaS for billing (ONLY metadata, not content)
       await self.reportUsage(request.model, inputTokens, outputTokens, processingMs);
 
       // Record request for dashboard counters/activity.
       self.recordLocalRequestLog(request.model, processingMs, null, request);
-
     } catch (err) {
       clearTimeout(fetchTimeout);
       if (tracking && !statsFinalized) {
@@ -432,11 +458,13 @@ class PeerSession {
       log('Job ' + self.jobId + ': error — ' + err.message);
       self.recordLocalRequestLog(request.model, Date.now() - startTime, err, request);
       if (self.dataChannel && self.dataChannel.readyState === 'open') {
-        self.dataChannel.send(JSON.stringify({
-          type: 'error',
-          error: err.message,
-          code: 'PROCESSING_ERROR',
-        }));
+        self.dataChannel.send(
+          JSON.stringify({
+            type: 'error',
+            error: err.message,
+            code: 'PROCESSING_ERROR',
+          })
+        );
       }
     } finally {
       // Notify the handler to remove this session
@@ -505,9 +533,21 @@ class PeerSession {
    * Close all connections and free resources.
    */
   cleanup() {
-    try { if (this.signalingWs) this.signalingWs.close(); } catch (_) { /* expected during teardown */ }
-    try { if (this.dataChannel) this.dataChannel.close(); } catch (_) { /* expected during teardown */ }
-    try { if (this.pc) this.pc.close(); } catch (_) { /* expected during teardown */ }
+    try {
+      if (this.signalingWs) this.signalingWs.close();
+    } catch (_) {
+      /* expected during teardown */
+    }
+    try {
+      if (this.dataChannel) this.dataChannel.close();
+    } catch (_) {
+      /* expected during teardown */
+    }
+    try {
+      if (this.pc) this.pc.close();
+    } catch (_) {
+      /* expected during teardown */
+    }
     this.signalingWs = null;
     this.dataChannel = null;
     this.pc = null;

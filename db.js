@@ -11,8 +11,7 @@ const fs = require('fs');
 // ── Configuration ──────────────────────────────────────────────
 
 // Combined DB_PATH logic. Prioritizing incoming branch's more general path structure.
-const DB_PATH = process.env.SQLITE_DB_PATH
-  || path.join(__dirname, 'data', 'holler.db');
+const DB_PATH = process.env.SQLITE_DB_PATH || path.join(__dirname, 'data', 'holler.db');
 const LOG_RETENTION_DAYS = parseInt(process.env.LOG_RETENTION_DAYS || '30');
 
 // Ensure data directory exists
@@ -151,53 +150,47 @@ db.exec(`
 `);
 
 // Record schema version if not already present
-const versionRow = db.prepare(
-  'SELECT version FROM schema_version WHERE version = ?'
-).get(CURRENT_SCHEMA_VERSION);
+const versionRow = db.prepare('SELECT version FROM schema_version WHERE version = ?').get(CURRENT_SCHEMA_VERSION);
 
 if (!versionRow) {
-  db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(
-    CURRENT_SCHEMA_VERSION
-  );
+  db.prepare('INSERT INTO schema_version (version) VALUES (?)').run(CURRENT_SCHEMA_VERSION);
 }
 
 // ── Schema Migration: v1 → v2 ────────────────────────────────
 // Add auth_type column to request_log for tiered auth tracking
-const v2Check = db.prepare(
-  'SELECT version FROM schema_version WHERE version = 2'
-).get();
+const v2Check = db.prepare('SELECT version FROM schema_version WHERE version = 2').get();
 if (!v2Check || CURRENT_SCHEMA_VERSION >= 2) {
   try {
     db.exec('ALTER TABLE request_log ADD COLUMN auth_type TEXT');
-  } catch (_) { /* column already exists */ }
+  } catch (_) {
+    /* column already exists */
+  }
   if (!v2Check) {
     db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(2);
   }
 }
 
-const v3Check = db.prepare(
-  'SELECT version FROM schema_version WHERE version = 3'
-).get();
+const v3Check = db.prepare('SELECT version FROM schema_version WHERE version = 3').get();
 if (!v3Check && CURRENT_SCHEMA_VERSION >= 3) {
   db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(3);
 }
 
 // ── Schema Migration: v3 → v4 ────────────────────────────────
 // Add connection_type column to request_stats for WebRTC tracking
-const v4Check = db.prepare(
-  'SELECT version FROM schema_version WHERE version = 4'
-).get();
+const v4Check = db.prepare('SELECT version FROM schema_version WHERE version = 4').get();
 if (!v4Check && CURRENT_SCHEMA_VERSION >= 4) {
   try {
     db.exec('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
-  } catch (_) { /* column already exists */ }
+  } catch (_) {
+    /* column already exists */
+  }
   db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(4);
 }
 
 // Self-heal: some databases may have schema_version=4 without the actual
 // request_stats.connection_type column due prior migration ordering.
 try {
-  const requestStatsColumns = db.prepare("PRAGMA table_info(request_stats)").all();
+  const requestStatsColumns = db.prepare('PRAGMA table_info(request_stats)').all();
   const hasConnectionType = requestStatsColumns.some(function (col) {
     return col.name === 'connection_type';
   });
@@ -212,9 +205,7 @@ try {
 
 // ── Schema Migration: v4 → v5 ────────────────────────────────
 // Track HuggingFace imports so the marketplace can show installed badges
-const v5Check = db.prepare(
-  'SELECT version FROM schema_version WHERE version = 5'
-).get();
+const v5Check = db.prepare('SELECT version FROM schema_version WHERE version = 5').get();
 if (!v5Check && CURRENT_SCHEMA_VERSION >= 5) {
   db.exec(`
     CREATE TABLE IF NOT EXISTS hf_imports (
@@ -257,9 +248,7 @@ const SEED_SETTINGS = {
   enhanced_security_enabled: process.env.ENHANCED_SECURITY_ENABLED || 'false',
 };
 
-const insertSetting = db.prepare(
-  'INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)'
-);
+const insertSetting = db.prepare('INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)');
 
 const seedTx = db.transaction(() => {
   for (const [key, value] of Object.entries(SEED_SETTINGS)) {
@@ -289,9 +278,7 @@ const stmts = {
 
   getSetting: db.prepare('SELECT value FROM settings WHERE key = ?'),
 
-  getAllSettings: db.prepare(
-    'SELECT key, value, updated_at FROM settings ORDER BY key'
-  ),
+  getAllSettings: db.prepare('SELECT key, value, updated_at FROM settings ORDER BY key'),
 
   setSetting: db.prepare(`
     INSERT INTO settings (key, value, updated_at)
@@ -346,7 +333,7 @@ const stmts = {
     GROUP BY hour
   `),
 
-  getDbSize: db.prepare("SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()"),
+  getDbSize: db.prepare('SELECT page_count * page_size as size FROM pragma_page_count(), pragma_page_size()'),
 
   // HEAD branch statements (Rate Limit Queries)
   getRate: db.prepare('SELECT window_start, request_count FROM rate_limits WHERE key = ?'),
@@ -483,16 +470,35 @@ function clearRequestLog() {
 
 // Document RAG Pipeline functions
 function insertDocument(doc) {
-  stmts.insertDocument.run(doc.id, doc.filename, doc.original_name, doc.file_hash, doc.file_size, doc.mime_type, doc.collection, doc.status);
+  stmts.insertDocument.run(
+    doc.id,
+    doc.filename,
+    doc.original_name,
+    doc.file_hash,
+    doc.file_size,
+    doc.mime_type,
+    doc.collection,
+    doc.status
+  );
 }
-function getDocument(id) { return stmts.getDocument.get(id) || null; }
-function getAllDocuments() { return stmts.getAllDocuments.all(); }
-function getDocumentsByCollection(collection) { return stmts.getDocumentsByCollection.all(collection); }
-function getDocumentByHash(hash, collection) { return stmts.getDocumentByHash.get(hash, collection) || null; }
+function getDocument(id) {
+  return stmts.getDocument.get(id) || null;
+}
+function getAllDocuments() {
+  return stmts.getAllDocuments.all();
+}
+function getDocumentsByCollection(collection) {
+  return stmts.getDocumentsByCollection.all(collection);
+}
+function getDocumentByHash(hash, collection) {
+  return stmts.getDocumentByHash.get(hash, collection) || null;
+}
 function updateDocumentStatus(id, status, error, chunkCount) {
   stmts.updateDocumentStatus.run(status, error || null, chunkCount || 0, id);
 }
-function deleteDocument(id) { return stmts.deleteDocument.run(id); }
+function deleteDocument(id) {
+  return stmts.deleteDocument.run(id);
+}
 
 function getModelMetadata(model) {
   return stmts.getModelMetadata.get(model) || null;

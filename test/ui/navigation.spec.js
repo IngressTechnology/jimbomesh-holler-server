@@ -1,11 +1,5 @@
 const { test, expect } = require('@playwright/test');
-const {
-  ADMIN_URL,
-  BASE_URL,
-  navigateToAdmin,
-  requireServer,
-  hasAdminKey,
-} = require('../fixtures/test-helpers');
+const { ADMIN_URL, BASE_URL, navigateToAdmin, requireServer, hasAdminKey } = require('../fixtures/test-helpers');
 
 async function snap(page, name) {
   await page.screenshot({ path: `test-results/${name}.png`, fullPage: true });
@@ -26,7 +20,9 @@ test.describe('Admin Navigation Interactions', () => {
       await page.locator(`#tab-bar [data-tab="${tab}"]`).first().click();
       await page.waitForTimeout(200);
       await snap(page, `nav-${tab}`);
-      await expect(page.locator('#tab-content .card, #tab-content .stats-grid, #tab-content .empty-state').first()).toBeVisible({ timeout: 10000 });
+      await expect(
+        page.locator('#tab-content .card, #tab-content .stats-grid, #tab-content .empty-state').first()
+      ).toBeVisible({ timeout: 10000 });
       await expect(page.locator(`#tab-bar [data-tab="${tab}"].active`).first()).toBeVisible({ timeout: 10000 });
       await expect(page.locator('#tab-content .login-error').first()).toHaveCount(0);
     }

@@ -93,7 +93,9 @@ test.describe('Model Interaction Flows', () => {
     test.skip((await detailBtn.count()) === 0, 'No model detail trigger found');
 
     await detailBtn.click();
-    await expect(page.locator('#model-detail .card, #model-detail .confirm-overlay').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('#model-detail .card, #model-detail .confirm-overlay').first()).toBeVisible({
+      timeout: 10000,
+    });
     await snap(page, 'models-detail-open');
 
     const closeBtn = page.locator('#close-detail').first();

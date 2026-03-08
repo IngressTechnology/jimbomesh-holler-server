@@ -23,8 +23,8 @@ services:
       - ollama_models:/root/.ollama
       - holler_data:/opt/jimbomesh-still/data
     ports:
-      - "127.0.0.1:${OLLAMA_HOST_PORT:-1920}:1920"
-      - "127.0.0.1:${HEALTH_HOST_PORT:-9090}:9090"
+      - '127.0.0.1:${OLLAMA_HOST_PORT:-1920}:1920'
+      - '127.0.0.1:${HEALTH_HOST_PORT:-9090}:9090'
     environment:
       # API Authentication
       - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}
@@ -78,7 +78,7 @@ services:
       # GitHub integration (optional — enables Feedback tab in Admin UI)
       - GITHUB_TOKEN=${GITHUB_TOKEN:-}
     healthcheck:
-      test: ["CMD", "curl", "-sf", "http://localhost:9090/readyz"]
+      test: ['CMD', 'curl', '-sf', 'http://localhost:9090/readyz']
       interval: 30s
       timeout: 10s
       retries: 5
@@ -91,15 +91,15 @@ services:
     profiles:
       - qdrant
     ports:
-      - "127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333"
-      - "127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334"
+      - '127.0.0.1:${QDRANT_HOST_PORT:-6333}:6333'
+      - '127.0.0.1:${QDRANT_GRPC_PORT:-6334}:6334'
     volumes:
       - qdrant_storage:/qdrant/storage
     environment:
       - QDRANT__SERVICE__GRPC_PORT=6334
       - QDRANT__SERVICE__API_KEY=${QDRANT_API_KEY}
     healthcheck:
-      test: ["CMD-SHELL", "bash -c 'echo > /dev/tcp/localhost/6333'"]
+      test: ['CMD-SHELL', "bash -c 'echo > /dev/tcp/localhost/6333'"]
       interval: 10s
       timeout: 3s
       retries: 5
@@ -119,8 +119,8 @@ services:
       - QDRANT_URL=http://jimbomesh-holler-qdrant:6333
       - QDRANT_API_KEY=${QDRANT_API_KEY}
       - EMBED_DIMENSIONS=${EMBED_DIMENSIONS:-768}
-    entrypoint: ["sh", "/opt/init-qdrant.sh"]
-    restart: "no"
+    entrypoint: ['sh', '/opt/init-qdrant.sh']
+    restart: 'no'
 
 volumes:
   ollama_models:

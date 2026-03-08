@@ -11,11 +11,7 @@ config({ path: path.resolve(process.cwd(), '.env') });
 
 const BASE_URL = `http://localhost:${process.env.PORT || 1920}`;
 const ADMIN_URL = `${BASE_URL}/admin`;
-const ADMIN_KEY =
-  process.env.ADMIN_TOKEN ||
-  process.env.ADMIN_API_KEY ||
-  process.env.JIMBOMESH_HOLLER_API_KEY ||
-  '';
+const ADMIN_KEY = process.env.ADMIN_TOKEN || process.env.ADMIN_API_KEY || process.env.JIMBOMESH_HOLLER_API_KEY || '';
 const OLLAMA_HOST = process.env.OLLAMA_HOST || 'http://localhost:11434';
 
 async function isOllamaAvailable() {

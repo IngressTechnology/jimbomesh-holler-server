@@ -41,10 +41,30 @@ function extractModelFamily(modelName) {
   if (!modelName) return 'unknown';
   const name = String(modelName).toLowerCase();
   const families = [
-    'llama', 'mistral', 'mixtral', 'gemma', 'phi', 'qwen', 'codellama',
-    'deepseek', 'nomic', 'mxbai', 'snowflake', 'all-minilm', 'starcoder',
-    'vicuna', 'orca', 'neural-chat', 'stablelm', 'tinyllama', 'dolphin',
-    'wizardcoder', 'falcon', 'yi', 'solar', 'command-r',
+    'llama',
+    'mistral',
+    'mixtral',
+    'gemma',
+    'phi',
+    'qwen',
+    'codellama',
+    'deepseek',
+    'nomic',
+    'mxbai',
+    'snowflake',
+    'all-minilm',
+    'starcoder',
+    'vicuna',
+    'orca',
+    'neural-chat',
+    'stablelm',
+    'tinyllama',
+    'dolphin',
+    'wizardcoder',
+    'falcon',
+    'yi',
+    'solar',
+    'command-r',
   ];
   for (const family of families) {
     if (name.startsWith(family) || name.includes(family)) return family;
@@ -80,7 +100,9 @@ function mapModelsForSaas(models) {
     return {
       modelName: modelName,
       modelFamily: (m.details && m.details.family) || extractModelFamily(modelName),
-      parameterCount: parseParameterCount(m.parameter_size || m.parameters || (m.details && m.details.parameter_size)) || estimateParameters(modelName),
+      parameterCount:
+        parseParameterCount(m.parameter_size || m.parameters || (m.details && m.details.parameter_size)) ||
+        estimateParameters(modelName),
       sizeBytes: m.size || 0,
       available: true,
     };
@@ -155,8 +177,12 @@ class MeshConnector {
   }
 
   // Backward-compat getters so mesh-webrtc.js and other code still works
-  get connected() { return this._state === 'connected'; }
-  get connecting() { return this._state === 'connecting' || this._state === 'reconnecting'; }
+  get connected() {
+    return this._state === 'connected';
+  }
+  get connecting() {
+    return this._state === 'connecting' || this._state === 'reconnecting';
+  }
 
   // ── Public API ──────────────────────────────────────────────────
 
@@ -195,7 +221,11 @@ class MeshConnector {
     this._clearTimers();
     this._clearMgmtTimers();
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
+      try {
+        this._mgmtWs.close();
+      } catch (_e) {
+        /* intentionally empty */
+      }
       this._mgmtWs = null;
     }
     this._mgmtReconnectAttempt = 0;
@@ -228,7 +258,11 @@ class MeshConnector {
 
     // Close management WebSocket gracefully
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(1000, 'Disconnecting'); } catch (_e) { /* intentionally empty */ }
+      try {
+        this._mgmtWs.close(1000, 'Disconnecting');
+      } catch (_e) {
+        /* intentionally empty */
+      }
       this._mgmtWs = null;
     }
     this._mgmtReconnectAttempt = 0;
@@ -237,7 +271,11 @@ class MeshConnector {
 
     // Close all WebRTC peer connections
     if (this.peerHandler) {
-      try { await this.peerHandler.closeAll(); } catch (_) { /* intentionally empty */ }
+      try {
+        await this.peerHandler.closeAll();
+      } catch (_) {
+        /* intentionally empty */
+      }
     }
 
     // Best-effort offline heartbeat
@@ -245,7 +283,9 @@ class MeshConnector {
       try {
         await this._sendHeartbeat();
         this._addLog('info', 'Sent offline heartbeat');
-      } catch { /* best-effort */ }
+      } catch {
+        /* best-effort */
+      }
     }
 
     this._state = 'disconnected';
@@ -270,21 +310,16 @@ class MeshConnector {
       connecting: this._state === 'connecting' || this._state === 'reconnecting',
       meshUrl: this.meshUrl,
       hollerId: this.hollerId,
-      hollerName: this.hollerName
-        || (this.db
-          ? (
-            this.db.getSetting('holler_name')
-            || this.db.getSetting('server_name')
-            || process.env.JIMBOMESH_HOLLER_NAME
-            || process.env.HOLLER_SERVER_NAME
-            || null
-          )
-          : (
-            process.env.JIMBOMESH_HOLLER_NAME
-            || process.env.HOLLER_SERVER_NAME
-            || null
-          ))
-        || os.hostname(),
+      hollerName:
+        this.hollerName ||
+        (this.db
+          ? this.db.getSetting('holler_name') ||
+            this.db.getSetting('server_name') ||
+            process.env.JIMBOMESH_HOLLER_NAME ||
+            process.env.HOLLER_SERVER_NAME ||
+            null
+          : process.env.JIMBOMESH_HOLLER_NAME || process.env.HOLLER_SERVER_NAME || null) ||
+        os.hostname(),
       lastHeartbeat: this.lastHeartbeat,
       jobsProcessed: this.jobsProcessed,
       moonshineEarned: this.moonshineEarned,
@@ -326,14 +361,22 @@ class MeshConnector {
     if (this._stopped || this._aborted) return;
     this._mgmtNextRetryAt = null;
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
+      try {
+        this._mgmtWs.close();
+      } catch (_e) {
+        /* intentionally empty */
+      }
     }
     this._clearMgmtTimers();
 
     const meshUrl = this.meshUrl.replace(/\/+$/, '');
-    const wsUrl = meshUrl.replace(/^http/, 'ws') + '/ws/holler'
-      + '?token=' + encodeURIComponent(this.apiKey)
-      + '&holler_id=' + encodeURIComponent(this.hollerId);
+    const wsUrl =
+      meshUrl.replace(/^http/, 'ws') +
+      '/ws/holler' +
+      '?token=' +
+      encodeURIComponent(this.apiKey) +
+      '&holler_id=' +
+      encodeURIComponent(this.hollerId);
 
     const connectAttempt = Math.max(1, this._mgmtReconnectAttempt || 1);
     this._addLog('info', 'Connecting to ' + wsUrl + ' (attempt ' + connectAttempt + ')');
@@ -367,7 +410,11 @@ class MeshConnector {
           const data = typeof event.data === 'string' ? event.data : event.data.toString();
           this._handleMgmtMessage(data).catch((err) => {
             console.error('[mesh-connector] Management WS message handler error:', err);
-            try { this._addLog('error', 'Message handler error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
+            try {
+              this._addLog('error', 'Message handler error: ' + ((err && err.message) || String(err)));
+            } catch (_) {
+              /* intentionally empty */
+            }
           });
         } catch (err) {
           console.error('[mesh-connector] Management WS message handler sync error:', err);
@@ -401,7 +448,6 @@ class MeshConnector {
       ws.addEventListener('error', (err) => {
         this._addLog('warning', 'WebSocket error: ' + (err.message || 'unknown'));
       });
-
     } catch (err) {
       this._addLog('error', 'Failed to create management WebSocket: ' + err.message);
     }
@@ -421,7 +467,11 @@ class MeshConnector {
     this._addLog('info', 'Reconnecting in ' + Math.round(delay / 1000) + 's (attempt ' + attempt + ')');
 
     this._mgmtWsRetryTimeout = setTimeout(() => {
-      if (!this._stopped && !this._aborted && (this._state === 'connected' || this._state === 'reconnecting' || this._state === 'connecting')) {
+      if (
+        !this._stopped &&
+        !this._aborted &&
+        (this._state === 'connected' || this._state === 'reconnecting' || this._state === 'connecting')
+      ) {
         this._connectManagementWebSocket();
       }
     }, delay);
@@ -440,15 +490,26 @@ class MeshConnector {
         try {
           this._mgmtWs.send(JSON.stringify({ type: 'ping' }));
         } catch (_e) {
-          try { this._mgmtWs.close(); } catch (_) { /* intentionally empty */ }
+          try {
+            this._mgmtWs.close();
+          } catch (_) {
+            /* intentionally empty */
+          }
           return;
         }
 
-        if (this._mgmtPongTimeout) { clearTimeout(this._mgmtPongTimeout); this._mgmtPongTimeout = null; }
+        if (this._mgmtPongTimeout) {
+          clearTimeout(this._mgmtPongTimeout);
+          this._mgmtPongTimeout = null;
+        }
         this._mgmtPongTimeout = setTimeout(() => {
           if (!this._mgmtWsPongReceived && this._mgmtWs) {
             this._addLog('warning', 'Pong timeout — reconnecting management WebSocket');
-            try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
+            try {
+              this._mgmtWs.close();
+            } catch (_e) {
+              /* intentionally empty */
+            }
           }
         }, 10000);
       }
@@ -459,10 +520,22 @@ class MeshConnector {
    * Clear management WebSocket specific timers (ping interval, pong timeout, retry).
    */
   _clearMgmtTimers() {
-    if (this._mgmtPingInterval) { clearInterval(this._mgmtPingInterval); this._mgmtPingInterval = null; }
-    if (this._mgmtPongTimeout) { clearTimeout(this._mgmtPongTimeout); this._mgmtPongTimeout = null; }
-    if (this._mgmtWsRetryTimeout) { clearTimeout(this._mgmtWsRetryTimeout); this._mgmtWsRetryTimeout = null; }
-    if (this._mgmtStableTimer) { clearTimeout(this._mgmtStableTimer); this._mgmtStableTimer = null; }
+    if (this._mgmtPingInterval) {
+      clearInterval(this._mgmtPingInterval);
+      this._mgmtPingInterval = null;
+    }
+    if (this._mgmtPongTimeout) {
+      clearTimeout(this._mgmtPongTimeout);
+      this._mgmtPongTimeout = null;
+    }
+    if (this._mgmtWsRetryTimeout) {
+      clearTimeout(this._mgmtWsRetryTimeout);
+      this._mgmtWsRetryTimeout = null;
+    }
+    if (this._mgmtStableTimer) {
+      clearTimeout(this._mgmtStableTimer);
+      this._mgmtStableTimer = null;
+    }
   }
 
   /**
@@ -497,17 +570,22 @@ class MeshConnector {
         };
 
         await this._handleMeshJob(jobData, 'websocket');
-
       } else if (msg.type === 'fallback_inference') {
         this._handleFallbackInference(msg).catch((err) => {
-          try { this._addLog('error', 'Fallback inference error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
+          try {
+            this._addLog('error', 'Fallback inference error: ' + ((err && err.message) || String(err)));
+          } catch (_) {
+            /* intentionally empty */
+          }
         });
-
       } else if (msg.type === 'embedding_request') {
         this._handleEmbeddingRequest(msg).catch((err) => {
-          try { this._addLog('error', 'Embedding request error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
+          try {
+            this._addLog('error', 'Embedding request error: ' + ((err && err.message) || String(err)));
+          } catch (_) {
+            /* intentionally empty */
+          }
         });
-
       } else if (msg.type === 'pong') {
         this._mgmtWsPongReceived = true;
         this._mgmtLastHeartbeatAck = Date.now();
@@ -548,20 +626,27 @@ class MeshConnector {
           error: errorMessage || null,
           auth_type: 'mesh-fallback',
         });
-      } catch (_) { /* intentionally empty */ }
+      } catch (_) {
+        /* intentionally empty */
+      }
     };
 
     try {
-      const payload = msg.payload || msg.request || {
-        model: msg.model,
-        messages: msg.messages,
-        stream: msg.stream !== false,
-        options: msg.options,
-      };
+      const payload = msg.payload ||
+        msg.request || {
+          model: msg.model,
+          messages: msg.messages,
+          stream: msg.stream !== false,
+          options: msg.options,
+        };
       const dashboardPath = inferMeshRequestPath(payload, '/api/chat');
 
       if (!jobId || !payload.model || !payload.messages) {
-        this._sendMgmtMessage({ type: 'fallback_error', jobId: jobId || 'unknown', error: 'Missing jobId, model, or messages' });
+        this._sendMgmtMessage({
+          type: 'fallback_error',
+          jobId: jobId || 'unknown',
+          error: 'Missing jobId, model, or messages',
+        });
         this._addLog('warning', 'Fallback inference: missing required fields');
         return;
       }
@@ -578,16 +663,19 @@ class MeshConnector {
       let response;
       try {
         response = await new Promise((resolve, reject) => {
-          const req = httpMod.request({
-            hostname: parsedUrl.hostname,
-            port: parseInt(parsedUrl.port) || 11435,
-            path: '/api/chat',
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Content-Length': Buffer.byteLength(reqBody),
+          const req = httpMod.request(
+            {
+              hostname: parsedUrl.hostname,
+              port: parseInt(parsedUrl.port) || 11435,
+              path: '/api/chat',
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/json',
+                'Content-Length': Buffer.byteLength(reqBody),
+              },
             },
-          }, resolve);
+            resolve
+          );
           req.setTimeout(120000, () => req.destroy(new Error('Ollama timeout')));
           req.on('error', reject);
           req.write(reqBody);
@@ -599,7 +687,11 @@ class MeshConnector {
           await stats.failRequest(tracking, fetchErr).catch(function () {});
         }
         logFallbackRequest(502, payload.model, fetchErr.message, dashboardPath);
-        this._sendMgmtMessage({ type: 'fallback_error', jobId: jobId, error: 'Cannot reach Ollama: ' + fetchErr.message });
+        this._sendMgmtMessage({
+          type: 'fallback_error',
+          jobId: jobId,
+          error: 'Cannot reach Ollama: ' + fetchErr.message,
+        });
         this._addLog('error', 'Fallback: Ollama unreachable — ' + fetchErr.message);
         return;
       }
@@ -607,7 +699,13 @@ class MeshConnector {
       if (response.statusCode >= 400) {
         let errData = '';
         await new Promise((resolve) => {
-          response.on('data', (chunk) => { try { errData += chunk.toString(); } catch (_) { /* intentionally empty */ } });
+          response.on('data', (chunk) => {
+            try {
+              errData += chunk.toString();
+            } catch (_) {
+              /* intentionally empty */
+            }
+          });
           response.on('end', resolve);
           response.on('error', resolve);
         });
@@ -616,7 +714,11 @@ class MeshConnector {
           await stats.failRequest(tracking, new Error('Ollama returned ' + response.statusCode)).catch(function () {});
         }
         logFallbackRequest(response.statusCode, payload.model, 'Ollama returned ' + response.statusCode, dashboardPath);
-        this._sendMgmtMessage({ type: 'fallback_error', jobId: jobId, error: 'Ollama returned ' + response.statusCode + ': ' + errData.slice(0, 200) });
+        this._sendMgmtMessage({
+          type: 'fallback_error',
+          jobId: jobId,
+          error: 'Ollama returned ' + response.statusCode + ': ' + errData.slice(0, 200),
+        });
         this._addLog('error', 'Fallback: Ollama returned ' + response.statusCode);
         return;
       }
@@ -648,7 +750,9 @@ class MeshConnector {
               promptTokens = parsed.prompt_eval_count || 0;
               completionTokens = parsed.eval_count || 0;
             }
-          } catch (_) { /* skip malformed lines */ }
+          } catch (_) {
+            /* skip malformed lines */
+          }
         };
 
         response.on('data', (chunk) => {
@@ -668,16 +772,20 @@ class MeshConnector {
         response.on('end', () => {
           try {
             processLine(buffer && buffer.trim() ? buffer.trim() : '');
-          } catch (_) { /* safe */ }
+          } catch (_) {
+            /* safe */
+          }
 
           if (tracking && !statsFinalized) {
             statsFinalized = true;
-            stats.completeRequest(tracking, {
-              prompt_eval_count: promptTokens,
-              eval_count: completionTokens,
-              isToolCall: sawToolCalls,
-              source: 'mesh-fallback',
-            }).catch(function () {});
+            stats
+              .completeRequest(tracking, {
+                prompt_eval_count: promptTokens,
+                eval_count: completionTokens,
+                isToolCall: sawToolCalls,
+                source: 'mesh-fallback',
+              })
+              .catch(function () {});
           }
 
           this._sendMgmtMessage({ type: 'fallback_done', jobId: jobId });
@@ -692,16 +800,21 @@ class MeshConnector {
           }
           logFallbackRequest(502, payload.model, (err && err.message) || String(err), dashboardPath);
           try {
-            this._sendMgmtMessage({ type: 'fallback_error', jobId: jobId, error: 'Stream error: ' + (err && err.message || String(err)) });
-            this._addLog('error', 'Fallback stream error: ' + (err && err.message || String(err)));
-          } catch (_) { /* safe */ }
+            this._sendMgmtMessage({
+              type: 'fallback_error',
+              jobId: jobId,
+              error: 'Stream error: ' + ((err && err.message) || String(err)),
+            });
+            this._addLog('error', 'Fallback stream error: ' + ((err && err.message) || String(err)));
+          } catch (_) {
+            /* safe */
+          }
           resolve();
         });
       });
 
       this._addLog('success', 'Fallback inference complete for job ' + (jobId || '').slice(0, 8));
       this.jobsProcessed++;
-
     } catch (err) {
       if (tracking && !statsFinalized) {
         statsFinalized = true;
@@ -710,8 +823,12 @@ class MeshConnector {
       logFallbackRequest(500, (msg && msg.model) || null, (err && err.message) || String(err), '/api/chat');
       // Absolute last resort — nothing escapes this method
       try {
-        this._sendMgmtMessage({ type: 'fallback_error', jobId: jobId || 'unknown', error: 'Unhandled: ' + (err && err.message || String(err)) });
-        this._addLog('error', 'Fallback inference crashed: ' + (err && err.message || String(err)));
+        this._sendMgmtMessage({
+          type: 'fallback_error',
+          jobId: jobId || 'unknown',
+          error: 'Unhandled: ' + ((err && err.message) || String(err)),
+        });
+        this._addLog('error', 'Fallback inference crashed: ' + ((err && err.message) || String(err)));
       } catch (logErr) {
         console.error('[mesh-connector] CRITICAL: fallback_inference double-fault:', err, logErr);
       }
@@ -732,7 +849,10 @@ class MeshConnector {
         return;
       }
 
-      this._addLog('info', 'Embedding request: model=' + model + ' len=' + (typeof input === 'string' ? input.length : '?'));
+      this._addLog(
+        'info',
+        'Embedding request: model=' + model + ' len=' + (typeof input === 'string' ? input.length : '?')
+      );
 
       const ollamaUrl = this.ollamaUrl || process.env.OLLAMA_HOST || 'http://127.0.0.1:11435';
       const parsed = new URL(ollamaUrl);
@@ -741,32 +861,48 @@ class MeshConnector {
 
       const body = JSON.stringify({ model, input });
       const ollamaResult = await new Promise((resolve, reject) => {
-        const req = http.request({
-          hostname: parsed.hostname,
-          port: parsed.port || (isHttps ? 443 : 80),
-          path: '/api/embed',
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          timeout: 30000,
-        }, (res) => {
-          let chunks = '';
-          res.on('data', (c) => { chunks += c; });
-          res.on('end', () => {
-            if (res.statusCode >= 400) {
-              reject(new Error('Ollama returned ' + res.statusCode + ': ' + chunks.slice(0, 200)));
-            } else {
-              try { resolve(JSON.parse(chunks)); } catch (_e) { reject(new Error('Invalid JSON from Ollama')); }
-            }
-          });
-        });
+        const req = http.request(
+          {
+            hostname: parsed.hostname,
+            port: parsed.port || (isHttps ? 443 : 80),
+            path: '/api/embed',
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            timeout: 30000,
+          },
+          (res) => {
+            let chunks = '';
+            res.on('data', (c) => {
+              chunks += c;
+            });
+            res.on('end', () => {
+              if (res.statusCode >= 400) {
+                reject(new Error('Ollama returned ' + res.statusCode + ': ' + chunks.slice(0, 200)));
+              } else {
+                try {
+                  resolve(JSON.parse(chunks));
+                } catch (_e) {
+                  reject(new Error('Invalid JSON from Ollama'));
+                }
+              }
+            });
+          }
+        );
         req.on('error', reject);
-        req.on('timeout', () => { req.destroy(); reject(new Error('Ollama embedding request timed out (30s)')); });
+        req.on('timeout', () => {
+          req.destroy();
+          reject(new Error('Ollama embedding request timed out (30s)'));
+        });
         req.write(body);
         req.end();
       });
 
       if (!ollamaResult.embeddings || !ollamaResult.embeddings.length) {
-        this._sendMgmtMessage({ type: 'embedding_error', request_id: requestId, error: 'Ollama returned no embeddings' });
+        this._sendMgmtMessage({
+          type: 'embedding_error',
+          request_id: requestId,
+          error: 'Ollama returned no embeddings',
+        });
         return;
       }
 
@@ -786,7 +922,10 @@ class MeshConnector {
         },
       });
 
-      this._addLog('info', 'Embedding response sent: ' + ollamaResult.embeddings[0].length + 'd, ' + promptTokens + ' tokens');
+      this._addLog(
+        'info',
+        'Embedding response sent: ' + ollamaResult.embeddings[0].length + 'd, ' + promptTokens + ' tokens'
+      );
     } catch (err) {
       const errorMsg = (err && err.message) || String(err);
       this._addLog('error', 'Embedding request failed: ' + errorMsg);
@@ -813,8 +952,7 @@ class MeshConnector {
 
   _buildSignalingUrl(jobId) {
     const meshUrl = this.meshUrl.replace(/\/+$/, '');
-    return meshUrl.replace(/^http/, 'ws') + '/ws/signal/' + jobId
-      + '?token=' + encodeURIComponent(this.apiKey);
+    return meshUrl.replace(/^http/, 'ws') + '/ws/signal/' + jobId + '?token=' + encodeURIComponent(this.apiKey);
   }
 
   _trimProcessedJobs() {
@@ -837,7 +975,10 @@ class MeshConnector {
           this._addLog('info', 'Job ' + jobId + ' started via WebRTC P2P');
           return;
         }
-        this._addLog('warning', 'WebRTC failed (' + ((result && result.reason) || 'unknown') + ') — falling back to HTTP processing');
+        this._addLog(
+          'warning',
+          'WebRTC failed (' + ((result && result.reason) || 'unknown') + ') — falling back to HTTP processing'
+        );
       }
 
       // Fallback: process via local Ollama HTTP.
@@ -846,7 +987,10 @@ class MeshConnector {
       const msg = (err && err.message) || String(err);
       const processingTime = Date.now() - startTime;
       console.error('[mesh-connector] Inference error on job ' + jobId + ': ' + msg);
-      this._addLog('error', 'Inference error on job ' + jobId + ' (model: ' + model + ', source: ' + source + '): ' + msg);
+      this._addLog(
+        'error',
+        'Inference error on job ' + jobId + ' (model: ' + model + ', source: ' + source + '): ' + msg
+      );
       // Report failure back to SaaS but never let it crash the management WebSocket.
       try {
         await this._completeJob(jobId, {
@@ -855,8 +999,14 @@ class MeshConnector {
           processing_time_ms: processingTime,
         });
       } catch (reportErr) {
-        console.error('[mesh-connector] Failed to report job failure:', reportErr && reportErr.message ? reportErr.message : reportErr);
-        this._addLog('error', 'Failed to report job failure: ' + ((reportErr && reportErr.message) || String(reportErr)));
+        console.error(
+          '[mesh-connector] Failed to report job failure:',
+          reportErr && reportErr.message ? reportErr.message : reportErr
+        );
+        this._addLog(
+          'error',
+          'Failed to report job failure: ' + ((reportErr && reportErr.message) || String(reportErr))
+        );
       }
     }
   }
@@ -876,7 +1026,10 @@ class MeshConnector {
           throw err;
         }
         const delay = BACKOFF_SCHEDULE[Math.min(attempt, BACKOFF_SCHEDULE.length - 1)];
-        this._addLog('warning', 'Attempt ' + (attempt + 1) + ' failed: ' + err.message + ' — retrying in ' + (delay / 1000) + 's');
+        this._addLog(
+          'warning',
+          'Attempt ' + (attempt + 1) + ' failed: ' + err.message + ' — retrying in ' + delay / 1000 + 's'
+        );
         await this._sleep(delay);
       }
     }
@@ -885,29 +1038,31 @@ class MeshConnector {
 
   async _register() {
     // Collect system info for registration
-    const [models, gpuInfo] = await Promise.all([
-      this._getOllamaModels(),
-      this._getGpuInfo(),
-    ]);
+    const [models, gpuInfo] = await Promise.all([this._getOllamaModels(), this._getGpuInfo()]);
 
-    const serverName = this.hollerName
-      || (this.db
-        ? (
-          this.db.getSetting('holler_name')
-          || this.db.getSetting('server_name')
-          || process.env.JIMBOMESH_HOLLER_NAME
-          || process.env.HOLLER_SERVER_NAME
-          || null
-        )
-        : (
-          process.env.JIMBOMESH_HOLLER_NAME
-          || process.env.HOLLER_SERVER_NAME
-          || null
-        ))
-      || os.hostname();
+    const serverName =
+      this.hollerName ||
+      (this.db
+        ? this.db.getSetting('holler_name') ||
+          this.db.getSetting('server_name') ||
+          process.env.JIMBOMESH_HOLLER_NAME ||
+          process.env.HOLLER_SERVER_NAME ||
+          null
+        : process.env.JIMBOMESH_HOLLER_NAME || process.env.HOLLER_SERVER_NAME || null) ||
+      os.hostname();
     const gpuName = gpuInfo ? gpuInfo.name : 'CPU only';
     const vramMb = gpuInfo ? gpuInfo.vram_total_mb : 0;
-    this._addLog('info', 'Registering "' + serverName + '" (' + gpuName + (vramMb ? ', ' + Math.round(vramMb / 1024) + 'GB VRAM' : '') + ', ' + models.length + ' models)');
+    this._addLog(
+      'info',
+      'Registering "' +
+        serverName +
+        '" (' +
+        gpuName +
+        (vramMb ? ', ' + Math.round(vramMb / 1024) + 'GB VRAM' : '') +
+        ', ' +
+        models.length +
+        ' models)'
+    );
 
     const saasModels = mapModelsForSaas(models);
     const body = {
@@ -923,7 +1078,8 @@ class MeshConnector {
     const result = await this._meshFetch('POST', '/api/hollers/register', body);
 
     if (result.status === 409) {
-      const conflictMessage = (result.data && result.data.message) ? result.data.message : 'This Holler name is already in use.';
+      const conflictMessage =
+        result.data && result.data.message ? result.data.message : 'This Holler name is already in use.';
       console.error('═══════════════════════════════════════════════════');
       console.error('❌ REGISTRATION FAILED: Duplicate Holler name');
       console.error('   ' + conflictMessage);
@@ -982,15 +1138,22 @@ class MeshConnector {
       const models = await this._getOllamaModels();
       const gpuInfo = await this._getGpuInfo();
       const gpuUtil = gpuInfo && gpuInfo.utilization_percent != null ? gpuInfo.utilization_percent + '%' : 'N/A';
-      this._addLog('info', '\u2665 Heartbeat OK (latency: ' + latencyMs + 'ms, ' + models.length + ' models, GPU ' + gpuUtil + ')');
+      this._addLog(
+        'info',
+        '\u2665 Heartbeat OK (latency: ' + latencyMs + 'ms, ' + models.length + ' models, GPU ' + gpuUtil + ')'
+      );
 
       // Safety net: if management WebSocket is dead, try to reconnect it
       if (!this._mgmtWs || this._mgmtWs.readyState !== 1 /* OPEN */) {
         this._addLog('warning', 'Management WebSocket dead — reconnecting');
         this._connectManagementWebSocket();
-      } else if (this._mgmtLastHeartbeatAck && (Date.now() - this._mgmtLastHeartbeatAck > MGMT_WS_HEARTBEAT_STALE_MS)) {
+      } else if (this._mgmtLastHeartbeatAck && Date.now() - this._mgmtLastHeartbeatAck > MGMT_WS_HEARTBEAT_STALE_MS) {
         this._addLog('warning', 'Heartbeat stale, forcing reconnect');
-        try { this._mgmtWs.close(); } catch (_) { /* intentionally empty */ }
+        try {
+          this._mgmtWs.close();
+        } catch (_) {
+          /* intentionally empty */
+        }
       }
     } catch (err) {
       this.heartbeatFailures++;
@@ -1113,14 +1276,19 @@ class MeshConnector {
           model: model || null,
           auth_type: 'mesh-http',
         });
-      } catch (_) { /* intentionally empty */ }
+      } catch (_) {
+        /* intentionally empty */
+      }
 
       log('Job ' + jobId + ' completed in ' + (processingTime / 1000).toFixed(1) + 's (' + tokensUsed + ' tokens)');
     } catch (err) {
       const processingTime = Date.now() - startTime;
       const isTimeout = /timeout|timed out/i.test(err && err.message ? err.message : '');
       log('Job ' + jobId + ' failed (model: ' + model + '): ' + err.message + (isTimeout ? ' [timeout]' : ''));
-      this._addLog('error', 'Inference failed for model ' + model + ': ' + err.message + (isTimeout ? ' [timeout]' : ''));
+      this._addLog(
+        'error',
+        'Inference failed for model ' + model + ': ' + err.message + (isTimeout ? ' [timeout]' : '')
+      );
       await stats.failRequest(tracking, err).catch(function () {});
       try {
         dbClient.logRequest({
@@ -1133,7 +1301,9 @@ class MeshConnector {
           error: err.message,
           auth_type: 'mesh-http',
         });
-      } catch (_) { /* intentionally empty */ }
+      } catch (_) {
+        /* intentionally empty */
+      }
 
       // Report failure to SaaS (don't silently drop)
       try {
@@ -1170,7 +1340,9 @@ class MeshConnector {
     const result = await this._ollamaFetch('GET', '/api/ps');
     if (!result || !Array.isArray(result.models)) return [];
     return result.models
-      .map(function (m) { return m.name || m.model || ''; })
+      .map(function (m) {
+        return m.name || m.model || '';
+      })
       .filter(Boolean);
   }
 
@@ -1183,7 +1355,7 @@ class MeshConnector {
 
     // Track Moonshine from SaaS response
     if (response.data && response.data.moonshine_earned != null) {
-      this.moonshineEarned = (this.moonshineEarned - 1) + response.data.moonshine_earned;
+      this.moonshineEarned = this.moonshineEarned - 1 + response.data.moonshine_earned;
     }
 
     return response;
@@ -1214,7 +1386,9 @@ class MeshConnector {
 
       const req = http.request(opts, (res) => {
         let data = '';
-        res.on('data', (chunk) => { data += chunk; });
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
         res.on('end', () => {
           try {
             const parsed = JSON.parse(data);
@@ -1268,10 +1442,15 @@ class MeshConnector {
 
       const req = http.request(opts, (res) => {
         let data = '';
-        res.on('data', (chunk) => { data += chunk; });
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
         res.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch { resolve(data); }
+          try {
+            resolve(JSON.parse(data));
+          } catch {
+            resolve(data);
+          }
         });
       });
 
@@ -1291,7 +1470,12 @@ class MeshConnector {
         'nvidia-smi --query-gpu=name,memory.total,memory.used,utilization.gpu --format=csv,noheader,nounits',
         { timeout: 5000, encoding: 'utf8' }
       );
-      const parts = out.trim().split(',').map(function (s) { return s.trim(); });
+      const parts = out
+        .trim()
+        .split(',')
+        .map(function (s) {
+          return s.trim();
+        });
       if (parts.length >= 4) {
         return {
           name: parts[0],
@@ -1300,7 +1484,9 @@ class MeshConnector {
           utilization_percent: parseInt(parts[3]) || 0,
         };
       }
-    } catch { /* nvidia-smi not available */ }
+    } catch {
+      /* nvidia-smi not available */
+    }
 
     // Check for Apple Metal
     if (process.platform === 'darwin' || process.env.OLLAMA_EXTERNAL_URL) {
@@ -1325,8 +1511,12 @@ class MeshConnector {
         const idle = c.times.idle;
         return { total: total, idle: idle };
       });
-      const sumTotal = totals.reduce(function (a, b) { return a + b.total; }, 0);
-      const sumIdle = totals.reduce(function (a, b) { return a + b.idle; }, 0);
+      const sumTotal = totals.reduce(function (a, b) {
+        return a + b.total;
+      }, 0);
+      const sumIdle = totals.reduce(function (a, b) {
+        return a + b.idle;
+      }, 0);
       cpuPercent = sumTotal > 0 ? Math.round((1 - sumIdle / sumTotal) * 100) : 0;
     }
 
@@ -1338,13 +1528,9 @@ class MeshConnector {
   }
 
   async _getCurrentLoad() {
-    const [systemInfo, gpuInfo] = await Promise.all([
-      this._getSystemInfo(),
-      this._getGpuInfo(),
-    ]);
-    const memoryLoad = systemInfo.memory_total_mb > 0
-      ? Math.round((systemInfo.memory_used_mb / systemInfo.memory_total_mb) * 100)
-      : 0;
+    const [systemInfo, gpuInfo] = await Promise.all([this._getSystemInfo(), this._getGpuInfo()]);
+    const memoryLoad =
+      systemInfo.memory_total_mb > 0 ? Math.round((systemInfo.memory_used_mb / systemInfo.memory_total_mb) * 100) : 0;
     const gpuLoad = gpuInfo && gpuInfo.utilization_percent != null ? gpuInfo.utilization_percent : 0;
     return Math.max(systemInfo.cpu_percent || 0, memoryLoad || 0, gpuLoad || 0);
   }
@@ -1361,9 +1547,24 @@ class MeshConnector {
         const central = ['Chicago', 'Dallas', 'Houston'];
         const eastern = ['New_York', 'Detroit', 'Atlanta', 'Miami'];
         const city = tz.split('/').pop() || '';
-        if (western.some(function (c) { return city.includes(c); })) return 'us-west';
-        if (central.some(function (c) { return city.includes(c); })) return 'us-central';
-        if (eastern.some(function (c) { return city.includes(c); })) return 'us-east';
+        if (
+          western.some(function (c) {
+            return city.includes(c);
+          })
+        )
+          return 'us-west';
+        if (
+          central.some(function (c) {
+            return city.includes(c);
+          })
+        )
+          return 'us-central';
+        if (
+          eastern.some(function (c) {
+            return city.includes(c);
+          })
+        )
+          return 'us-east';
         return 'us-east';
       }
       if (tz.startsWith('Europe/')) return 'eu-west';
@@ -1412,7 +1613,9 @@ class MeshConnector {
 
       const req = mod.request(opts, (res) => {
         let data = '';
-        res.on('data', (chunk) => { data += chunk; });
+        res.on('data', (chunk) => {
+          data += chunk;
+        });
         res.on('end', () => {
           try {
             resolve({ status: res.statusCode, data: JSON.parse(data) });
@@ -1449,9 +1652,18 @@ class MeshConnector {
   }
 
   _clearTimers() {
-    if (this._heartbeatInterval) { clearInterval(this._heartbeatInterval); this._heartbeatInterval = null; }
-    if (this._pollInterval) { clearInterval(this._pollInterval); this._pollInterval = null; }
-    if (this._retryTimeout) { clearTimeout(this._retryTimeout); this._retryTimeout = null; }
+    if (this._heartbeatInterval) {
+      clearInterval(this._heartbeatInterval);
+      this._heartbeatInterval = null;
+    }
+    if (this._pollInterval) {
+      clearInterval(this._pollInterval);
+      this._pollInterval = null;
+    }
+    if (this._retryTimeout) {
+      clearTimeout(this._retryTimeout);
+      this._retryTimeout = null;
+    }
   }
 
   _scheduleRetry() {
@@ -1459,7 +1671,7 @@ class MeshConnector {
     const delay = BACKOFF_SCHEDULE[Math.min(this._retryIndex, BACKOFF_SCHEDULE.length - 1)];
     this._retryIndex++;
     if (this._state !== 'error') this._state = 'reconnecting';
-    this._addLog('warning', 'Retrying in ' + (delay / 1000) + 's...');
+    this._addLog('warning', 'Retrying in ' + delay / 1000 + 's...');
     this._retryTimeout = setTimeout(() => {
       if (!this._stopped && !this._aborted) this.start();
     }, delay);
@@ -1470,9 +1682,15 @@ class MeshConnector {
       const timer = setTimeout(resolve, ms);
       // Check stopped/aborted flag periodically
       const check = setInterval(() => {
-        if (this._stopped || this._aborted) { clearTimeout(timer); clearInterval(check); resolve(); }
+        if (this._stopped || this._aborted) {
+          clearTimeout(timer);
+          clearInterval(check);
+          resolve();
+        }
       }, 500);
-      setTimeout(() => { clearInterval(check); }, ms + 100);
+      setTimeout(() => {
+        clearInterval(check);
+      }, ms + 100);
     });
   }
 }

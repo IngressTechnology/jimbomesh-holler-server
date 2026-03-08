@@ -16,15 +16,15 @@ const path = require('path');
 const DATA_DIR = path.join(__dirname, 'data');
 const KEYS_FILE = path.join(DATA_DIR, 'keys.json');
 const SAVE_INTERVAL_MS = 30000; // Write-coalesce: save at most once per 30s
-const RATE_WINDOW_MS = 60000;   // 1-minute window for RPM
-const HOUR_MS = 3600000;        // 1-hour window for RPH
+const RATE_WINDOW_MS = 60000; // 1-minute window for RPM
+const HOUR_MS = 3600000; // 1-hour window for RPH
 
 // ── State ──────────────────────────────────────────────────────
 
-let tokens = [];            // Array of token objects (without raw key)
-const hashMap = new Map();    // Map<sha256-hash, token> for O(1) lookup
-let dirty = false;          // Needs save
-let saveTimer = null;       // Background save interval
+let tokens = []; // Array of token objects (without raw key)
+const hashMap = new Map(); // Map<sha256-hash, token> for O(1) lookup
+let dirty = false; // Needs save
+let saveTimer = null; // Background save interval
 
 // Per-token rate limiting: Map<tokenId, { rpm: { windowStart, count }, rph: { windowStart, count } }>
 const rateLimits = new Map();
@@ -94,7 +94,11 @@ function saveTokens() {
     dirty = false;
   } catch (err) {
     console.error('[token-manager] Failed to save keys.json:', err.message);
-    try { fs.unlinkSync(tmpPath); } catch (_) { /* ignore */ }
+    try {
+      fs.unlinkSync(tmpPath);
+    } catch (_) {
+      /* ignore */
+    }
   }
 }
 
@@ -160,7 +164,9 @@ function validateToken(raw) {
 }
 
 function revokeToken(id) {
-  const idx = tokens.findIndex(function (t) { return t.id === id; });
+  const idx = tokens.findIndex(function (t) {
+    return t.id === id;
+  });
   if (idx === -1) return false;
   const token = tokens[idx];
   hashMap.delete(token.hash);
@@ -190,7 +196,9 @@ function listTokens() {
 }
 
 function getToken(id) {
-  const token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) {
+    return t.id === id;
+  });
   if (!token) return null;
   return {
     id: token.id,
@@ -208,7 +216,9 @@ function getToken(id) {
 }
 
 function updateToken(id, changes) {
-  const token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) {
+    return t.id === id;
+  });
   if (!token) return null;
   if (changes.name !== undefined) token.name = changes.name;
   if (changes.permissions !== undefined) token.permissions = changes.permissions;
@@ -264,7 +274,9 @@ function checkTokenRateLimit(id, rpm, rph) {
 // ── Usage Tracking ─────────────────────────────────────────────
 
 function recordTokenUsage(id) {
-  const token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) {
+    return t.id === id;
+  });
   if (!token) return;
 
   token.request_count++;
@@ -285,7 +297,9 @@ function recordTokenUsage(id) {
 }
 
 function getTokenUsageHistory(id) {
-  const token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) {
+    return t.id === id;
+  });
   if (!token) return null;
   return token.hourly_usage || {};
 }

@@ -17,10 +17,7 @@ const pkg = require('./package.json');
 const stats = require('./stats-collector');
 
 // Blocked settings keys — security-critical values that must not be writable via the API
-const BLOCKED_SETTING_KEYS = [
-  'api_key_override', 'admin_api_key', 'enhanced_security_enabled',
-  'mesh_api_key',
-];
+const BLOCKED_SETTING_KEYS = ['api_key_override', 'admin_api_key', 'enhanced_security_enabled', 'mesh_api_key'];
 const BLOCKED_SETTING_PATTERNS = [/secret/i, /password/i, /token/i, /private.?key/i];
 
 function isBlockedSettingKey(key) {
@@ -97,8 +94,11 @@ function readBody(req) {
       body += chunk;
     });
     req.on('end', () => {
-      try { resolve(JSON.parse(body)); }
-      catch { resolve(null); }
+      try {
+        resolve(JSON.parse(body));
+      } catch {
+        resolve(null);
+      }
     });
   });
 }
@@ -117,7 +117,11 @@ function createSseSession(req, res) {
     closed = true;
     while (cleaners.length) {
       const fn = cleaners.pop();
-      try { fn(); } catch { /* best effort cleanup */ }
+      try {
+        fn();
+      } catch {
+        /* best effort cleanup */
+      }
     }
   }
 
@@ -126,8 +130,12 @@ function createSseSession(req, res) {
   res.on('finish', runCleaners);
 
   return {
-    isClosed: function () { return closed || res.writableEnded || res.destroyed; },
-    onClose: function (fn) { cleaners.push(fn); },
+    isClosed: function () {
+      return closed || res.writableEnded || res.destroyed;
+    },
+    onClose: function (fn) {
+      cleaners.push(fn);
+    },
     send: function (payload) {
       if (closed || res.writableEnded || res.destroyed) return false;
       res.write('data: ' + JSON.stringify(payload) + '\n\n');
@@ -189,8 +197,7 @@ function serveStatic(pathname, res, bootstrapData) {
     }
     res.writeHead(200, {
       'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
-      'Content-Security-Policy':
-        `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'`,
+      'Content-Security-Policy': `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'`,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -265,7 +272,7 @@ function handlePull(ollamaUrl, req, res, sendError) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     });
     const sse = createSseSession(req, res);
 
@@ -295,7 +302,11 @@ function handlePull(ollamaUrl, req, res, sendError) {
       }
     );
     sse.onClose(() => {
-      try { proxyReq.destroy(); } catch { /* ignore */ }
+      try {
+        proxyReq.destroy();
+      } catch {
+        /* ignore */
+      }
     });
 
     proxyReq.on('error', (err) => {
@@ -475,72 +486,82 @@ function handleStats(req, res, db) {
     return;
   }
   const since = parseSince(req);
-  Promise.all([
-    stats.getGlobalSummary(since),
-    stats.getModelStats(since),
-  ]).then(function (result) {
-    json(res, 200, {
-      global: result[0],
-      models: result[1],
-      // Legacy compatibility for Dashboard tab while it migrates.
-      summary: db.getStatsSummary(),
+  Promise.all([stats.getGlobalSummary(since), stats.getModelStats(since)])
+    .then(function (result) {
+      json(res, 200, {
+        global: result[0],
+        models: result[1],
+        // Legacy compatibility for Dashboard tab while it migrates.
+        summary: db.getStatsSummary(),
+      });
+    })
+    .catch(function (err) {
+      json(res, 500, { error: err.message });
     });
-  }).catch(function (err) {
-    json(res, 500, { error: err.message });
-  });
 }
 
 function handleStatsModel(req, res, model) {
   const since = parseSince(req);
-  Promise.all([
-    stats.getModelDetail(model, since),
-    stats.getHourlyStats(model),
-  ]).then(function (result) {
-    json(res, 200, { model: model, stats: result[0], hourly: result[1] });
-  }).catch(function (err) {
-    json(res, 500, { error: err.message });
-  });
+  Promise.all([stats.getModelDetail(model, since), stats.getHourlyStats(model)])
+    .then(function (result) {
+      json(res, 200, { model: model, stats: result[0], hourly: result[1] });
+    })
+    .catch(function (err) {
+      json(res, 500, { error: err.message });
+    });
 }
 
 function handleStatsRequests(req, res) {
   const params = new URL(req.url, 'http://localhost').searchParams;
   const model = params.get('model') || null;
   const limit = parseInt(params.get('limit') || '50', 10);
-  stats.getRecentRequests(model, limit).then(function (requests) {
-    json(res, 200, { requests: requests });
-  }).catch(function (err) {
-    json(res, 500, { error: err.message });
-  });
+  stats
+    .getRecentRequests(model, limit)
+    .then(function (requests) {
+      json(res, 200, { requests: requests });
+    })
+    .catch(function (err) {
+      json(res, 500, { error: err.message });
+    });
 }
 
 function handleStatsHourly(req, res) {
   const params = new URL(req.url, 'http://localhost').searchParams;
   const model = params.get('model') || null;
-  stats.getHourlyStats(model).then(function (hourly) {
-    json(res, 200, { hourly: hourly });
-  }).catch(function (err) {
-    json(res, 500, { error: err.message });
-  });
+  stats
+    .getHourlyStats(model)
+    .then(function (hourly) {
+      json(res, 200, { hourly: hourly });
+    })
+    .catch(function (err) {
+      json(res, 500, { error: err.message });
+    });
 }
 
 function handleStatsReset(req, res) {
   readBody(req).then(function (body) {
     const model = body && body.model ? String(body.model) : null;
-    stats.resetStats(model).then(function (result) {
-      json(res, 200, result);
-    }).catch(function (err) {
-      json(res, 500, { error: err.message });
-    });
+    stats
+      .resetStats(model)
+      .then(function (result) {
+        json(res, 200, result);
+      })
+      .catch(function (err) {
+        json(res, 500, { error: err.message });
+      });
   });
 }
 
 function handleStatsPricing(req, res) {
   if (req.method === 'GET') {
-    stats.getModelPricing().then(function (pricing) {
-      json(res, 200, { pricing: pricing });
-    }).catch(function (err) {
-      json(res, 500, { error: err.message });
-    });
+    stats
+      .getModelPricing()
+      .then(function (pricing) {
+        json(res, 200, { pricing: pricing });
+      })
+      .catch(function (err) {
+        json(res, 500, { error: err.message });
+      });
     return;
   }
 
@@ -556,11 +577,14 @@ function handleStatsPricing(req, res) {
       json(res, 400, { error: 'Invalid pricing values' });
       return;
     }
-    stats.setModelPricing(model, inputPer1k, outputPer1k).then(function (saved) {
-      json(res, 200, { pricing: saved });
-    }).catch(function (err) {
-      json(res, 500, { error: err.message });
-    });
+    stats
+      .setModelPricing(model, inputPer1k, outputPer1k)
+      .then(function (saved) {
+        json(res, 200, { pricing: saved });
+      })
+      .catch(function (err) {
+        json(res, 500, { error: err.message });
+      });
   });
 }
 
@@ -604,8 +628,15 @@ function _execFileAsync(cmd, args, opts) {
 
 async function detectNvidiaGpu() {
   try {
-    const out = await _execFileAsync('nvidia-smi', ['--query-gpu=name,memory.total,memory.used,memory.free', '--format=csv,noheader,nounits'], { timeout: 5000, encoding: 'utf8' });
-    const parts = out.trim().split(',').map(s => s.trim());
+    const out = await _execFileAsync(
+      'nvidia-smi',
+      ['--query-gpu=name,memory.total,memory.used,memory.free', '--format=csv,noheader,nounits'],
+      { timeout: 5000, encoding: 'utf8' }
+    );
+    const parts = out
+      .trim()
+      .split(',')
+      .map((s) => s.trim());
     if (parts.length >= 4) {
       return {
         name: parts[0],
@@ -615,54 +646,62 @@ async function detectNvidiaGpu() {
         vram_free_mb: parseInt(parts[3]) || 0,
       };
     }
-  } catch { /* nvidia-smi not available */ }
+  } catch {
+    /* nvidia-smi not available */
+  }
   return null;
 }
 
 async function detectGpuInfo(ollamaUrl) {
-  return cachedAsync('gpu-info', async () => {
-    const mode = detectConfiguredMode();
-    const system = { total_mb: Math.round(os.totalmem() / 1048576), free_mb: Math.round(os.freemem() / 1048576) };
-    const result = { gpu: null, system, mode };
+  return cachedAsync(
+    'gpu-info',
+    async () => {
+      const mode = detectConfiguredMode();
+      const system = { total_mb: Math.round(os.totalmem() / 1048576), free_mb: Math.round(os.freemem() / 1048576) };
+      const result = { gpu: null, system, mode };
 
-    const nvidiaGpu = await detectNvidiaGpu();
-    if (nvidiaGpu) {
-      result.gpu = nvidiaGpu;
-    }
-
-    try {
-      const ps = await ollamaFetch(ollamaUrl, 'GET', '/api/ps');
-      const models = ps.data && ps.data.models ? ps.data.models : [];
-      let totalSize = 0;
-      let totalVram = 0;
-      for (const m of models) {
-        totalSize += m.size || 0;
-        totalVram += m.size_vram || 0;
+      const nvidiaGpu = await detectNvidiaGpu();
+      if (nvidiaGpu) {
+        result.gpu = nvidiaGpu;
       }
-      result.ollama_gpu = {
-        running_models: models.length,
-        total_size_bytes: totalSize,
-        total_vram_bytes: totalVram,
-        gpu_offload_pct: totalSize > 0 ? Math.round(totalVram / totalSize * 100) : 0,
-      };
-    } catch { /* Ollama not reachable */ }
 
-    if (!result.gpu && (mode === 'metal' || mode === 'metal-native')) {
-      const og = result.ollama_gpu;
-      result.gpu = {
-        name: 'Apple Silicon (Metal)',
-        type: 'metal',
-        vram_total_mb: system.total_mb,
-        vram_used_mb: system.total_mb - system.free_mb,
-        vram_free_mb: system.free_mb,
-      };
-      if (og && og.running_models > 0 && og.gpu_offload_pct > 0) {
-        result.gpu.offload_pct = og.gpu_offload_pct;
+      try {
+        const ps = await ollamaFetch(ollamaUrl, 'GET', '/api/ps');
+        const models = ps.data && ps.data.models ? ps.data.models : [];
+        let totalSize = 0;
+        let totalVram = 0;
+        for (const m of models) {
+          totalSize += m.size || 0;
+          totalVram += m.size_vram || 0;
+        }
+        result.ollama_gpu = {
+          running_models: models.length,
+          total_size_bytes: totalSize,
+          total_vram_bytes: totalVram,
+          gpu_offload_pct: totalSize > 0 ? Math.round((totalVram / totalSize) * 100) : 0,
+        };
+      } catch {
+        /* Ollama not reachable */
       }
-    }
 
-    return result;
-  }, GPU_CACHE_TTL_MS);
+      if (!result.gpu && (mode === 'metal' || mode === 'metal-native')) {
+        const og = result.ollama_gpu;
+        result.gpu = {
+          name: 'Apple Silicon (Metal)',
+          type: 'metal',
+          vram_total_mb: system.total_mb,
+          vram_used_mb: system.total_mb - system.free_mb,
+          vram_free_mb: system.free_mb,
+        };
+        if (og && og.running_models > 0 && og.gpu_offload_pct > 0) {
+          result.gpu.offload_pct = og.gpu_offload_pct;
+        }
+      }
+
+      return result;
+    },
+    GPU_CACHE_TTL_MS
+  );
 }
 
 // ── System Info ──────────────────────────────────────────────────
@@ -689,7 +728,9 @@ function getLinuxDistro() {
     const version = (txt.match(/^VERSION="?(.+?)"?$/m) || [])[1];
     if (name && version) return `${name} ${version}`;
     if (name) return name;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return 'Linux';
 }
 
@@ -707,7 +748,10 @@ function getPlatformLabel() {
 async function readFirstNonEmptyLine(cmd, args) {
   try {
     const out = await _execFileAsync(cmd, args, { timeout: 5000, encoding: 'utf8' });
-    const line = out.split(/\r?\n/).map((v) => v.trim()).find(Boolean);
+    const line = out
+      .split(/\r?\n/)
+      .map((v) => v.trim())
+      .find(Boolean);
     return line || '';
   } catch {
     return '';
@@ -744,13 +788,16 @@ async function detectCpuTopology() {
       }
       if (physical.size > 0) cpuCores = physical.size;
     } else if (process.platform === 'win32') {
-      const psScript = '$c=(Get-CimInstance Win32_Processor | Measure-Object NumberOfCores -Sum).Sum; $l=(Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum; Write-Output "$c,$l"';
+      const psScript =
+        '$c=(Get-CimInstance Win32_Processor | Measure-Object NumberOfCores -Sum).Sum; $l=(Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum; Write-Output "$c,$l"';
       const line = await readFirstNonEmptyLine('powershell', ['-NoProfile', '-Command', psScript]);
       const parts = line.split(',').map((v) => toNumber(v.trim(), 0));
       if (parts[0] > 0) cpuCores = parts[0];
       if (parts[1] > 0) return { cpuCores: Math.max(1, cpuCores), cpuThreads: Math.max(cpuThreads, parts[1]) };
     }
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   if (cpuCores > cpuThreads) cpuCores = cpuThreads;
   return { cpuCores: Math.max(1, cpuCores), cpuThreads: Math.max(1, cpuThreads) };
@@ -785,11 +832,16 @@ async function sampleCpuUsagePercent() {
 async function getSystemGpuInfo() {
   // 1) NVIDIA
   try {
-    const out = (await _execFileAsync(
-      'nvidia-smi',
-      ['--query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,temperature.gpu', '--format=csv,noheader,nounits'],
-      { timeout: 5000, encoding: 'utf8' }
-    )).trim();
+    const out = (
+      await _execFileAsync(
+        'nvidia-smi',
+        [
+          '--query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,temperature.gpu',
+          '--format=csv,noheader,nounits',
+        ],
+        { timeout: 5000, encoding: 'utf8' }
+      )
+    ).trim();
     if (out) {
       const firstLine = out.split(/\r?\n/)[0];
       const [name, driver, vramTotal, vramUsed, util, temp] = firstLine.split(',').map((s) => s.trim());
@@ -800,12 +852,14 @@ async function getSystemGpuInfo() {
         driver: driver || null,
         vramTotalMb: totalMb,
         vramUsedMb: usedMb,
-        vramUsagePercent: totalMb ? Math.round((usedMb || 0) / totalMb * 100) : null,
+        vramUsagePercent: totalMb ? Math.round(((usedMb || 0) / totalMb) * 100) : null,
         utilizationPercent: toNumber(util, null),
         temperatureC: toNumber(temp, null),
       };
     }
-  } catch { /* no nvidia-smi */ }
+  } catch {
+    /* no nvidia-smi */
+  }
 
   // 2) Apple Silicon / Metal
   if (os.platform() === 'darwin' && os.arch() === 'arm64') {
@@ -826,15 +880,21 @@ async function getSystemGpuInfo() {
         temperatureC: null,
         unifiedMemory: true,
       };
-    } catch { /* ignore */ }
+    } catch {
+      /* ignore */
+    }
   }
 
   // 3) AMD ROCm
   try {
-    const out = await _execFileAsync('rocm-smi', ['--showproductname', '--showmeminfo', 'vram', '--showuse', '--showtemp', '--csv'], {
-      timeout: 5000,
-      encoding: 'utf8',
-    });
+    const out = await _execFileAsync(
+      'rocm-smi',
+      ['--showproductname', '--showmeminfo', 'vram', '--showuse', '--showtemp', '--csv'],
+      {
+        timeout: 5000,
+        encoding: 'utf8',
+      }
+    );
     const lines = out.split(/\r?\n/).filter(Boolean);
     if (lines.length >= 2) {
       const dataLine = lines[1];
@@ -842,14 +902,28 @@ async function getSystemGpuInfo() {
       return {
         name: cols[1] || 'AMD GPU',
         driver: 'ROCm',
-        vramTotalMb: toNumber(cols.find((v) => /total/i.test(v)), null),
-        vramUsedMb: toNumber(cols.find((v) => /used/i.test(v)), null),
+        vramTotalMb: toNumber(
+          cols.find((v) => /total/i.test(v)),
+          null
+        ),
+        vramUsedMb: toNumber(
+          cols.find((v) => /used/i.test(v)),
+          null
+        ),
         vramUsagePercent: null,
-        utilizationPercent: toNumber(cols.find((v) => /gpu use/i.test(v)), null),
-        temperatureC: toNumber(cols.find((v) => /temp/i.test(v)), null),
+        utilizationPercent: toNumber(
+          cols.find((v) => /gpu use/i.test(v)),
+          null
+        ),
+        temperatureC: toNumber(
+          cols.find((v) => /temp/i.test(v)),
+          null
+        ),
       };
     }
-  } catch { /* no rocm-smi */ }
+  } catch {
+    /* no rocm-smi */
+  }
 
   return null;
 }
@@ -857,11 +931,15 @@ async function getSystemGpuInfo() {
 function isDockerEnv() {
   try {
     if (fs.existsSync('/.dockerenv')) return true;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   try {
     const cgroup = fs.readFileSync('/proc/1/cgroup', 'utf8');
     return cgroup.includes('docker') || cgroup.includes('containerd') || cgroup.includes('kubepods');
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return false;
 }
 
@@ -872,21 +950,27 @@ function parseContainerId() {
     if (match64) return match64[0].slice(0, 12);
     const match12 = txt.match(/[a-f0-9]{12,}/);
     if (match12) return match12[0].slice(0, 12);
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   return null;
 }
 
 async function getDirectorySizeGb(targetPath) {
   if (!targetPath || !fs.existsSync(targetPath)) return null;
   try {
-    const out = (await _execFileAsync('du', ['-sk', targetPath], {
-      timeout: 5000,
-      encoding: 'utf8',
-    })).trim();
+    const out = (
+      await _execFileAsync('du', ['-sk', targetPath], {
+        timeout: 5000,
+        encoding: 'utf8',
+      })
+    ).trim();
     const kb = toNumber(out.split(/\s+/)[0], null);
     if (kb == null) return null;
     return round1(kb / (1024 * 1024));
-  } catch { /* fallback below */ }
+  } catch {
+    /* fallback below */
+  }
 
   // Fallback recursion (used rarely where du is unavailable)
   let total = 0;
@@ -894,10 +978,18 @@ async function getDirectorySizeGb(targetPath) {
   while (stack.length) {
     const current = stack.pop();
     let stat;
-    try { stat = fs.statSync(current); } catch { continue; }
+    try {
+      stat = fs.statSync(current);
+    } catch {
+      continue;
+    }
     if (stat.isDirectory()) {
       let entries;
-      try { entries = fs.readdirSync(current); } catch { continue; }
+      try {
+        entries = fs.readdirSync(current);
+      } catch {
+        continue;
+      }
       for (const e of entries) stack.push(path.join(current, e));
     } else if (stat.isFile()) {
       total += stat.size;
@@ -908,7 +1000,7 @@ async function getDirectorySizeGb(targetPath) {
 
 function resolveEnvExpr(text) {
   return String(text).replace(/\$\{([^}:]+)(:-([^}]*))?\}/g, function (_, key, _x, def) {
-    return process.env[key] != null && process.env[key] !== '' ? process.env[key] : (def || '');
+    return process.env[key] != null && process.env[key] !== '' ? process.env[key] : def || '';
   });
 }
 
@@ -942,7 +1034,10 @@ function composeFilesFromEnv() {
   const raw = process.env.COMPOSE_FILE || '';
   if (!raw) return list;
   const sep = raw.includes(';') ? ';' : ':';
-  const items = raw.split(sep).map((v) => v.trim()).filter(Boolean);
+  const items = raw
+    .split(sep)
+    .map((v) => v.trim())
+    .filter(Boolean);
   for (const item of items) {
     const full = path.isAbsolute(item) ? item : path.join(__dirname, item);
     if (!list.includes(full)) list.push(full);
@@ -957,7 +1052,11 @@ function parseComposeInfo() {
 
   for (const composeFile of files) {
     let content;
-    try { content = fs.readFileSync(composeFile, 'utf8'); } catch { continue; }
+    try {
+      content = fs.readFileSync(composeFile, 'utf8');
+    } catch {
+      continue;
+    }
     const lines = content.split(/\r?\n/);
     let inServices = false;
     let currentService = null;
@@ -1117,7 +1216,9 @@ async function getDockerDetails(composeInfo) {
   try {
     const st = fs.statSync('/.dockerenv');
     created = st.birthtime ? st.birthtime.toISOString() : null;
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
 
   return {
     containerId: parseContainerId(),
@@ -1142,7 +1243,10 @@ function getSecurityChecks(systemInfo) {
   });
 
   const adminPort = ports.find((p) => p.service === 'Admin Portal');
-  const adminPass = !adminPort || adminPort.binding === '127.0.0.1' || !!(process.env.ADMIN_API_KEY || process.env.JIMBOMESH_HOLLER_API_KEY);
+  const adminPass =
+    !adminPort ||
+    adminPort.binding === '127.0.0.1' ||
+    !!(process.env.ADMIN_API_KEY || process.env.JIMBOMESH_HOLLER_API_KEY);
   checks.push({
     name: 'Admin Portal Binding',
     status: adminPass ? 'pass' : 'warn',
@@ -1184,7 +1288,9 @@ function getSecurityChecks(systemInfo) {
     const from = (dockerfile.match(/^FROM\s+([^\s]+)\s*$/m) || [])[1] || '';
     baseImagePinned = !!from && !/:latest$/i.test(from);
     baseImageDetail = from ? from : 'Unknown base image';
-  } catch { /* ignore */ }
+  } catch {
+    /* ignore */
+  }
   checks.push({
     name: 'Docker Image Pinned',
     status: baseImagePinned ? 'pass' : 'warn',
@@ -1201,7 +1307,10 @@ function getSecurityChecks(systemInfo) {
   checks.push({
     name: 'Public Ports',
     status: exposed.length === 0 ? 'pass' : 'warn',
-    detail: exposed.length === 0 ? 'No LAN/public host bindings detected' : exposed.map((p) => `${p.port} (${p.exposure})`).join(', '),
+    detail:
+      exposed.length === 0
+        ? 'No LAN/public host bindings detected'
+        : exposed.map((p) => `${p.port} (${p.exposure})`).join(', '),
   });
 
   const qdrantEnabled = !!process.env.QDRANT_URL || ports.some((p) => p.service.indexOf('Qdrant') !== -1);
@@ -1209,7 +1318,11 @@ function getSecurityChecks(systemInfo) {
   checks.push({
     name: 'Qdrant Auth',
     status: qdrantAuth ? 'pass' : 'warn',
-    detail: qdrantEnabled ? (qdrantAuth ? 'API key configured' : 'Qdrant enabled but API key missing') : 'Qdrant not enabled',
+    detail: qdrantEnabled
+      ? qdrantAuth
+        ? 'API key configured'
+        : 'Qdrant enabled but API key missing'
+      : 'Qdrant not enabled',
   });
 
   checks.push({
@@ -1300,10 +1413,12 @@ async function getSystemInfoPayload() {
     network: base.network,
     ports,
     security: { score: 0, rating: 'Critical', checks: [] },
-    docker: base.network.isDocker ? {
-      ...(base.docker || {}),
-      composeProject: composeInfo.composeProject,
-    } : null,
+    docker: base.network.isDocker
+      ? {
+          ...(base.docker || {}),
+          composeProject: composeInfo.composeProject,
+        }
+      : null,
   };
   payload.security = getSecurityChecks(payload);
   return payload;
@@ -1335,12 +1450,14 @@ async function handleMarketplaceOllama(ollamaUrl, res, sendError) {
         installedNames.add(base);
       }
     }
-    const models = catalog.map(m => ({
+    const models = catalog.map((m) => ({
       ...m,
-      installed_tags: m.variants.filter(v => {
-        const full = v.tag === 'latest' ? m.name : m.name + ':' + v.tag;
-        return installedNames.has(full);
-      }).map(v => v.tag),
+      installed_tags: m.variants
+        .filter((v) => {
+          const full = v.tag === 'latest' ? m.name : m.name + ':' + v.tag;
+          return installedNames.has(full);
+        })
+        .map((v) => v.tag),
     }));
     json(res, 200, { models, cached_at: new Date().toISOString() });
   } catch (err) {
@@ -1354,15 +1471,19 @@ function hfFetch(url) {
   return new Promise((resolve, reject) => {
     const req = https.get(url, { headers: { 'User-Agent': 'JimboMesh-Holler/1.0' } }, (res) => {
       let data = '';
-      res.on('data', chunk => (data += chunk));
+      res.on('data', (chunk) => (data += chunk));
       res.on('end', () => {
         if (res.statusCode === 429) {
           reject(new Error('HuggingFace rate limit exceeded — try again in a few minutes'));
           return;
         }
         let parsed;
-        try { parsed = JSON.parse(data); }
-        catch { reject(new Error(`Invalid JSON from HuggingFace (HTTP ${res.statusCode})`)); return; }
+        try {
+          parsed = JSON.parse(data);
+        } catch {
+          reject(new Error(`Invalid JSON from HuggingFace (HTTP ${res.statusCode})`));
+          return;
+        }
 
         if (res.statusCode >= 400) {
           const msg = parsed.error || `HTTP ${res.statusCode}`;
@@ -1401,7 +1522,9 @@ async function handleMarketplaceHuggingFace(req, res, sendError, db) {
           if (!importedRepos[imp.repo_id]) importedRepos[imp.repo_id] = [];
           importedRepos[imp.repo_id].push({ filename: imp.filename, model_name: imp.model_name });
         }
-      } catch { /* non-critical */ }
+      } catch {
+        /* non-critical */
+      }
     }
 
     json(res, 200, { models: result, imported: importedRepos, cached_at: new Date().toISOString() });
@@ -1441,16 +1564,22 @@ async function handleHfModelFiles(req, res, sendError, db) {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
     const repoId = params.get('repo');
-    if (!repoId) { sendError(res, 400, 'invalid_request', 'Missing repo parameter'); return; }
-    if (!/^[^/]+\/[^/]+$/.test(repoId)) { sendError(res, 400, 'invalid_request', 'Invalid repo format — expected owner/name'); return; }
+    if (!repoId) {
+      sendError(res, 400, 'invalid_request', 'Missing repo parameter');
+      return;
+    }
+    if (!/^[^/]+\/[^/]+$/.test(repoId)) {
+      sendError(res, 400, 'invalid_request', 'Invalid repo format — expected owner/name');
+      return;
+    }
 
     const cacheKey = `hf-files:${repoId}`;
     const files = await cachedAsync(cacheKey, async () => {
       const tree = await hfFetch(`https://huggingface.co/api/models/${hfEncodeRepoPath(repoId)}/tree/main`);
       if (!Array.isArray(tree)) return [];
       return tree
-        .filter(f => f.type === 'file' && f.path && f.path.endsWith('.gguf'))
-        .map(f => ({ filename: f.path, size: f.size || (f.lfs && f.lfs.size) || 0 }));
+        .filter((f) => f.type === 'file' && f.path && f.path.endsWith('.gguf'))
+        .map((f) => ({ filename: f.path, size: f.size || (f.lfs && f.lfs.size) || 0 }));
     });
 
     const importedFiles = {};
@@ -1458,10 +1587,12 @@ async function handleHfModelFiles(req, res, sendError, db) {
       try {
         const imports = db.getHfImportsByRepo(repoId);
         for (const imp of imports) importedFiles[imp.filename] = imp.model_name;
-      } catch { /* non-critical */ }
+      } catch {
+        /* non-critical */
+      }
     }
 
-    const enriched = files.map(f => ({
+    const enriched = files.map((f) => ({
       ...f,
       installed_as: importedFiles[f.filename] || null,
     }));
@@ -1486,7 +1617,11 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
     }
 
     const tmpDir = path.join(os.tmpdir(), 'holler-imports');
-    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { /* exists */ }
+    try {
+      fs.mkdirSync(tmpDir, { recursive: true });
+    } catch {
+      /* exists */
+    }
 
     const safeFilename = path.basename(body.filename);
     if (!safeFilename || safeFilename === '.' || safeFilename === '..' || !safeFilename.endsWith('.gguf')) {
@@ -1504,7 +1639,7 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     });
     const sse = createSseSession(req, res);
 
@@ -1516,13 +1651,41 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
     let activeCreateReq = null;
 
     sse.onClose(() => {
-      try { if (activeDownloadReq) activeDownloadReq.destroy(); } catch { /* ignore */ }
-      try { if (activeFileStream) activeFileStream.destroy(); } catch { /* ignore */ }
-      try { if (activeHashStream) activeHashStream.destroy(); } catch { /* ignore */ }
-      try { if (activeBlobReq) activeBlobReq.destroy(); } catch { /* ignore */ }
-      try { if (activeUploadStream) activeUploadStream.destroy(); } catch { /* ignore */ }
-      try { if (activeCreateReq) activeCreateReq.destroy(); } catch { /* ignore */ }
-      try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+      try {
+        if (activeDownloadReq) activeDownloadReq.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (activeFileStream) activeFileStream.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (activeHashStream) activeHashStream.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (activeBlobReq) activeBlobReq.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (activeUploadStream) activeUploadStream.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        if (activeCreateReq) activeCreateReq.destroy();
+      } catch {
+        /* ignore */
+      }
+      try {
+        fs.unlinkSync(destPath);
+      } catch {
+        /* ignore */
+      }
     });
 
     sse.send({ phase: 'download', status: 'Starting download...' });
@@ -1567,10 +1730,15 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
           downloaded += chunk.length;
           fileStream.write(chunk);
           if (totalBytes > 0) {
-            const pct = Math.round(downloaded / totalBytes * 100);
+            const pct = Math.round((downloaded / totalBytes) * 100);
             if (pct !== lastPct) {
               lastPct = pct;
-              sse.send({ phase: 'download', status: `Downloading... ${pct}%`, completed: downloaded, total: totalBytes });
+              sse.send({
+                phase: 'download',
+                status: `Downloading... ${pct}%`,
+                completed: downloaded,
+                total: totalBytes,
+              });
             }
           }
         });
@@ -1592,7 +1760,11 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
             hashStream.on('data', (chunk) => hash.update(chunk));
             hashStream.on('error', (err) => {
               sse.end({ error: `Hash failed: ${err.message}` });
-              try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+              try {
+                fs.unlinkSync(destPath);
+              } catch {
+                /* ignore */
+              }
             });
             hashStream.on('end', () => {
               if (sse.isClosed()) return;
@@ -1601,115 +1773,161 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
               sse.send({ phase: 'import', status: 'Uploading to Ollama blob store...' });
 
               // Step 2: upload the GGUF file as a blob to Ollama
-              const blobReq = http.request({
-                hostname: ollamaParsed.hostname,
-                port: ollamaPort,
-                path: `/api/blobs/${digest}`,
-                method: 'POST',
-                headers: { 'Content-Length': fileSize },
-              }, (blobRes) => {
-                if (sse.isClosed()) return;
-                let blobBody = '';
-                blobRes.on('data', (chunk) => (blobBody += chunk));
-                blobRes.on('end', () => {
+              const blobReq = http.request(
+                {
+                  hostname: ollamaParsed.hostname,
+                  port: ollamaPort,
+                  path: `/api/blobs/${digest}`,
+                  method: 'POST',
+                  headers: { 'Content-Length': fileSize },
+                },
+                (blobRes) => {
                   if (sse.isClosed()) return;
-                  if (blobRes.statusCode >= 400 && blobRes.statusCode !== 409) {
-                    let msg = `Ollama blob upload failed: HTTP ${blobRes.statusCode}`;
-                    try { const e = JSON.parse(blobBody); if (e.error) msg = e.error; } catch { /* use default */ }
-                    sse.end({ error: msg });
-                    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-                    return;
-                  }
-
-                  sse.send({ phase: 'import', status: 'Creating model in Ollama...' });
-
-                  // Step 3: create the model referencing the uploaded blob
-                  let createFailed = false;
-                  const createReq = http.request({
-                    hostname: ollamaParsed.hostname,
-                    port: ollamaPort,
-                    path: '/api/create',
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                  }, (createRes) => {
+                  let blobBody = '';
+                  blobRes.on('data', (chunk) => (blobBody += chunk));
+                  blobRes.on('end', () => {
                     if (sse.isClosed()) return;
-                    if (createRes.statusCode >= 400) {
-                      let errBody = '';
-                      createRes.on('data', (chunk) => (errBody += chunk));
-                      createRes.on('end', () => {
-                        if (sse.isClosed()) return;
-                        let msg = `Ollama returned HTTP ${createRes.statusCode}`;
-                        try { const e = JSON.parse(errBody); if (e.error) msg = e.error; } catch { /* use default */ }
-                        sse.end({ error: `Ollama import failed: ${msg}` });
-                        try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-                      });
+                    if (blobRes.statusCode >= 400 && blobRes.statusCode !== 409) {
+                      let msg = `Ollama blob upload failed: HTTP ${blobRes.statusCode}`;
+                      try {
+                        const e = JSON.parse(blobBody);
+                        if (e.error) msg = e.error;
+                      } catch {
+                        /* use default */
+                      }
+                      sse.end({ error: msg });
+                      try {
+                        fs.unlinkSync(destPath);
+                      } catch {
+                        /* ignore */
+                      }
                       return;
                     }
 
-                    let buffer = '';
-                    createRes.on('data', (chunk) => {
-                      if (sse.isClosed()) return;
-                      buffer += chunk.toString();
-                      const lines = buffer.split('\n');
-                      buffer = lines.pop();
-                      for (const line of lines) {
-                        if (line.trim() && !createFailed) {
-                          try {
-                            const msg = JSON.parse(line);
-                            if (msg.error) {
-                              createFailed = true;
-                              sse.send({ error: `Ollama import failed: ${msg.error}` });
-                            } else {
-                              sse.send({ phase: 'import', status: msg.status || 'Processing...', done: msg.status === 'success' });
+                    sse.send({ phase: 'import', status: 'Creating model in Ollama...' });
+
+                    // Step 3: create the model referencing the uploaded blob
+                    let createFailed = false;
+                    const createReq = http.request(
+                      {
+                        hostname: ollamaParsed.hostname,
+                        port: ollamaPort,
+                        path: '/api/create',
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                      },
+                      (createRes) => {
+                        if (sse.isClosed()) return;
+                        if (createRes.statusCode >= 400) {
+                          let errBody = '';
+                          createRes.on('data', (chunk) => (errBody += chunk));
+                          createRes.on('end', () => {
+                            if (sse.isClosed()) return;
+                            let msg = `Ollama returned HTTP ${createRes.statusCode}`;
+                            try {
+                              const e = JSON.parse(errBody);
+                              if (e.error) msg = e.error;
+                            } catch {
+                              /* use default */
                             }
+                            sse.end({ error: `Ollama import failed: ${msg}` });
+                            try {
+                              fs.unlinkSync(destPath);
+                            } catch {
+                              /* ignore */
+                            }
+                          });
+                          return;
+                        }
+
+                        let buffer = '';
+                        createRes.on('data', (chunk) => {
+                          if (sse.isClosed()) return;
+                          buffer += chunk.toString();
+                          const lines = buffer.split('\n');
+                          buffer = lines.pop();
+                          for (const line of lines) {
+                            if (line.trim() && !createFailed) {
+                              try {
+                                const msg = JSON.parse(line);
+                                if (msg.error) {
+                                  createFailed = true;
+                                  sse.send({ error: `Ollama import failed: ${msg.error}` });
+                                } else {
+                                  sse.send({
+                                    phase: 'import',
+                                    status: msg.status || 'Processing...',
+                                    done: msg.status === 'success',
+                                  });
+                                }
+                              } catch {
+                                sse.send({ phase: 'import', status: line });
+                              }
+                            }
+                          }
+                        });
+                        createRes.on('end', () => {
+                          if (sse.isClosed()) return;
+                          if (buffer.trim() && !createFailed) {
+                            try {
+                              const msg = JSON.parse(buffer);
+                              if (msg.error) {
+                                createFailed = true;
+                                sse.send({ error: `Ollama import failed: ${msg.error}` });
+                              } else {
+                                sse.send({ phase: 'import', status: msg.status || 'Done', done: true });
+                              }
+                            } catch {
+                              sse.send({ phase: 'import', status: buffer, done: true });
+                            }
+                          }
+                          if (!createFailed && db) {
+                            try {
+                              db.upsertHfImport(body.repo_id, safeFilename, body.model_name);
+                            } catch {
+                              /* non-critical */
+                            }
+                          }
+                          sse.end({ done: true });
+                          try {
+                            fs.unlinkSync(destPath);
                           } catch {
-                            sse.send({ phase: 'import', status: line });
+                            /* ignore */
                           }
-                        }
+                        });
+                      }
+                    );
+                    activeCreateReq = createReq;
+
+                    createReq.on('error', (err) => {
+                      sse.end({ error: `Ollama create failed: ${err.message}` });
+                      try {
+                        fs.unlinkSync(destPath);
+                      } catch {
+                        /* ignore */
                       }
                     });
-                    createRes.on('end', () => {
-                      if (sse.isClosed()) return;
-                      if (buffer.trim() && !createFailed) {
-                        try {
-                          const msg = JSON.parse(buffer);
-                          if (msg.error) {
-                            createFailed = true;
-                            sse.send({ error: `Ollama import failed: ${msg.error}` });
-                          } else {
-                            sse.send({ phase: 'import', status: msg.status || 'Done', done: true });
-                          }
-                        } catch {
-                          sse.send({ phase: 'import', status: buffer, done: true });
-                        }
-                      }
-                      if (!createFailed && db) {
-                        try { db.upsertHfImport(body.repo_id, safeFilename, body.model_name); } catch { /* non-critical */ }
-                      }
-                      sse.end({ done: true });
-                      try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-                    });
-                  });
-                  activeCreateReq = createReq;
 
-                  createReq.on('error', (err) => {
-                    sse.end({ error: `Ollama create failed: ${err.message}` });
-                    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                    createReq.write(
+                      JSON.stringify({
+                        model: body.model_name,
+                        files: { [safeFilename]: digest },
+                        stream: true,
+                      })
+                    );
+                    createReq.end();
                   });
-
-                  createReq.write(JSON.stringify({
-                    model: body.model_name,
-                    files: { [safeFilename]: digest },
-                    stream: true,
-                  }));
-                  createReq.end();
-                });
-              });
+                }
+              );
               activeBlobReq = blobReq;
 
               blobReq.on('error', (err) => {
                 sse.end({ error: `Blob upload failed: ${err.message}` });
-                try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                try {
+                  fs.unlinkSync(destPath);
+                } catch {
+                  /* ignore */
+                }
               });
 
               // Stream the file to Ollama's blob store
@@ -1723,7 +1941,11 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
         dlRes.on('error', (err) => {
           fileStream.end();
           sse.end({ error: `Download error: ${err.message}` });
-          try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+          try {
+            fs.unlinkSync(destPath);
+          } catch {
+            /* ignore */
+          }
         });
       });
       activeDownloadReq.on('error', (err) => {
@@ -1778,38 +2000,41 @@ function handleGitHubIssue(req, res, sendError) {
       labels,
     });
 
-    const ghReq = https.request({
-      hostname: 'api.github.com',
-      path: `/repos/${GITHUB_REPO}/issues`,
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Accept': 'application/vnd.github+json',
-        'Content-Type': 'application/json',
-        'User-Agent': 'JimboMesh-Holler/1.0',
-        'X-GitHub-Api-Version': '2022-11-28',
-        'Content-Length': Buffer.byteLength(postData),
+    const ghReq = https.request(
+      {
+        hostname: 'api.github.com',
+        path: `/repos/${GITHUB_REPO}/issues`,
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: 'application/vnd.github+json',
+          'Content-Type': 'application/json',
+          'User-Agent': 'JimboMesh-Holler/1.0',
+          'X-GitHub-Api-Version': '2022-11-28',
+          'Content-Length': Buffer.byteLength(postData),
+        },
       },
-    }, (ghRes) => {
-      let data = '';
-      ghRes.on('data', (chunk) => (data += chunk));
-      ghRes.on('end', () => {
-        try {
-          const parsed = JSON.parse(data);
-          if (ghRes.statusCode === 201) {
-            json(res, 201, {
-              success: true,
-              issue_number: parsed.number,
-              url: parsed.html_url,
-            });
-          } else {
-            sendError(res, ghRes.statusCode, 'github_error', parsed.message || 'GitHub API error');
+      (ghRes) => {
+        let data = '';
+        ghRes.on('data', (chunk) => (data += chunk));
+        ghRes.on('end', () => {
+          try {
+            const parsed = JSON.parse(data);
+            if (ghRes.statusCode === 201) {
+              json(res, 201, {
+                success: true,
+                issue_number: parsed.number,
+                url: parsed.html_url,
+              });
+            } else {
+              sendError(res, ghRes.statusCode, 'github_error', parsed.message || 'GitHub API error');
+            }
+          } catch {
+            sendError(res, 502, 'github_error', 'Invalid response from GitHub');
           }
-        } catch {
-          sendError(res, 502, 'github_error', 'Invalid response from GitHub');
-        }
-      });
-    });
+        });
+      }
+    );
 
     ghReq.on('error', (err) => {
       sendError(res, 502, 'github_error', `GitHub API request failed: ${err.message}`);
@@ -1837,7 +2062,7 @@ function handleDocumentUpload(req, res, db, sendError) {
   res.writeHead(200, {
     'Content-Type': 'text/event-stream',
     'Cache-Control': 'no-cache',
-    'Connection': 'keep-alive',
+    Connection: 'keep-alive',
   });
   const sse = createSseSession(req, res);
 
@@ -1855,18 +2080,38 @@ function handleDocumentUpload(req, res, db, sendError) {
     limits: { fileSize: MAX_SIZE, files: 1 },
   });
   sse.onClose(() => {
-    try { req.unpipe(busboy); } catch { /* ignore */ }
-    try { busboy.destroy(); } catch { /* ignore */ }
-    try { if (writeStream) writeStream.destroy(); } catch { /* ignore */ }
-    try { if (savedPath) fs.unlinkSync(savedPath); } catch { /* ignore */ }
+    try {
+      req.unpipe(busboy);
+    } catch {
+      /* ignore */
+    }
+    try {
+      busboy.destroy();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (writeStream) writeStream.destroy();
+    } catch {
+      /* ignore */
+    }
+    try {
+      if (savedPath) fs.unlinkSync(savedPath);
+    } catch {
+      /* ignore */
+    }
   });
 
   const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf', '.csv', '.json', '.xml', '.html', '.doc', '.docx'];
 
   busboy.on('file', (fieldname, file, info) => {
-    originalName = path.basename(info.filename).split('').filter(function (ch) {
-      return ch.charCodeAt(0) >= 0x20;
-    }).join('');
+    originalName = path
+      .basename(info.filename)
+      .split('')
+      .filter(function (ch) {
+        return ch.charCodeAt(0) >= 0x20;
+      })
+      .join('');
     mimeType = info.mimeType || pipeline.guessMime(originalName);
     // Correct MIME for extensions busboy might not detect
     if (mimeType === 'application/octet-stream') {
@@ -1881,13 +2126,19 @@ function handleDocumentUpload(req, res, db, sendError) {
     savedPath = path.join(pipeline.DOCUMENTS_DIR, docId + ext);
     writeStream = fs.createWriteStream(savedPath);
 
-    file.on('data', (chunk) => { fileSize += chunk.length; });
+    file.on('data', (chunk) => {
+      fileSize += chunk.length;
+    });
     file.pipe(writeStream);
 
     file.on('limit', () => {
       fileLimitHit = true;
       writeStream.destroy();
-      try { fs.unlinkSync(savedPath); } catch (_e) { /* intentionally empty */ }
+      try {
+        fs.unlinkSync(savedPath);
+      } catch (_e) {
+        /* intentionally empty */
+      }
       sse.end({ error: 'File exceeds maximum size (' + Math.round(MAX_SIZE / 1048576) + 'MB)' });
     });
   });
@@ -1937,7 +2188,11 @@ function handleDocumentUpload(req, res, db, sendError) {
       sse.end({ done: true, document_id: docId, chunks: result.chunkCount });
     } catch (err) {
       console.error('[documents] Processing error:', err.message);
-      try { db.updateDocumentStatus(docId, 'error', err.message, 0); } catch (_e) { /* intentionally empty */ }
+      try {
+        db.updateDocumentStatus(docId, 'error', err.message, 0);
+      } catch (_e) {
+        /* intentionally empty */
+      }
       sse.end({ error: err.message });
     }
   });
@@ -1965,7 +2220,7 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
-      'Connection': 'keep-alive',
+      Connection: 'keep-alive',
     });
     const sse = createSseSession(req, res);
 
@@ -1975,7 +2230,10 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
 
     if (!result.messages) {
       sse.send({ phase: 'sources', hits: [] });
-      sse.send({ phase: 'answer', message: { role: 'assistant', content: 'No relevant documents found for your query.' } });
+      sse.send({
+        phase: 'answer',
+        message: { role: 'assistant', content: 'No relevant documents found for your query.' },
+      });
       sse.end({ done: true });
       return;
     }
@@ -1995,42 +2253,53 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     // Stream chat response from Ollama
     const parsed = new URL(ollamaUrl);
     const chatBody = JSON.stringify({ model: chatModel, messages: result.messages, stream: true });
-    const chatReq = http.request({
-      hostname: parsed.hostname,
-      port: parseInt(parsed.port) || 11435,
-      path: '/api/chat',
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      timeout: 120000,
-    }, function (chatRes) {
-      let buffer = '';
-      chatRes.on('data', function (chunk) {
-        if (sse.isClosed()) return;
-        buffer += chunk.toString();
-        const lines = buffer.split('\n');
-        buffer = lines.pop();
-        for (let i = 0; i < lines.length; i++) {
-          if (lines[i].trim()) {
-            try {
-              const obj = JSON.parse(lines[i]);
-              sse.send({ phase: 'answer', message: obj.message, done: obj.done });
-            } catch (_e) { /* intentionally empty */ }
+    const chatReq = http.request(
+      {
+        hostname: parsed.hostname,
+        port: parseInt(parsed.port) || 11435,
+        path: '/api/chat',
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        timeout: 120000,
+      },
+      function (chatRes) {
+        let buffer = '';
+        chatRes.on('data', function (chunk) {
+          if (sse.isClosed()) return;
+          buffer += chunk.toString();
+          const lines = buffer.split('\n');
+          buffer = lines.pop();
+          for (let i = 0; i < lines.length; i++) {
+            if (lines[i].trim()) {
+              try {
+                const obj = JSON.parse(lines[i]);
+                sse.send({ phase: 'answer', message: obj.message, done: obj.done });
+              } catch (_e) {
+                /* intentionally empty */
+              }
+            }
           }
-        }
-      });
-      chatRes.on('end', function () {
-        if (sse.isClosed()) return;
-        if (buffer.trim()) {
-          try {
-            const obj = JSON.parse(buffer);
-            sse.send({ phase: 'answer', message: obj.message, done: obj.done });
-          } catch (_e) { /* intentionally empty */ }
-        }
-        sse.end({ done: true });
-      });
-    });
+        });
+        chatRes.on('end', function () {
+          if (sse.isClosed()) return;
+          if (buffer.trim()) {
+            try {
+              const obj = JSON.parse(buffer);
+              sse.send({ phase: 'answer', message: obj.message, done: obj.done });
+            } catch (_e) {
+              /* intentionally empty */
+            }
+          }
+          sse.end({ done: true });
+        });
+      }
+    );
     sse.onClose(function () {
-      try { chatReq.destroy(); } catch { /* ignore */ }
+      try {
+        chatReq.destroy();
+      } catch {
+        /* ignore */
+      }
     });
 
     chatReq.on('error', function (err) {
@@ -2064,14 +2333,24 @@ function handleMeshStatus(meshConnector, res, config) {
     let hollerName = '';
     let autoConnect = false;
     if (config && config.db) {
-      meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || meshUrl;
+      meshUrl =
+        config.db.getSetting('mesh_url') ||
+        process.env.JIMBOMESH_COORDINATOR_URL ||
+        process.env.JIMBOMESH_MESH_URL ||
+        meshUrl;
       hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
       autoConnect = config.db.getSetting('mesh_auto_connect') === 'true';
     }
     json(res, 200, {
-      state: 'disconnected', connected: false, connecting: false, mode: 'off-grid',
-      meshUrl: meshUrl, hollerName: hollerName, autoConnect: autoConnect,
-      hasStoredMeshKey: hasStoredMeshKey, log: []
+      state: 'disconnected',
+      connected: false,
+      connecting: false,
+      mode: 'off-grid',
+      meshUrl: meshUrl,
+      hollerName: hollerName,
+      autoConnect: autoConnect,
+      hasStoredMeshKey: hasStoredMeshKey,
+      log: [],
     });
     return;
   }
@@ -2087,29 +2366,36 @@ function meshVersionFetch(url, headers, timeoutMs) {
   return new Promise(function (resolve, reject) {
     const target = new URL(url);
     const client = target.protocol === 'https:' ? https : http;
-    const req = client.request({
-      hostname: target.hostname,
-      port: target.port ? parseInt(target.port) : (target.protocol === 'https:' ? 443 : 80),
-      path: target.pathname + (target.search || ''),
-      method: 'GET',
-      headers: headers || {},
-    }, function (res) {
-      let raw = '';
-      res.on('data', function (chunk) { raw += chunk.toString(); });
-      res.on('end', function () {
-        if (res.statusCode >= 400) {
-          reject(new Error('HTTP ' + res.statusCode));
-          return;
-        }
-        try {
-          resolve(JSON.parse(raw));
-        } catch (_) {
-          reject(new Error('Invalid JSON response'));
-        }
-      });
-    });
+    const req = client.request(
+      {
+        hostname: target.hostname,
+        port: target.port ? parseInt(target.port) : target.protocol === 'https:' ? 443 : 80,
+        path: target.pathname + (target.search || ''),
+        method: 'GET',
+        headers: headers || {},
+      },
+      function (res) {
+        let raw = '';
+        res.on('data', function (chunk) {
+          raw += chunk.toString();
+        });
+        res.on('end', function () {
+          if (res.statusCode >= 400) {
+            reject(new Error('HTTP ' + res.statusCode));
+            return;
+          }
+          try {
+            resolve(JSON.parse(raw));
+          } catch (_) {
+            reject(new Error('Invalid JSON response'));
+          }
+        });
+      }
+    );
     req.on('error', reject);
-    req.setTimeout(timeoutMs || 10000, function () { req.destroy(new Error('Request timeout')); });
+    req.setTimeout(timeoutMs || 10000, function () {
+      req.destroy(new Error('Request timeout'));
+    });
     req.end();
   });
 }
@@ -2133,11 +2419,7 @@ async function fetchLatestPublishedMeshVersion(meshConnector) {
     headers.Authorization = 'Bearer ' + token;
     headers['X-API-Key'] = token;
   }
-  const endpoints = [
-    base + '/api/holler/version',
-    base + '/api/version',
-    base + '/version',
-  ];
+  const endpoints = [base + '/api/holler/version', base + '/api/version', base + '/version'];
   let lastErr = null;
   for (let i = 0; i < endpoints.length; i++) {
     try {
@@ -2150,12 +2432,15 @@ async function fetchLatestPublishedMeshVersion(meshConnector) {
       lastErr = err;
     }
   }
-  throw (lastErr || new Error('No mesh version endpoint returned a version'));
+  throw lastErr || new Error('No mesh version endpoint returned a version');
 }
 
 async function handleMeshLatestVersion(meshConnector, res, config) {
   const currentVersion = (config && config.hollerVersion) || pkg.version;
-  const connected = !!(meshConnector && (meshConnector.connected || meshConnector._state === 'connected' || meshConnector._state === 'reconnecting'));
+  const connected = !!(
+    meshConnector &&
+    (meshConnector.connected || meshConnector._state === 'connected' || meshConnector._state === 'reconnecting')
+  );
   if (!connected) {
     json(res, 200, {
       connected: false,
@@ -2169,7 +2454,9 @@ async function handleMeshLatestVersion(meshConnector, res, config) {
     const meshUrl = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
     const data = await cachedAsync(
       'mesh-latest-version:' + meshUrl,
-      async function () { return await fetchLatestPublishedMeshVersion(meshConnector); },
+      async function () {
+        return await fetchLatestPublishedMeshVersion(meshConnector);
+      },
       10 * 60 * 1000
     );
     json(res, 200, {
@@ -2224,8 +2511,12 @@ function handleMeshConnect(req, res, config) {
 
     // SaaS API keys start with 'jmsh_' — reject anything that looks like a local key
     if (apiKey && !apiKey.startsWith('jmsh_')) {
-      config.sendError(res, 400, 'invalid_key',
-        'This looks like a local Holler API key, not a JimboMesh SaaS API key. SaaS keys start with jmsh_. Get yours at app.jimbomesh.ai');
+      config.sendError(
+        res,
+        400,
+        'invalid_key',
+        'This looks like a local Holler API key, not a JimboMesh SaaS API key. SaaS keys start with jmsh_. Get yours at app.jimbomesh.ai'
+      );
       return;
     }
 
@@ -2310,7 +2601,11 @@ function handleMeshConnectStored(res, config) {
     return;
   }
 
-  const meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
+  const meshUrl =
+    config.db.getSetting('mesh_url') ||
+    process.env.JIMBOMESH_COORDINATOR_URL ||
+    process.env.JIMBOMESH_MESH_URL ||
+    'https://api.jimbomesh.ai';
   const hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
 
   const originalLocalKey = config.getApiKey();
@@ -2352,7 +2647,11 @@ function handleMeshReconnect(res, config) {
     return;
   }
 
-  const meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
+  const meshUrl =
+    config.db.getSetting('mesh_url') ||
+    process.env.JIMBOMESH_COORDINATOR_URL ||
+    process.env.JIMBOMESH_MESH_URL ||
+    'https://api.jimbomesh.ai';
   const hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
 
   const originalLocalKey = config.getApiKey();
@@ -2404,9 +2703,19 @@ function maskKey(key) {
 }
 
 function createAdminRoutes(config) {
-  const { ollamaUrl, getApiKey, setApiKey, adminApiKey, sendError, getActivity, startTime, db, tokenManager, jwtValidator } = config;
-  const adminEnabled =
-    (process.env.ADMIN_ENABLED || 'true').toLowerCase() !== 'false';
+  const {
+    ollamaUrl,
+    getApiKey,
+    setApiKey,
+    adminApiKey,
+    sendError,
+    getActivity,
+    startTime,
+    db,
+    tokenManager,
+    jwtValidator,
+  } = config;
+  const adminEnabled = (process.env.ADMIN_ENABLED || 'true').toLowerCase() !== 'false';
 
   function effectiveAdminKey() {
     return adminApiKey || getApiKey();
@@ -2512,7 +2821,9 @@ function createAdminRoutes(config) {
       const qk = process.env.QDRANT_API_KEY || '';
       json(res, 200, { set: !!qk, masked: maskKey(qk) });
     } else if (req.method === 'GET' && route === '/gpu-info') {
-      detectGpuInfo(ollamaUrl).then(data => json(res, 200, data)).catch(err => sendError(res, 500, 'gpu_error', err.message));
+      detectGpuInfo(ollamaUrl)
+        .then((data) => json(res, 200, data))
+        .catch((err) => sendError(res, 500, 'gpu_error', err.message));
     } else if (req.method === 'GET' && route === '/marketplace/ollama') {
       handleMarketplaceOllama(ollamaUrl, res, sendError);
     } else if (req.method === 'GET' && route === '/marketplace/huggingface') {
@@ -2541,7 +2852,7 @@ function createAdminRoutes(config) {
         json(res, 200, { success: true, key: newKey, masked: maskKey(newKey) });
       });
 
-    // ── Auth Status & Bearer Token Routes ────────────────────────
+      // ── Auth Status & Bearer Token Routes ────────────────────────
     } else if (req.method === 'GET' && route === '/auth/status') {
       const tier2Tokens = tokenManager ? tokenManager.listTokens() : [];
       const tier3Config = jwtValidator ? jwtValidator.getConfig() : null;
@@ -2557,15 +2868,22 @@ function createAdminRoutes(config) {
           audience: tier3Config ? tier3Config.audience : null,
         },
       });
-
     } else if (req.method === 'GET' && route === '/tokens') {
-      if (!tokenManager) { json(res, 200, { tokens: [] }); return true; }
+      if (!tokenManager) {
+        json(res, 200, { tokens: [] });
+        return true;
+      }
       json(res, 200, { tokens: tokenManager.listTokens() });
-
     } else if (req.method === 'POST' && route === '/tokens') {
-      if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
+      if (!tokenManager) {
+        sendError(res, 501, 'not_available', 'Token manager not available');
+        return true;
+      }
       readBody(req).then(function (body) {
-        if (!body || !body.name) { sendError(res, 400, 'invalid_request', 'Missing token name'); return; }
+        if (!body || !body.name) {
+          sendError(res, 400, 'invalid_request', 'Missing token name');
+          return;
+        }
         const opts = {
           name: body.name,
           permissions: body.permissions || ['full'],
@@ -2586,32 +2904,50 @@ function createAdminRoutes(config) {
           raw: result.raw,
         });
       });
-
     } else if (req.method === 'DELETE' && route.match(/^\/tokens\/[^/]+$/)) {
-      if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
+      if (!tokenManager) {
+        sendError(res, 501, 'not_available', 'Token manager not available');
+        return true;
+      }
       const tokenId = route.slice('/tokens/'.length);
       const revoked = tokenManager.revokeToken(tokenId);
-      if (!revoked) { sendError(res, 404, 'not_found', 'Token not found'); return true; }
+      if (!revoked) {
+        sendError(res, 404, 'not_found', 'Token not found');
+        return true;
+      }
       json(res, 200, { revoked: true, id: tokenId });
-
     } else if (req.method === 'PATCH' && route.match(/^\/tokens\/[^/]+$/)) {
-      if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
+      if (!tokenManager) {
+        sendError(res, 501, 'not_available', 'Token manager not available');
+        return true;
+      }
       const tokenIdPatch = route.slice('/tokens/'.length);
       readBody(req).then(function (body) {
-        if (!body) { sendError(res, 400, 'invalid_request', 'Missing body'); return; }
+        if (!body) {
+          sendError(res, 400, 'invalid_request', 'Missing body');
+          return;
+        }
         const updated = tokenManager.updateToken(tokenIdPatch, body);
-        if (!updated) { sendError(res, 404, 'not_found', 'Token not found'); return; }
+        if (!updated) {
+          sendError(res, 404, 'not_found', 'Token not found');
+          return;
+        }
         json(res, 200, updated);
       });
-
     } else if (req.method === 'GET' && route.match(/^\/tokens\/[^/]+\/usage$/)) {
-      if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
+      if (!tokenManager) {
+        sendError(res, 501, 'not_available', 'Token manager not available');
+        return true;
+      }
       const tokenIdUsage = route.split('/')[2];
       const usage = tokenManager.getTokenUsageHistory(tokenIdUsage);
-      if (usage === null) { sendError(res, 404, 'not_found', 'Token not found'); return true; }
+      if (usage === null) {
+        sendError(res, 404, 'not_found', 'Token not found');
+        return true;
+      }
       json(res, 200, { hourly_usage: usage });
 
-    // ── Document RAG Pipeline Routes ────────────────────────────
+      // ── Document RAG Pipeline Routes ────────────────────────────
     } else if (req.method === 'POST' && route === '/documents/upload') {
       handleDocumentUpload(req, res, db, sendError);
     } else if (req.method === 'GET' && route === '/documents') {
@@ -2622,91 +2958,166 @@ function createAdminRoutes(config) {
     } else if (req.method === 'GET' && route.match(/^\/documents\/[^/]+\/chunks$/)) {
       const docId = route.split('/')[2];
       const doc = db.getDocument(docId);
-      if (!doc) { sendError(res, 404, 'not_found', 'Document not found'); return; }
-      qdrant.scrollPoints(doc.collection, { must: [{ key: 'document_id', match: { value: docId } }] }, 1000).then(function (result) {
-        const chunks = (result.points || []).sort(function (a, b) { return (a.payload.chunk_index || 0) - (b.payload.chunk_index || 0); });
-        json(res, 200, { document: doc, chunks: chunks.map(function (p) { return { id: p.id, text: p.payload.text, chunk_index: p.payload.chunk_index, total_chunks: p.payload.total_chunks }; }) });
-      }).catch(function (err) { sendError(res, 500, 'qdrant_error', err.message); });
+      if (!doc) {
+        sendError(res, 404, 'not_found', 'Document not found');
+        return;
+      }
+      qdrant
+        .scrollPoints(doc.collection, { must: [{ key: 'document_id', match: { value: docId } }] }, 1000)
+        .then(function (result) {
+          const chunks = (result.points || []).sort(function (a, b) {
+            return (a.payload.chunk_index || 0) - (b.payload.chunk_index || 0);
+          });
+          json(res, 200, {
+            document: doc,
+            chunks: chunks.map(function (p) {
+              return {
+                id: p.id,
+                text: p.payload.text,
+                chunk_index: p.payload.chunk_index,
+                total_chunks: p.payload.total_chunks,
+              };
+            }),
+          });
+        })
+        .catch(function (err) {
+          sendError(res, 500, 'qdrant_error', err.message);
+        });
     } else if (req.method === 'GET' && route.match(/^\/documents\/[^/]+$/) && !route.includes('/chunks')) {
       const docId = route.slice('/documents/'.length);
       const doc = db.getDocument(docId);
-      if (!doc) { sendError(res, 404, 'not_found', 'Document not found'); return; }
+      if (!doc) {
+        sendError(res, 404, 'not_found', 'Document not found');
+        return;
+      }
       json(res, 200, doc);
     } else if (req.method === 'DELETE' && route.match(/^\/documents\/[^/]+$/)) {
       const docId = route.slice('/documents/'.length);
       const doc = db.getDocument(docId);
-      if (!doc) { sendError(res, 404, 'not_found', 'Document not found'); return; }
+      if (!doc) {
+        sendError(res, 404, 'not_found', 'Document not found');
+        return;
+      }
       // Delete vectors from Qdrant
-      pipeline.deleteDocumentVectors(docId, doc.collection).then(function () {
-        // Delete file from disk
-        const filePath = path.join(pipeline.DOCUMENTS_DIR, doc.filename);
-        try { fs.unlinkSync(filePath); } catch (_e) { /* file may not exist */ }
-        // Delete from SQLite
-        db.deleteDocument(docId);
-        json(res, 200, { deleted: true, id: docId });
-      }).catch(function (err) {
-        // Still delete from SQLite even if Qdrant fails
-        try { fs.unlinkSync(path.join(pipeline.DOCUMENTS_DIR, doc.filename)); } catch (_e) { /* intentionally empty */ }
-        db.deleteDocument(docId);
-        json(res, 200, { deleted: true, id: docId, qdrant_warning: err.message });
-      });
+      pipeline
+        .deleteDocumentVectors(docId, doc.collection)
+        .then(function () {
+          // Delete file from disk
+          const filePath = path.join(pipeline.DOCUMENTS_DIR, doc.filename);
+          try {
+            fs.unlinkSync(filePath);
+          } catch (_e) {
+            /* file may not exist */
+          }
+          // Delete from SQLite
+          db.deleteDocument(docId);
+          json(res, 200, { deleted: true, id: docId });
+        })
+        .catch(function (err) {
+          // Still delete from SQLite even if Qdrant fails
+          try {
+            fs.unlinkSync(path.join(pipeline.DOCUMENTS_DIR, doc.filename));
+          } catch (_e) {
+            /* intentionally empty */
+          }
+          db.deleteDocument(docId);
+          json(res, 200, { deleted: true, id: docId, qdrant_warning: err.message });
+        });
     } else if (req.method === 'POST' && route.match(/^\/documents\/[^/]+\/reindex$/)) {
       const docId = route.split('/')[2];
       const doc = db.getDocument(docId);
-      if (!doc) { sendError(res, 404, 'not_found', 'Document not found'); return; }
+      if (!doc) {
+        sendError(res, 404, 'not_found', 'Document not found');
+        return;
+      }
       const filePath = path.join(pipeline.DOCUMENTS_DIR, doc.filename);
-      if (!fs.existsSync(filePath)) { sendError(res, 404, 'file_not_found', 'Document file not found on disk'); return; }
+      if (!fs.existsSync(filePath)) {
+        sendError(res, 404, 'file_not_found', 'Document file not found on disk');
+        return;
+      }
       // SSE for reindex progress
-      res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      res.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      });
       const sse = createSseSession(req, res);
       db.updateDocumentStatus(docId, 'processing', null, 0);
       sse.send({ phase: 'reindex', status: 'Deleting old vectors...' });
-      pipeline.deleteDocumentVectors(docId, doc.collection).then(function () {
-        if (sse.isClosed()) return null;
-        return pipeline.processDocument(docId, filePath, doc.mime_type, doc.collection, function (progress) {
-          sse.send(progress);
+      pipeline
+        .deleteDocumentVectors(docId, doc.collection)
+        .then(function () {
+          if (sse.isClosed()) return null;
+          return pipeline.processDocument(docId, filePath, doc.mime_type, doc.collection, function (progress) {
+            sse.send(progress);
+          });
+        })
+        .then(function (result) {
+          if (sse.isClosed() || !result) return;
+          db.updateDocumentStatus(docId, 'ready', null, result.chunkCount);
+          sse.end({ done: true, chunks: result.chunkCount });
+        })
+        .catch(function (err) {
+          if (sse.isClosed()) return;
+          db.updateDocumentStatus(docId, 'error', err.message, 0);
+          sse.end({ error: err.message });
         });
-      }).then(function (result) {
-        if (sse.isClosed() || !result) return;
-        db.updateDocumentStatus(docId, 'ready', null, result.chunkCount);
-        sse.end({ done: true, chunks: result.chunkCount });
-      }).catch(function (err) {
-        if (sse.isClosed()) return;
-        db.updateDocumentStatus(docId, 'error', err.message, 0);
-        sse.end({ error: err.message });
-      });
     } else if (req.method === 'POST' && route === '/documents/query') {
       readBody(req).then(async function (body) {
-        if (!body || !body.query) { sendError(res, 400, 'invalid_request', 'Missing query'); return; }
+        if (!body || !body.query) {
+          sendError(res, 400, 'invalid_request', 'Missing query');
+          return;
+        }
         try {
           const collection = body.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
           const hits = await pipeline.searchDocuments(body.query, collection, body.limit || 5);
-          json(res, 200, { results: hits.map(function (h) { return { score: h.score, payload: h.payload }; }) });
-        } catch (err) { sendError(res, 500, 'search_error', err.message); }
+          json(res, 200, {
+            results: hits.map(function (h) {
+              return { score: h.score, payload: h.payload };
+            }),
+          });
+        } catch (err) {
+          sendError(res, 500, 'search_error', err.message);
+        }
       });
     } else if (req.method === 'POST' && route === '/documents/ask') {
       handleDocumentAsk(req, res, ollamaUrl, sendError);
 
-    // ── Collection Management Routes ────────────────────────────
+      // ── Collection Management Routes ────────────────────────────
     } else if (req.method === 'GET' && route === '/collections') {
-      qdrant.listCollections().then(function (collections) {
-        json(res, 200, { collections: collections });
-      }).catch(function (err) { sendError(res, 500, 'qdrant_error', err.message); });
+      qdrant
+        .listCollections()
+        .then(function (collections) {
+          json(res, 200, { collections: collections });
+        })
+        .catch(function (err) {
+          sendError(res, 500, 'qdrant_error', err.message);
+        });
     } else if (req.method === 'POST' && route === '/collections') {
       readBody(req).then(async function (body) {
-        if (!body || !body.name) { sendError(res, 400, 'invalid_request', 'Missing collection name'); return; }
+        if (!body || !body.name) {
+          sendError(res, 400, 'invalid_request', 'Missing collection name');
+          return;
+        }
         try {
           await qdrant.createCollection(body.name, body.size, body.distance);
           json(res, 200, { created: true, name: body.name });
-        } catch (err) { sendError(res, 500, 'qdrant_error', err.message); }
+        } catch (err) {
+          sendError(res, 500, 'qdrant_error', err.message);
+        }
       });
     } else if (req.method === 'DELETE' && route.match(/^\/collections\/[^/]+$/)) {
       const collName = decodeURIComponent(route.slice('/collections/'.length));
-      qdrant.deleteCollection(collName).then(function () {
-        json(res, 200, { deleted: true, name: collName });
-      }).catch(function (err) { sendError(res, 500, 'qdrant_error', err.message); });
+      qdrant
+        .deleteCollection(collName)
+        .then(function () {
+          json(res, 200, { deleted: true, name: collName });
+        })
+        .catch(function (err) {
+          sendError(res, 500, 'qdrant_error', err.message);
+        });
 
-    // ── Mesh Connectivity Routes ──────────────────────────────────
+      // ── Mesh Connectivity Routes ──────────────────────────────────
     } else if (req.method === 'GET' && route === '/mesh/status') {
       handleMeshStatus(config.getMeshConnector(), res, config);
     } else if (req.method === 'GET' && route === '/mesh/latest-version') {
@@ -2738,7 +3149,6 @@ function createAdminRoutes(config) {
       } else {
         json(res, 200, meshConnector.peerHandler.getStatus());
       }
-
     } else {
       sendError(res, 404, 'not_found', 'Unknown admin endpoint');
     }
