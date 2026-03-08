@@ -34,12 +34,12 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 
 | Step | What | Why | ~Time |
 |------|------|-----|-------|
-| 1 | `ollama/ollama:latest` base | Pre-built Ollama with all dependencies | cached |
+| 1 | `ollama/ollama:0.17.4` base | Pre-built Ollama with all dependencies | cached |
 | 2 | System deps (curl, jq, bash, socat) | Health checks, JSON parsing | ~10s |
 | 3 | Node.js 22.x LTS via NodeSource (+ build-essential, python3) | API gateway runtime, native module compilation | ~15s |
 | 4 | Copy `docker-entrypoint.sh` | Production lifecycle management | instant |
-| 5 | Copy `package.json` + `npm install` | Install `better-sqlite3` native bindings | ~30s |
-| 6 | Copy API gateway, db.js, admin UI | Auth proxy, SQLite layer, admin panel | instant |
+| 5 | Copy `package.json` + `npm ci` | Install dependencies (better-sqlite3, pdfjs-dist, wrtc, etc.) | ~30s |
+| 6 | Copy API gateway, db.js, admin UI, and all modules | Auth proxy, SQLite, stats, mesh, tokens, documents, Swagger | instant |
 | 7 | Create `/opt/jimbomesh-still/data/` | SQLite database directory | instant |
 | 8 | Copy utility scripts | Health check, embed, Qdrant init | instant |
 | 9 | Set executable permissions | Script execution | instant |
@@ -49,7 +49,7 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 
 | Property | Value |
 |----------|-------|
-| Base image | `ollama/ollama:latest` |
+| Base image | `ollama/ollama:0.17.4` |
 | Image name | `jimbomesh-still:latest` |
 | Entrypoint | `docker-entrypoint.sh` (start → wait → pull → serve) |
 | Working directory | `/` (Ollama default) |
@@ -63,10 +63,21 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 /opt/jimbomesh-still/admin-routes.js   ← Admin UI API handlers + static server
 /opt/jimbomesh-still/db.js             ← SQLite database layer (better-sqlite3)
 /opt/jimbomesh-still/package.json      ← Node.js dependencies
-/opt/jimbomesh-still/node_modules/     ← Installed dependencies (better-sqlite3)
+/opt/jimbomesh-still/node_modules/     ← Installed dependencies (better-sqlite3, pdfjs-dist, etc.)
+/opt/jimbomesh-still/stats-collector.js ← Request stats, model metadata/pricing
+/opt/jimbomesh-still/mesh-connector.js ← Mesh connector (SaaS registration, heartbeat, jobs)
+/opt/jimbomesh-still/mesh-webrtc.js    ← WebRTC peer handler (P2P inference)
+/opt/jimbomesh-still/token-manager.js  ← Bearer token management (Tier 2 auth)
+/opt/jimbomesh-still/jwt-validator.js  ← JWT validation (Tier 3 auth)
+/opt/jimbomesh-still/qdrant-client.js  ← Qdrant HTTP client
+/opt/jimbomesh-still/document-pipeline.js ← Document RAG pipeline
+/opt/jimbomesh-still/swagger-brand.js  ← Swagger UI branding
+/opt/jimbomesh-still/swagger-brand.css ← Swagger UI custom styles
+/opt/jimbomesh-still/openapi.yaml      ← OpenAPI spec (v0.6.0)
 /opt/jimbomesh-still/admin/            ← Admin UI static files (HTML, JS, CSS)
 /opt/jimbomesh-still/data/holler.db    ← SQLite database (volume mounted)
 /opt/jimbomesh-still/healthcheck.sh    ← Docker health check script
+/opt/jimbomesh-still/health-server.js  ← Node.js health HTTP server
 /opt/jimbomesh-still/embed.sh          ← Embedding pipeline (Ollama-compatible)
 /opt/jimbomesh-still/init-qdrant.sh    ← Qdrant collection initializer
 /root/.ollama/                         ← Model storage (volume mounted)
@@ -200,7 +211,7 @@ A multi-stage Docker build was evaluated and **not adopted**. The potential savi
 
 | Layer | Approximate Size | Could Multi-Stage Help? |
 |-------|-----------------|------------------------|
-| `ollama/ollama:latest` base | ~1.5 GB | No — required at runtime |
+| `ollama/ollama:0.17.4` base | ~1.5 GB | No — required at runtime |
 | Node.js 22.x runtime | ~100 MB | No — required at runtime |
 | System deps (curl, jq, bash, socat) | ~30 MB | No — required at runtime |
 | NodeSource setup artifacts (gnupg, apt lists) | ~15-20 MB | Yes — build-only |
@@ -212,7 +223,7 @@ In a multi-stage build, you use a "builder" stage to install packages and then c
 
 1. **Build tools are much larger than runtime artifacts** — e.g., compiling Go/Rust produces a static binary; the compiler is discarded. Here, Node.js needs its full runtime at runtime.
 
-2. **The base image is small** — e.g., starting from `alpine` or `scratch`. Here, the base image is `ollama/ollama:latest` (~1.5 GB), which already contains Ubuntu, CUDA libraries, and the Ollama binary.
+2. **The base image is small** — e.g., starting from `alpine` or `scratch`. Here, the base image is `ollama/ollama:0.17.4` (~1.5 GB), which already contains Ubuntu, CUDA libraries, and the Ollama binary.
 
 3. **There are significant build-only dependencies** — e.g., `gcc`, `make`, header files. Here, the only build-only artifacts are the NodeSource GPG key and apt repository config (~15-20 MB).
 
@@ -223,10 +234,10 @@ A multi-stage build could avoid shipping the NodeSource GPG key and apt repo con
 ### What Multi-Stage Would Cost
 
 - More complex Dockerfile (harder to read and maintain)
-- Cannot use the simple `FROM ollama/ollama:latest` + `apt-get install` pattern
+- Cannot use the simple `FROM ollama/ollama:0.17.4` + `apt-get install` pattern
 - Would need to either:
   - Copy the Node.js binary from a builder stage (fragile, may miss shared libraries)
-  - Use `ollama/ollama:latest` as the final stage anyway (negating most benefits)
+  - Use `ollama/ollama:0.17.4` as the final stage anyway (negating most benefits)
 - Risk of runtime failures from missing shared libraries that were present in the builder
 
 ### Conclusion
@@ -237,7 +248,7 @@ The image size is dominated by the Ollama base image (~1.5 GB) and model weights
 
 If image size matters for your deployment:
 
-1. **Pin Ollama version** — Avoid `:latest` tag drift. Use e.g., `ollama/ollama:0.5.4`.
+1. **Pin Ollama version** — Avoid `:latest` tag drift. Currently pinned to `ollama/ollama:0.17.4`.
 2. **Use `--no-install-recommends`** — Already done in our Dockerfile.
 3. **Clean apt lists** — Already done (`rm -rf /var/lib/apt/lists/*`).
 4. **Combine RUN layers** — Reduces layer overhead. Current Dockerfile uses two RUN commands for clarity; combining them saves ~5 MB.
@@ -255,7 +266,7 @@ docker compose build jimbomesh-still
 
 ### Image is large
 
-The base `ollama/ollama:latest` image is already ~1-2 GB. This project adds minimal overhead (curl, jq, scripts). Model weights are stored in the volume, not the image.
+The base `ollama/ollama:0.17.4` image is already ~1-2 GB. This project adds minimal overhead (curl, jq, scripts). Model weights are stored in the volume, not the image.
 
 ### Models re-download on every start
 

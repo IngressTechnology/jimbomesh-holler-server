@@ -26,13 +26,14 @@ If you discover a security vulnerability in JimboMesh Holler Server, please repo
 
 | Version | Supported |
 |---------|-----------|
-| v0.2.x  | ✅ Current |
-| < v0.2  | ❌ No longer supported |
+| v1.1.x  | ✅ Current |
+| v1.0.x  | ✅ Security patches |
+| < v1.0  | ❌ No longer supported |
 
 ## Security Best Practices for Holler Users
 
 - **Never expose your Holler directly to the internet** without authentication enabled
-- **Use Tiered Auth** (API Key or Full Auth) in any non-local deployment
+- **Use Tiered Auth** (API Key, Bearer Tokens, or JWT) in any non-local deployment
 - **Rotate API keys** regularly — generate new ones from the Admin UI
 - **Keep Docker and Ollama updated** to get the latest security patches
 - **Don't commit `.env` files** — they contain your secrets

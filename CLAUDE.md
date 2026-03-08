@@ -2,12 +2,12 @@
 
 ## Key Paths
 
-- **Source repo:** `D:\Source\jimbomesh-holler-server\`
+- **Source repo:** `jimbomesh-holler-server/` (workspace root)
   - Docker Compose: `docker-compose.yml`
   - Environment: `.env` / `.env.example`
-  - Docs: `docs/` (ARCHITECTURE.md, DEPLOYMENT.md, CONFIGURATION.md, DOCKERBUILD.md, INTEGRATION.md, API_USAGE.md, CURSOR_VS_CODE.md)
-  - API Spec: `openapi.yaml` (OpenAPI 3.0.3, served at `/docs` via Swagger UI)
-  - Scripts: `scripts/` (embed.sh, healthcheck.sh, init-qdrant.sh)
+  - Docs: `docs/` (ARCHITECTURE.md, DEPLOYMENT.md, CONFIGURATION.md, DOCKERBUILD.md, INTEGRATION.md, API_USAGE.md, CURSOR_VS_CODE.md, IDE_INTEGRATIONS.md, OPENCLAW_INTEGRATION.md, SECURITY.md, CUSTOMIZATION.md, MAC_WINDOWS_SETUP.md, ARM_SUPPORT.md, MODEL_BENCHMARKS.md, TROUBLESHOOTING.md)
+  - API Spec: `openapi.yaml` (OpenAPI 3.0.3, spec version 0.6.0, served at `/docs` via Swagger UI)
+  - Scripts: `scripts/` (embed.sh, healthcheck.sh, health-server.js, init-qdrant.sh, benchmark-models.sh, test-openclaw-connection.sh)
 
 - **Integration notes:**
   - Can be used as an on-prem embeddings backend for other applications
@@ -18,14 +18,14 @@
 
 ```
 jimbomesh-holler-server/
-  Dockerfile              # Extends ollama/ollama:latest
+  Dockerfile              # Extends ollama/ollama:0.17.4
   docker-compose.yml      # Base compose: Ollama service + optional Qdrant (profile)
   docker-compose.gpu.yml  # GPU overlay: adds NVIDIA deploy config (loaded via COMPOSE_FILE)
   docker-compose.mac.yml  # macOS Performance Mode overlay: sets OLLAMA_EXTERNAL_URL (committed; also written by setup.sh)
   .setup-config.json      # Written by setup.sh — records ollamaMode, installedAt, securityWarningAccepted, platform, arch
   docker-entrypoint.sh    # Production entrypoint (start → wait → pull → serve; branches on OLLAMA_EXTERNAL_URL)
   mesh-webrtc.js          # WebRTC peer-to-peer handler (HollerPeerHandler, PeerSession) for direct Buyer connections
-  package.json            # Node.js dependencies (better-sqlite3, busboy, pdf-parse, mammoth, swagger-ui-dist, wrtc)
+  package.json            # Node.js dependencies (better-sqlite3, busboy, pdfjs-dist, mammoth, swagger-ui-dist, wrtc, jsonwebtoken, jwks-rsa)
   setup.ps1             # Windows PowerShell installer
   setup.sh                # Linux/macOS Bash installer
   .env.example            # Configuration template
@@ -33,8 +33,14 @@ jimbomesh-holler-server/
   db.js                   # SQLite database layer (better-sqlite3, WAL mode, prepared statements)
   qdrant-client.js        # Qdrant vector DB HTTP client (collections, points, search)
   document-pipeline.js    # Document RAG pipeline (extract, chunk, embed, store, search, Q&A)
-  openapi.yaml            # OpenAPI 3.0.3 spec (served by Swagger UI at /docs)
+  openapi.yaml            # OpenAPI 3.0.3 spec, version 0.6.0 (served by Swagger UI at /docs)
   admin-routes.js         # Admin UI API route handlers + static file server
+  stats-collector.js      # Request stats collection, model metadata/pricing, Moonshine pricing
+  mesh-connector.js       # JimboMesh SaaS mesh connector (registration, heartbeat, job polling, WebRTC)
+  token-manager.js        # Tier 2 auth: named bearer tokens (jmh_*) with SHA-256 hashing, scoped permissions, per-token rate limits
+  jwt-validator.js        # Tier 3 auth: Auth0 JWT validation with JWKS caching for mesh-connected mode
+  swagger-brand.js        # Swagger UI customization (footer, branding)
+  swagger-brand.css       # Swagger UI custom styles
   admin/
     index.html            # Admin SPA shell (minimal, JS-rendered)
     i18n.js               # Internationalization runtime (t() function, localStorage, reactive updates)
@@ -52,10 +58,12 @@ jimbomesh-holler-server/
   scripts/
     embed.sh              # Ollama-compatible embedding pipeline
     healthcheck.sh        # Docker health check (tries HTTP endpoint, falls back to direct)
-    health-server.sh      # HTTP health server launcher (socat on :9090)
-    health-handler.sh     # HTTP health request handler (/healthz, /readyz, /status)
+    health-server.js      # Node.js health HTTP server (/healthz, /readyz, /status on :9090)
+    health-server.sh      # HTTP health server launcher (legacy socat wrapper)
+    health-handler.sh     # HTTP health request handler (legacy, superseded by health-server.js)
     init-qdrant.sh        # Qdrant collection initializer (one-shot)
     benchmark-models.sh   # Embedding model benchmark (latency comparison)
+    test-openclaw-connection.sh  # OpenClaw compatibility test (7 endpoint checks)
     entrypoint.sh         # Legacy entrypoint (superseded by docker-entrypoint.sh)
     pull-models.sh        # Legacy model puller (merged into docker-entrypoint.sh)
   docs/
@@ -72,10 +80,18 @@ jimbomesh-holler-server/
     CUSTOMIZATION.md      # Admin UI theming, branding, CSS variables guide
     CURSOR_VS_CODE.md     # IDE run configs, tasks, Cursor rules, developer workflow
     SECURITY.md           # Security model: Performance Mode vs Secure Mode, auth, TLS, rate limiting
+    IDE_INTEGRATIONS.md   # IDE setup guides (Cursor, VS Code+Continue, JetBrains, Neovim, Zed, Aider, Windsurf)
+    OPENCLAW_INTEGRATION.md # OpenClaw provider setup and testing
   NAMING.md               # Naming convention hierarchy
   QUICK_START.md          # Install holler, start still, configure Admin UI
+  CONTRIBUTING.md         # Contribution guide, repo map, PR expectations
+  CODE_OF_CONDUCT.md      # Contributor Covenant 2.1
   CHANGELOG.md            # Version history and changes
   UNINSTALL-OLLAMA.md     # Uninstall guide for native Ollama (macOS Performance Mode)
+  TODO.md                 # Open and completed work items
+  SESSION_SUMMARY.md      # Legacy session notes (2026-02-22)
+  .github/
+    PULL_REQUEST_TEMPLATE.md  # PR template
   .gitattributes          # Enforces Unix line endings for scripts
 ```
 
@@ -136,6 +152,14 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **WebRTC Peer-to-Peer**: When connected to the mesh, the Holler can establish direct WebRTC data channels with Buyers. Inference data flows peer-to-peer (SaaS only handles signaling + billing). `mesh-webrtc.js` contains `HollerPeerHandler` (manages connections, enforces `MAX_PEER_CONNECTIONS`) and `PeerSession` (per-job signaling, SDP/ICE negotiation, streaming inference over data channel). Lazy-loads `wrtc` native module — standalone mode unaffected. Fallback chain: WebRTC → SSE fallback (via management WebSocket) → HTTP polling. Admin UI shows connection mode badge and active peer table. `GET /admin/api/mesh/peers` endpoint.
 - **Mesh key persistence**: Disconnecting from the mesh keeps `mesh_api_key` in SQLite so the user can reconnect with one click. `POST /mesh/connect-stored` reconnects using the stored key. `POST /mesh/forget-key` explicitly clears it.
 - **Admin restart controls**: `POST /admin/api/restart` with `{ target: 'holler' | 'ollama' }`. Holler restart exits the process for container/process manager restart. Ollama restart sends `pkill` on macOS Performance Mode. Admin UI "Utilities" section with Restart Holler / Restart Ollama buttons.
+- **Enhanced Security (Bearer Tokens — Tier 2)**: Named bearer tokens (`jmh_*`) with SHA-256 hashing, scoped permissions, per-token rate limits, expiry, and usage tracking. Tokens stored in `/data/keys.json`. Enable via `ENHANCED_SECURITY_ENABLED=true` or Admin UI toggle. Managed via `token-manager.js`. Admin endpoints: `GET/POST/DELETE/PATCH /admin/api/tokens`, `GET /admin/api/tokens/:id/usage`, `GET /admin/api/auth/status`.
+- **JWT Validation (Tier 3)**: Auth0 JWT validation with JWKS caching for mesh-connected mode. Activated when `JIMBOMESH_API_KEY` is set and `data/auth0-config.json` exists. `jwt-validator.js` validates RS256 JWTs, extracts buyer ID, permissions, and per-buyer rate limits.
+- **Three-tier auth model**: Tier 1 = API Key (`X-API-Key`), Tier 2 = Bearer Tokens (`jmh_*`), Tier 3 = JWT (Auth0). Each tier builds on the previous.
+- **IDE Integrations**: Setup guides for Cursor, VS Code+Continue, VS Code+Cody, JetBrains, Neovim, Zed, Aider, and Windsurf. See `docs/IDE_INTEGRATIONS.md`.
+- **OpenClaw Integration**: Use Holler as a local LLM backend for OpenClaw. Provider config, testing script, bearer token support. See `docs/OPENCLAW_INTEGRATION.md`.
+- **Swagger UI branding**: Custom footer and styles via `swagger-brand.js` and `swagger-brand.css`.
+- **Node.js health server**: `scripts/health-server.js` replaces the legacy socat/bash health server. Listens on `HEALTH_PORT` (9090), serves `/healthz`, `/readyz`, `/status`.
+- **Model pricing and Moonshine**: `stats-collector.js` tracks model metadata, per-model pricing (Moonshine tokens), and inference metrics. Admin endpoints: `GET/POST /admin/api/stats/pricing`.
 
 ## Recent Changes
 
@@ -213,7 +237,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 ### Document RAG Pipeline
 - **Documents tab**: New admin panel tab with Upload, Browse, and Ask sub-tabs
 - **File upload**: Drag-and-drop upload with SSE progress for .pdf, .md, .txt, .csv, .docx files
-- **Text extraction**: PDF via `pdf-parse`, DOCX via `mammoth`, CSV/MD/TXT via `fs.readFileSync`
+- **Text extraction**: PDF via `pdfjs-dist`, DOCX via `mammoth`, CSV/MD/TXT via `fs.readFileSync`
 - **Smart chunking**: Paragraph-boundary splitting (~500 tokens target, 50-token overlap, ~4 chars/token)
 - **Embedding**: Batch embedding via Ollama `/api/embed` (batches of 10) with progress tracking
 - **Vector storage**: Qdrant upsert with document metadata (filename, chunk index, char offset)
@@ -224,7 +248,7 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **File dedup**: SHA-256 content hashing prevents re-ingestion of identical files
 - **Prerequisite checks**: Documents tab warns if no embedding model found or Qdrant unreachable
 - **New files**: `qdrant-client.js` (Qdrant HTTP client), `document-pipeline.js` (processing engine)
-- **New deps**: `busboy` (multipart upload), `pdf-parse` (PDF extraction), `mammoth` (DOCX extraction)
+- **New deps**: `busboy` (multipart upload), `pdfjs-dist` (PDF extraction), `mammoth` (DOCX extraction)
 - **SQLite**: New `documents` table with status tracking (pending → processing → ready/error)
 - **11 new endpoints**: upload, list, get, chunks, delete, reindex, query, ask, collections CRUD
 - **i18n**: Full `documents.*` namespace (~55 keys) in all three locales

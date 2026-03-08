@@ -123,10 +123,11 @@ JimboMesh runs on port **1920** by default — the year Prohibition started and 
 | OpenAI-Compatible API | http://localhost:1920/v1 |
 | Ollama (upstream) | http://localhost:11434 |
 
-To use a custom port, set the `PORT` environment variable:
+To use a custom port, set `GATEWAY_PORT` and `OLLAMA_HOST_PORT` in `.env`:
 
 ```bash
-PORT=8080 docker compose up
+GATEWAY_PORT=8080
+OLLAMA_HOST_PORT=8080
 ```
 
 ## Storage
@@ -343,7 +344,7 @@ JIMBOMESH_HOLLER_API_KEY=your_generated_key_here
 
 ### Health Endpoints
 
-Gateway health endpoints on port `1920` (`/health`, `/readyz`) and health-server endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. All inference and admin API endpoints require authentication.
+Health endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. The gateway-level `/health` endpoint on port `1920` also bypasses auth. All inference and admin API endpoints require authentication.
 
 ## Documentation
 

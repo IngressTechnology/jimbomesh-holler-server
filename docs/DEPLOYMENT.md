@@ -407,7 +407,7 @@ docker compose up --build -d
 
 ### Update Ollama Version
 
-The Dockerfile uses `ollama/ollama:latest`. To update:
+The Dockerfile uses `ollama/ollama:0.17.4`. To update to a newer version, edit the `FROM` line in the Dockerfile:
 
 ```bash
 docker compose build --no-cache jimbomesh-still

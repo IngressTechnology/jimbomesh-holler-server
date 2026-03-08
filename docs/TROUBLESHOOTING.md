@@ -917,7 +917,7 @@ docker stats jimbomesh-still
 3. **Use smaller model**:
    ```bash
    # Instead of llama3.1:8b (4.9GB)
-   HOLLER_MODELS=nomic-embed-text,llama3.2:3b  # 2.0GB
+   HOLLER_MODELS=nomic-embed-text,llama3.2:3b  # ~2.0GB, smaller but capable
    ```
 
 ---

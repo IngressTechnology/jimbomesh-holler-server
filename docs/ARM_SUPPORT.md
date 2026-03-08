@@ -88,7 +88,7 @@ docker compose up -d
 
 ## Docker Image
 
-The `ollama/ollama:latest` base image is multi-architecture and includes ARM64 variants. Docker automatically pulls the correct platform:
+The `ollama/ollama:0.17.4` base image is multi-architecture and includes ARM64 variants. Docker automatically pulls the correct platform:
 
 ```bash
 # Verify platform
