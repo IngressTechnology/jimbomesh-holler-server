@@ -721,7 +721,7 @@ if ($envContent -notmatch '(?m)^HOLLER_SERVER_NAME=.+' -or $envContent -match '(
 # Persist defaults/choices so rebuilds/reinstalls keep behavior.
 if (-not (Get-EnvVar $envFile "OLLAMA_HOST_PORT")) { Set-EnvVar $envFile "OLLAMA_HOST_PORT" "1920" }
 if (-not (Get-EnvVar $envFile "GATEWAY_PORT")) { Set-EnvVar $envFile "GATEWAY_PORT" "1920" }
-if (-not (Get-EnvVar $envFile "HOLLER_MODELS")) { Set-EnvVar $envFile "HOLLER_MODELS" "nomic-embed-text,llama3.1:8b" }
+if (-not (Get-EnvVar $envFile "HOLLER_MODELS")) { Set-EnvVar $envFile "HOLLER_MODELS" "nomic-embed-text,llama3.2:1b" }
 if (-not (Get-EnvVar $envFile "OLLAMA_EMBED_MODEL")) { Set-EnvVar $envFile "OLLAMA_EMBED_MODEL" "nomic-embed-text" }
 if (-not (Get-EnvVar $envFile "ADMIN_ENABLED")) { Set-EnvVar $envFile "ADMIN_ENABLED" "true" }
 if (-not (Get-EnvVar $envFile "JIMBOMESH_HOLLER_NAME")) {
@@ -976,7 +976,7 @@ if (-not $summaryServerName) { $summaryServerName = "Holler Server" }
 if (-not $summaryCompose) { $summaryCompose = "docker-compose.yml" }
 if (-not $summaryGatewayPort) { $summaryGatewayPort = "1920" }
 if (-not $summaryOllamaPort) { $summaryOllamaPort = "1920" }
-if (-not $summaryModels) { $summaryModels = "nomic-embed-text,llama3.1:8b" }
+if (-not $summaryModels) { $summaryModels = "nomic-embed-text,llama3.2:1b" }
 if (-not $summaryAdminEnabled) { $summaryAdminEnabled = "true" }
 
 $summaryGpuMode = "CPU"
