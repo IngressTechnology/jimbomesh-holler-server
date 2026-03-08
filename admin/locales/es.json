@@ -322,6 +322,7 @@
     "files": "Archivos GGUF",
     "loadingFiles": "Cargando archivos...",
     "noFiles": "No se encontraron archivos GGUF",
+    "hfError": "Error al cargar desde HuggingFace",
     "catalogNote": "Catalogo curado de modelos populares. Ultima actualizacion feb 2026.",
     "stop": "Detener",
     "stopping": "Deteniendo...",

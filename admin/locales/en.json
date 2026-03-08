@@ -322,6 +322,7 @@
     "files": "GGUF Files",
     "loadingFiles": "Loading files...",
     "noFiles": "No GGUF files found",
+    "hfError": "Failed to load from HuggingFace",
     "catalogNote": "Curated catalog of popular models. Last updated Feb 2026.",
     "stop": "Stop",
     "stopping": "Stopping...",

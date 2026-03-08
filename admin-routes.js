@@ -1287,18 +1287,32 @@ async function handleMarketplaceOllama(ollamaUrl, res, sendError) {
 
 function hfFetch(url) {
   return new Promise((resolve, reject) => {
-    https.get(url, { headers: { 'User-Agent': 'JimboMesh-Holler/1.0' } }, (res) => {
+    const req = https.get(url, { headers: { 'User-Agent': 'JimboMesh-Holler/1.0' } }, (res) => {
       let data = '';
       res.on('data', chunk => (data += chunk));
       res.on('end', () => {
-        try { resolve(JSON.parse(data)); }
-        catch { reject(new Error('Invalid JSON from HuggingFace')); }
+        if (res.statusCode === 429) {
+          reject(new Error('HuggingFace rate limit exceeded — try again in a few minutes'));
+          return;
+        }
+        let parsed;
+        try { parsed = JSON.parse(data); }
+        catch { reject(new Error(`Invalid JSON from HuggingFace (HTTP ${res.statusCode})`)); return; }
+
+        if (res.statusCode >= 400) {
+          const msg = parsed.error || `HTTP ${res.statusCode}`;
+          reject(new Error(`HuggingFace API error: ${msg}`));
+          return;
+        }
+        resolve(parsed);
       });
-    }).on('error', reject);
+    });
+    req.on('error', reject);
+    req.setTimeout(15000, () => req.destroy(new Error('HuggingFace request timed out')));
   });
 }
 
-async function handleMarketplaceHuggingFace(req, res, sendError) {
+async function handleMarketplaceHuggingFace(req, res, sendError, db) {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
     const search = params.get('search') || '';
@@ -1314,7 +1328,18 @@ async function handleMarketplaceHuggingFace(req, res, sendError) {
       return await hfFetch(url);
     });
 
-    json(res, 200, { models: result, cached_at: new Date().toISOString() });
+    let importedRepos = {};
+    if (db && db.getAllHfImports) {
+      try {
+        const imports = db.getAllHfImports();
+        for (const imp of imports) {
+          if (!importedRepos[imp.repo_id]) importedRepos[imp.repo_id] = [];
+          importedRepos[imp.repo_id].push({ filename: imp.filename, model_name: imp.model_name });
+        }
+      } catch { /* non-critical */ }
+    }
+
+    json(res, 200, { models: result, imported: importedRepos, cached_at: new Date().toISOString() });
   } catch (err) {
     sendError(res, 502, 'hf_error', `Failed to fetch from HuggingFace: ${err.message}`);
   }
@@ -1322,22 +1347,40 @@ async function handleMarketplaceHuggingFace(req, res, sendError) {
 
 // ── HuggingFace Model Detail (GGUF files) ───────────────────────
 
-async function handleHfModelFiles(req, res, sendError) {
+function hfEncodeRepoPath(repoId) {
+  return repoId.split('/').map(encodeURIComponent).join('/');
+}
+
+async function handleHfModelFiles(req, res, sendError, db) {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
     const repoId = params.get('repo');
     if (!repoId) { sendError(res, 400, 'invalid_request', 'Missing repo parameter'); return; }
+    if (!/^[^/]+\/[^/]+$/.test(repoId)) { sendError(res, 400, 'invalid_request', 'Invalid repo format — expected owner/name'); return; }
 
     const cacheKey = `hf-files:${repoId}`;
     const files = await cachedAsync(cacheKey, async () => {
-      const siblings = await hfFetch(`https://huggingface.co/api/models/${encodeURIComponent(repoId)}`);
-      if (!siblings || !siblings.siblings) return [];
-      return siblings.siblings
-        .filter(f => f.rfilename && f.rfilename.endsWith('.gguf'))
-        .map(f => ({ filename: f.rfilename, size: f.size || 0 }));
+      const tree = await hfFetch(`https://huggingface.co/api/models/${hfEncodeRepoPath(repoId)}/tree/main`);
+      if (!Array.isArray(tree)) return [];
+      return tree
+        .filter(f => f.type === 'file' && f.path && f.path.endsWith('.gguf'))
+        .map(f => ({ filename: f.path, size: f.size || (f.lfs && f.lfs.size) || 0 }));
     });
 
-    json(res, 200, { files });
+    let importedFiles = {};
+    if (db && db.getHfImportsByRepo) {
+      try {
+        const imports = db.getHfImportsByRepo(repoId);
+        for (const imp of imports) importedFiles[imp.filename] = imp.model_name;
+      } catch { /* non-critical */ }
+    }
+
+    const enriched = files.map(f => ({
+      ...f,
+      installed_as: importedFiles[f.filename] || null,
+    }));
+
+    json(res, 200, { files: enriched });
   } catch (err) {
     sendError(res, 502, 'hf_error', `Failed to fetch model files: ${err.message}`);
   }
@@ -1345,10 +1388,23 @@ async function handleHfModelFiles(req, res, sendError) {
 
 // ── HuggingFace Import ──────────────────────────────────────────
 
-function handleHfImport(ollamaUrl, req, res, sendError) {
+function handleHfImport(ollamaUrl, req, res, sendError, db) {
   readBody(req).then((body) => {
     if (!body || !body.repo_id || !body.filename || !body.model_name) {
       sendError(res, 400, 'invalid_request', 'Missing required fields: repo_id, filename, model_name');
+      return;
+    }
+    if (!/^[^/]+\/[^/]+$/.test(body.repo_id)) {
+      sendError(res, 400, 'invalid_request', 'Invalid repo_id format — expected owner/name');
+      return;
+    }
+
+    const tmpDir = path.join(os.tmpdir(), 'holler-imports');
+    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { /* exists */ }
+
+    const safeFilename = path.basename(body.filename);
+    if (!safeFilename || safeFilename === '.' || safeFilename === '..' || !safeFilename.endsWith('.gguf')) {
+      sendError(res, 400, 'invalid_request', 'Invalid filename — must be a .gguf file');
       return;
     }
 
@@ -1358,14 +1414,6 @@ function handleHfImport(ollamaUrl, req, res, sendError) {
       'Connection': 'keep-alive',
     });
 
-    const tmpDir = path.join(os.tmpdir(), 'holler-imports');
-    try { fs.mkdirSync(tmpDir, { recursive: true }); } catch { /* exists */ }
-
-    const safeFilename = path.basename(body.filename);
-    if (!safeFilename || safeFilename === '.' || safeFilename === '..') {
-      sendError(res, 400, 'invalid_request', 'Invalid filename');
-      return;
-    }
     const destPath = path.join(tmpDir, safeFilename);
     const fileUrl = `https://huggingface.co/${body.repo_id}/resolve/main/${encodeURIComponent(body.filename)}`;
 
@@ -1409,61 +1457,142 @@ function handleHfImport(ollamaUrl, req, res, sendError) {
         });
 
         dlRes.on('end', () => {
-          fileStream.end();
-          res.write(`data: ${JSON.stringify({ phase: 'download', status: 'Download complete', completed: downloaded, total: downloaded })}\n\n`);
+          fileStream.end(() => {
+            res.write(`data: ${JSON.stringify({ phase: 'download', status: 'Download complete', completed: downloaded, total: downloaded })}\n\n`);
+            res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Computing file hash...' })}\n\n`);
 
-          // Create Modelfile and register with Ollama
-          const modelfile = `FROM ${destPath}`;
-          res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Registering model with Ollama...' })}\n\n`);
+            const ollamaParsed = new URL(ollamaUrl);
+            const ollamaPort = parseInt(ollamaParsed.port) || 11435;
 
-          const parsed = new URL(ollamaUrl);
-          const createReq = http.request({
-            hostname: parsed.hostname,
-            port: parseInt(parsed.port) || 11435,
-            path: '/api/create',
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-          }, (createRes) => {
-            let buffer = '';
-            createRes.on('data', (chunk) => {
-              buffer += chunk.toString();
-              const lines = buffer.split('\n');
-              buffer = lines.pop();
-              for (const line of lines) {
-                if (line.trim()) {
-                  try {
-                    const parsed = JSON.parse(line);
-                    res.write(`data: ${JSON.stringify({ phase: 'import', status: parsed.status || 'Processing...', done: parsed.status === 'success' })}\n\n`);
-                  } catch {
-                    res.write(`data: ${JSON.stringify({ phase: 'import', status: line })}\n\n`);
-                  }
-                }
-              }
-            });
-            createRes.on('end', () => {
-              if (buffer.trim()) {
-                try {
-                  const p = JSON.parse(buffer);
-                  res.write(`data: ${JSON.stringify({ phase: 'import', status: p.status || 'Done', done: true })}\n\n`);
-                } catch {
-                  res.write(`data: ${JSON.stringify({ phase: 'import', status: buffer, done: true })}\n\n`);
-                }
-              }
-              res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+            // Step 1: compute SHA-256 hash of the downloaded file
+            const hash = crypto.createHash('sha256');
+            const hashStream = fs.createReadStream(destPath);
+            hashStream.on('data', (chunk) => hash.update(chunk));
+            hashStream.on('error', (err) => {
+              res.write(`data: ${JSON.stringify({ error: `Hash failed: ${err.message}` })}\n\n`);
               res.end();
-              // Clean up temp file
               try { fs.unlinkSync(destPath); } catch { /* ignore */ }
             });
-          });
+            hashStream.on('end', () => {
+              const digest = 'sha256:' + hash.digest('hex');
+              const fileSize = fs.statSync(destPath).size;
+              res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Uploading to Ollama blob store...' })}\n\n`);
 
-          createReq.on('error', (err) => {
-            res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${err.message}` })}\n\n`);
-            res.end();
-            try { fs.unlinkSync(destPath); } catch { /* ignore */ }
-          });
+              // Step 2: upload the GGUF file as a blob to Ollama
+              const blobReq = http.request({
+                hostname: ollamaParsed.hostname,
+                port: ollamaPort,
+                path: `/api/blobs/${digest}`,
+                method: 'POST',
+                headers: { 'Content-Length': fileSize },
+              }, (blobRes) => {
+                let blobBody = '';
+                blobRes.on('data', (chunk) => (blobBody += chunk));
+                blobRes.on('end', () => {
+                  if (blobRes.statusCode >= 400 && blobRes.statusCode !== 409) {
+                    let msg = `Ollama blob upload failed: HTTP ${blobRes.statusCode}`;
+                    try { const e = JSON.parse(blobBody); if (e.error) msg = e.error; } catch { /* use default */ }
+                    res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
+                    res.end();
+                    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                    return;
+                  }
 
-          createReq.write(JSON.stringify({ name: body.model_name, modelfile, stream: true }));
-          createReq.end();
+                  res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Creating model in Ollama...' })}\n\n`);
+
+                  // Step 3: create the model referencing the uploaded blob
+                  let createFailed = false;
+                  const createReq = http.request({
+                    hostname: ollamaParsed.hostname,
+                    port: ollamaPort,
+                    path: '/api/create',
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                  }, (createRes) => {
+                    if (createRes.statusCode >= 400) {
+                      let errBody = '';
+                      createRes.on('data', (chunk) => (errBody += chunk));
+                      createRes.on('end', () => {
+                        let msg = `Ollama returned HTTP ${createRes.statusCode}`;
+                        try { const e = JSON.parse(errBody); if (e.error) msg = e.error; } catch { /* use default */ }
+                        res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg}` })}\n\n`);
+                        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+                        res.end();
+                        try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                      });
+                      return;
+                    }
+
+                    let buffer = '';
+                    createRes.on('data', (chunk) => {
+                      buffer += chunk.toString();
+                      const lines = buffer.split('\n');
+                      buffer = lines.pop();
+                      for (const line of lines) {
+                        if (line.trim() && !createFailed) {
+                          try {
+                            const msg = JSON.parse(line);
+                            if (msg.error) {
+                              createFailed = true;
+                              res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg.error}` })}\n\n`);
+                            } else {
+                              res.write(`data: ${JSON.stringify({ phase: 'import', status: msg.status || 'Processing...', done: msg.status === 'success' })}\n\n`);
+                            }
+                          } catch {
+                            res.write(`data: ${JSON.stringify({ phase: 'import', status: line })}\n\n`);
+                          }
+                        }
+                      }
+                    });
+                    createRes.on('end', () => {
+                      if (buffer.trim() && !createFailed) {
+                        try {
+                          const msg = JSON.parse(buffer);
+                          if (msg.error) {
+                            createFailed = true;
+                            res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg.error}` })}\n\n`);
+                          } else {
+                            res.write(`data: ${JSON.stringify({ phase: 'import', status: msg.status || 'Done', done: true })}\n\n`);
+                          }
+                        } catch {
+                          res.write(`data: ${JSON.stringify({ phase: 'import', status: buffer, done: true })}\n\n`);
+                        }
+                      }
+                      if (!createFailed && db) {
+                        try { db.upsertHfImport(body.repo_id, safeFilename, body.model_name); } catch { /* non-critical */ }
+                      }
+                      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
+                      res.end();
+                      try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                    });
+                  });
+
+                  createReq.on('error', (err) => {
+                    res.write(`data: ${JSON.stringify({ error: `Ollama create failed: ${err.message}` })}\n\n`);
+                    res.end();
+                    try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+                  });
+
+                  createReq.write(JSON.stringify({
+                    model: body.model_name,
+                    files: { [safeFilename]: digest },
+                    stream: true,
+                  }));
+                  createReq.end();
+                });
+              });
+
+              blobReq.on('error', (err) => {
+                res.write(`data: ${JSON.stringify({ error: `Blob upload failed: ${err.message}` })}\n\n`);
+                res.end();
+                try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+              });
+
+              // Stream the file to Ollama's blob store
+              const uploadStream = fs.createReadStream(destPath);
+              uploadStream.pipe(blobReq);
+            });
+          });
         });
 
         dlRes.on('error', (err) => {
@@ -2162,11 +2291,11 @@ function createAdminRoutes(config) {
     } else if (req.method === 'GET' && route === '/marketplace/ollama') {
       handleMarketplaceOllama(ollamaUrl, res, sendError);
     } else if (req.method === 'GET' && route === '/marketplace/huggingface') {
-      handleMarketplaceHuggingFace(req, res, sendError);
+      handleMarketplaceHuggingFace(req, res, sendError, db);
     } else if (req.method === 'GET' && route === '/marketplace/huggingface/files') {
-      handleHfModelFiles(req, res, sendError);
+      handleHfModelFiles(req, res, sendError, db);
     } else if (req.method === 'POST' && route === '/models/import-hf') {
-      handleHfImport(ollamaUrl, req, res, sendError);
+      handleHfImport(ollamaUrl, req, res, sendError, db);
     } else if (req.method === 'POST' && route === '/github/issue') {
       handleGitHubIssue(req, res, sendError);
     } else if (req.method === 'GET' && route === '/github/status') {

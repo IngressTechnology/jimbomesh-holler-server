@@ -35,7 +35,7 @@ console.log(`[db] SQLite database opened at ${DB_PATH}`);
 
 // ── Schema Migration ───────────────────────────────────────────
 
-const CURRENT_SCHEMA_VERSION = 4;
+const CURRENT_SCHEMA_VERSION = 5;
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS schema_version (
@@ -140,6 +140,14 @@ db.exec(`
     moonshine_output_per_1k REAL,
     updated_at INTEGER NOT NULL
   );
+
+  CREATE TABLE IF NOT EXISTS hf_imports (
+    repo_id    TEXT NOT NULL,
+    filename   TEXT NOT NULL,
+    model_name TEXT NOT NULL,
+    imported_at TEXT DEFAULT (datetime('now')),
+    PRIMARY KEY (repo_id, filename)
+  );
 `);
 
 // Record schema version if not already present
@@ -200,6 +208,24 @@ try {
   }
 } catch (err) {
   console.error('[db] Failed to verify request_stats schema:', err.message);
+}
+
+// ── Schema Migration: v4 → v5 ────────────────────────────────
+// Track HuggingFace imports so the marketplace can show installed badges
+const v5Check = db.prepare(
+  'SELECT version FROM schema_version WHERE version = 5'
+).get();
+if (!v5Check && CURRENT_SCHEMA_VERSION >= 5) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS hf_imports (
+      repo_id    TEXT NOT NULL,
+      filename   TEXT NOT NULL,
+      model_name TEXT NOT NULL,
+      imported_at TEXT DEFAULT (datetime('now')),
+      PRIMARY KEY (repo_id, filename)
+    )
+  `);
+  db.prepare('INSERT OR REPLACE INTO schema_version (version) VALUES (?)').run(5);
 }
 
 console.log(`[db] Schema version ${CURRENT_SCHEMA_VERSION} applied`);
@@ -360,6 +386,16 @@ const stmts = {
   `),
   getAllModelPricing: db.prepare('SELECT * FROM model_pricing ORDER BY model'),
   getModelPricing: db.prepare('SELECT * FROM model_pricing WHERE model = ?'),
+  // HuggingFace import tracking
+  upsertHfImport: db.prepare(`
+    INSERT INTO hf_imports (repo_id, filename, model_name, imported_at)
+    VALUES (?, ?, ?, datetime('now'))
+    ON CONFLICT(repo_id, filename) DO UPDATE SET model_name = excluded.model_name, imported_at = excluded.imported_at
+  `),
+  getHfImportsByRepo: db.prepare('SELECT * FROM hf_imports WHERE repo_id = ?'),
+  getAllHfImports: db.prepare('SELECT * FROM hf_imports ORDER BY imported_at DESC'),
+  deleteHfImport: db.prepare('DELETE FROM hf_imports WHERE repo_id = ? AND filename = ?'),
+
   upsertModelPricing: db.prepare(`
     INSERT INTO model_pricing (model, moonshine_input_per_1k, moonshine_output_per_1k, updated_at)
     VALUES (?, ?, ?, ?)
@@ -462,6 +498,22 @@ function getModelMetadata(model) {
   return stmts.getModelMetadata.get(model) || null;
 }
 
+function upsertHfImport(repoId, filename, modelName) {
+  stmts.upsertHfImport.run(repoId, filename, modelName);
+}
+
+function getHfImportsByRepo(repoId) {
+  return stmts.getHfImportsByRepo.all(repoId);
+}
+
+function getAllHfImports() {
+  return stmts.getAllHfImports.all();
+}
+
+function deleteHfImport(repoId, filename) {
+  return stmts.deleteHfImport.run(repoId, filename);
+}
+
 function upsertModelMetadata(model, metadata) {
   const now = Date.now();
   stmts.upsertModelMetadata.run(
@@ -552,6 +604,11 @@ module.exports = {
   getModelPricing,
   upsertModelPricing,
   deleteModelPricing,
+  // HuggingFace import tracking
+  upsertHfImport,
+  getHfImportsByRepo,
+  getAllHfImports,
+  deleteHfImport,
   runSql,
   getSql,
   allSql,

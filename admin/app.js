@@ -752,6 +752,7 @@
   var ollamaFilterTask = '';
   var ollamaSearch = '';
   var hfResults = [];
+  var hfImported = {};
   var hfSearch = '';
   var hfTask = '';
   var hfSort = 'downloads';
@@ -1272,8 +1273,7 @@
 
     el.innerHTML = '<div class="model-grid">' + cards + '</div>';
 
-    // Toggle card expansion
-    el.addEventListener('click', function (e) {
+    el.onclick = function (e) {
       var pullBtn = e.target.closest('[data-pull-name]');
       if (pullBtn) {
         e.stopPropagation();
@@ -1294,7 +1294,7 @@
       }
       var card = e.target.closest('[data-card]');
       if (card) card.classList.toggle('expanded');
-    });
+    };
   }
 
   function ollamaPullFromCard(name, btn) {
@@ -1431,9 +1431,10 @@
 
     apiJSON('/marketplace/huggingface' + params).then(function (data) {
       hfResults = data.models || [];
+      hfImported = data.imported || {};
       renderHfGrid();
-    }).catch(function () {
-      if (gridEl) gridEl.innerHTML = '<div class="mp-empty">' + esc(t('marketplace.noResults')) + '</div>';
+    }).catch(function (err) {
+      if (gridEl) gridEl.innerHTML = '<div class="mp-empty" style="color:var(--danger)">' + esc(t('marketplace.hfError') || 'Failed to load models from HuggingFace') + (err.message ? ': ' + esc(err.message) : '') + '</div>';
     });
   }
 
@@ -1447,16 +1448,20 @@
     }
 
     var cards = hfResults.map(function (m) {
+      var repoId = m.modelId || m.id;
       var downloads = m.downloads != null ? formatNumber(m.downloads) : '0';
       var likes = m.likes != null ? m.likes : 0;
       var pipeline = m.pipeline_tag || '';
       var license = (m.tags || []).find(function (t) { return t.startsWith('license:'); });
       license = license ? license.split(':')[1] : '';
       var lastMod = m.lastModified ? new Date(m.lastModified).toLocaleDateString() : '';
+      var repoImports = hfImported[repoId];
+      var isInstalled = repoImports && repoImports.length > 0;
 
-      return '<div class="model-card model-card-expand" data-hf-card="' + esc(m.modelId || m.id) + '">' +
+      return '<div class="model-card model-card-expand" data-hf-card="' + esc(repoId) + '">' +
         '<div class="model-card-header">' +
-          '<div class="model-card-name">' + esc(m.modelId || m.id) + '</div>' +
+          '<div class="model-card-name">' + esc(repoId) + '</div>' +
+          (isInstalled ? '<span class="badge-installed">' + esc(t('marketplace.installedBadge')) + '</span>' : '') +
         '</div>' +
         '<div class="model-card-meta">' +
           (pipeline ? '<span class="model-tag model-tag-accent">' + esc(pipeline) + '</span>' : '') +
@@ -1479,7 +1484,7 @@
 
     el.innerHTML = '<div class="model-grid">' + cards + '</div>';
 
-    el.addEventListener('click', function (e) {
+    el.onclick = function (e) {
       var importBtn = e.target.closest('[data-hf-import]');
       if (importBtn) {
         e.stopPropagation();
@@ -1494,7 +1499,7 @@
           loadHfFiles(card.dataset.hfCard);
         }
       }
-    });
+    };
   }
 
   function loadHfFiles(repoId) {
@@ -1512,15 +1517,20 @@
       var rows = files.map(function (f) {
         var sizeGb = f.size ? (f.size / (1024 * 1024 * 1024)).toFixed(2) : '?';
         var fit = f.size ? fitBadge(f.size / (1024 * 1024 * 1024)) : '';
+        var actionCol;
+        if (f.installed_as) {
+          actionCol = '<span class="badge-installed">' + esc(t('marketplace.installedBadge')) + '</span>' +
+            '<span class="text-muted text-sm" style="margin-left:0.5rem">' + esc(f.installed_as) + '</span>';
+        } else {
+          actionCol = '<button class="btn btn-sm btn-primary" data-hf-import="' + esc(f.filename) + '" data-hf-repo="' + esc(repoId) + '">' +
+              esc(t('marketplace.import')) +
+            '</button>';
+        }
         return '<tr>' +
           '<td class="mono" style="font-size:0.8125rem;word-break:break-all">' + esc(f.filename) + '</td>' +
           '<td class="mono">' + sizeGb + ' GB</td>' +
           '<td>' + fit + '</td>' +
-          '<td>' +
-            '<button class="btn btn-sm btn-primary" data-hf-import="' + esc(f.filename) + '" data-hf-repo="' + esc(repoId) + '">' +
-              esc(t('marketplace.import')) +
-            '</button>' +
-          '</td>' +
+          '<td>' + actionCol + '</td>' +
         '</tr>';
       }).join('');
 
@@ -1530,8 +1540,8 @@
           '<thead><tr><th>File</th><th>' + esc(t('models.size')) + '</th><th>Fit</th><th></th></tr></thead>' +
           '<tbody>' + rows + '</tbody>' +
         '</table></div>';
-    }).catch(function () {
-      el.innerHTML = '<span class="text-muted">' + esc(t('marketplace.noFiles')) + '</span>';
+    }).catch(function (err) {
+      el.innerHTML = '<span class="text-muted" style="color:var(--danger)">' + esc(t('marketplace.hfError') || 'Failed to load files') + (err.message ? ': ' + esc(err.message) : '') + '</span>';
     });
   }
 
@@ -1582,6 +1592,8 @@
       var statusEl = $('#hf-import-status');
       if (progressDiv) progressDiv.style.display = '';
 
+      var importFailed = false;
+
       api('/models/import-hf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1594,31 +1606,39 @@
         function pump() {
           return reader.read().then(function (result) {
             if (result.done) {
-              showToast(t('marketplace.importSuccess', { name: modelName }), 'success');
+              if (!importFailed) {
+                showToast(t('marketplace.importSuccess', { name: modelName }), 'success');
+                refreshModels();
+                loadHfModels();
+              }
               close();
-              refreshModels();
               return;
             }
             buffer += decoder.decode(result.value, { stream: true });
             var lines = buffer.split('\n');
             buffer = lines.pop();
             lines.forEach(function (line) {
-              if (!line.startsWith('data: ')) return;
+              if (!line.startsWith('data: ') || importFailed) return;
               try {
                 var data = JSON.parse(line.slice(6));
                 if (data.error) {
+                  importFailed = true;
                   if (statusEl) statusEl.textContent = data.error;
+                  if (bar) { bar.style.width = '100%'; bar.classList.add('error'); }
                   showToast(t('marketplace.importError') + ': ' + data.error, 'error');
+                  if (confirmBtn) { confirmBtn.disabled = false; confirmBtn.textContent = t('marketplace.importConfirm'); }
+                  if (cancelBtn) cancelBtn.disabled = false;
                   return;
                 }
                 if (data.status && statusEl) statusEl.textContent = data.status;
                 if (data.total && data.completed && bar) {
                   bar.style.width = Math.round(data.completed / data.total * 100) + '%';
                 }
-                if (data.done) {
+                if (data.done && !importFailed) {
                   showToast(t('marketplace.importSuccess', { name: modelName }), 'success');
                   close();
                   refreshModels();
+                  loadHfModels();
                 }
               } catch (e) { /* skip */ }
             });

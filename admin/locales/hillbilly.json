@@ -322,6 +322,7 @@
     "files": "GGUF Jugs",
     "loadingFiles": "Checkin' the cellar...",
     "noFiles": "No GGUF jugs found",
+    "hfError": "Couldn't reach them HuggingFace folks",
     "catalogNote": "Hand-picked stills from the finest hollers. Last updated Feb 2026.",
     "stop": "Whoa!",
     "stopping": "Hittin' the brakes...",
