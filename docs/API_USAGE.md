@@ -457,7 +457,7 @@ curl $BASE_URL/admin/api/mesh/status \
   "hollerId": "holler-abc123",
   "autoConnect": true,
   "hasStoredMeshKey": true,
-  "lastHeartbeat": "2026-03-01T15:45:10.114Z",
+  "lastHeartbeat": 1709312400114,
   "jobsProcessed": 42,
   "moonshineEarned": 1.5,
   "errorMessage": null,
@@ -470,7 +470,7 @@ curl $BASE_URL/admin/api/mesh/status \
 }
 ```
 
-`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` is the coordinator URL (maps to `JIMBOMESH_COORDINATOR_URL` or `JIMBOMESH_MESH_URL` in `.env`). `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect.
+`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect.
 
 ### Connect to Mesh
 

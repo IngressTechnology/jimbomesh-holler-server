@@ -114,6 +114,19 @@ docker compose exec jimbomesh-still sqlite3 /opt/jimbomesh-still/data/holler.db 
 docker compose down -v
 ```
 
+## Test Commands
+
+Use these from the workspace root:
+
+| Scope | Command | Notes |
+|------|---------|-------|
+| Unit tests | `npm test` | Runs `test/*.test.js` with Node.js test runner |
+| API tests | `npm run test:api` | Playwright API tests in `test/api/*.spec.js` |
+| UI tests | `npm run test:ui` | Playwright UI tests in `test/ui/*.spec.js` |
+| Full e2e (API + UI) | `npm run test:e2e` | Runs all Playwright suites |
+
+For `test:api` and `test:ui`, start the server first (`npm start` or Docker), and ensure `.env` has an auth key (`ADMIN_API_KEY` or `JIMBOMESH_HOLLER_API_KEY`).
+
 ## Environment Setup
 
 1. Copy `.env.example` to `.env`

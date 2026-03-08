@@ -21,6 +21,8 @@ const CONFIG_PATH = path.join(__dirname, 'data', 'auth0-config.json');
 var buyerRateLimits = new Map();
 const RATE_WINDOW_MS = 60000;
 const HOUR_MS = 3600000;
+const BUYER_LIMIT_MAX_AGE_MS = 2 * HOUR_MS;
+const BUYER_LIMIT_PRUNE_INTERVAL_MS = 10 * 60000;
 
 // ── Init ───────────────────────────────────────────────────────
 
@@ -66,6 +68,7 @@ function init() {
       jwksRequestsPerMinute: 5,
     });
     configured = true;
+    _startPruneTimer();
     console.log('[jwt-validator] Auth0 JWT validation active (domain: ' + auth0Config.domain + ')');
   } catch (err) {
     console.error('[jwt-validator] Failed to initialize JWKS client:', err.message);
@@ -173,10 +176,29 @@ function getConfig() {
   };
 }
 
+// Periodically prune stale buyer rate limit entries to prevent unbounded growth
+var _pruneInterval = null;
+function _startPruneTimer() {
+  if (_pruneInterval) return;
+  _pruneInterval = setInterval(function () {
+    var now = Date.now();
+    var cutoff = now - BUYER_LIMIT_MAX_AGE_MS;
+    for (var entry of buyerRateLimits) {
+      var buyerId = entry[0];
+      var limits = entry[1];
+      if (limits.rpm.windowStart < cutoff && limits.rph.windowStart < cutoff) {
+        buyerRateLimits.delete(buyerId);
+      }
+    }
+  }, BUYER_LIMIT_PRUNE_INTERVAL_MS);
+  if (_pruneInterval.unref) _pruneInterval.unref();
+}
+
 module.exports = {
   init: init,
   isConfigured: isConfigured,
   validateJwt: validateJwt,
   checkBuyerRateLimit: checkBuyerRateLimit,
   getConfig: getConfig,
+  _startPruneTimer: _startPruneTimer,
 };

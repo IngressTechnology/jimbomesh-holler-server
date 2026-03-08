@@ -40,6 +40,7 @@ COPY db.js /opt/jimbomesh-still/db.js
 COPY stats-collector.js /opt/jimbomesh-still/stats-collector.js
 COPY mesh-connector.js /opt/jimbomesh-still/mesh-connector.js
 COPY mesh-webrtc.js /opt/jimbomesh-still/mesh-webrtc.js
+COPY mesh-utils.js /opt/jimbomesh-still/mesh-utils.js
 COPY admin-routes.js /opt/jimbomesh-still/admin-routes.js
 COPY qdrant-client.js /opt/jimbomesh-still/qdrant-client.js
 COPY document-pipeline.js /opt/jimbomesh-still/document-pipeline.js
@@ -48,7 +49,6 @@ COPY jwt-validator.js /opt/jimbomesh-still/jwt-validator.js
 COPY swagger-brand.css /opt/jimbomesh-still/swagger-brand.css
 COPY swagger-brand.js /opt/jimbomesh-still/swagger-brand.js
 COPY openapi.yaml /opt/jimbomesh-still/openapi.yaml
-COPY db.js /opt/jimbomesh-still/db.js
 COPY admin/ /opt/jimbomesh-still/admin/
 
 # Create non-root user for the Node.js gateway and health server

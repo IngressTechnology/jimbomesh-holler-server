@@ -543,16 +543,27 @@ function deleteModelPricing(model) {
   return stmts.deleteModelPricing.run(model);
 }
 
+const _stmtCache = new Map();
+
+function _cachedPrepare(sql) {
+  let stmt = _stmtCache.get(sql);
+  if (!stmt) {
+    stmt = db.prepare(sql);
+    _stmtCache.set(sql, stmt);
+  }
+  return stmt;
+}
+
 function runSql(sql, params) {
-  return db.prepare(sql).run(params || []);
+  return _cachedPrepare(sql).run(params || []);
 }
 
 function getSql(sql, params) {
-  return db.prepare(sql).get(params || []);
+  return _cachedPrepare(sql).get(params || []);
 }
 
 function allSql(sql, params) {
-  return db.prepare(sql).all(params || []);
+  return _cachedPrepare(sql).all(params || []);
 }
 
 // Functions from HEAD branch (Rate Limit)

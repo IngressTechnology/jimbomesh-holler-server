@@ -83,6 +83,35 @@ function Test-Command {
     }
 }
 
+function Repair-StatsSchema {
+    $service = "jimbomesh-still"
+    $running = docker ps -a --format '{{.Names}}' 2>$null | Where-Object { $_ -eq $service }
+    if (-not $running) { return }
+
+    $nodeScript = @'
+const Database = require('better-sqlite3');
+const dbPath = process.env.SQLITE_DB_PATH || '/opt/jimbomesh-still/data/holler.db';
+const db = new Database(dbPath);
+try {
+  const table = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='request_stats'").get();
+  if (!table) { process.exit(0); }
+  const cols = db.prepare("PRAGMA table_info(request_stats)").all().map(function (r) { return r.name; });
+  if (cols.indexOf('connection_type') === -1) {
+    db.exec('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
+    db.prepare("INSERT OR REPLACE INTO schema_version (version) VALUES (?)").run(4);
+    console.log('stats-schema:repaired');
+  }
+} catch (e) { console.error('stats-schema-error:', e.message); }
+db.close();
+'@
+    try {
+        $result = docker exec $service node -e $nodeScript 2>&1
+        if ($result -match 'repaired') {
+            Write-Success "Repaired legacy request_stats schema (added connection_type column)"
+        }
+    } catch { <# ignore #> }
+}
+
 function Get-EnvVar {
     param(
         [string]$FilePath,
@@ -364,6 +393,7 @@ if ($ExistingInstall -and -not $PullOnly) {
             Push-Location $ScriptDir
             Invoke-Compose @("restart", "jimbomesh-still")
             Pop-Location
+            Repair-StatsSchema
             Write-Success "Services restarted!"
             Write-Host ""
             Write-Host "  Admin UI:   http://localhost:1920/admin" -ForegroundColor Cyan
@@ -468,6 +498,7 @@ if ($ExistingInstall -and -not $PullOnly) {
             Write-Step "Restarting with updated code..."
             Invoke-Compose @("up", "-d", "--force-recreate", "--no-deps", "jimbomesh-still")
             Pop-Location
+            Repair-StatsSchema
             Write-Success "Update complete! Models and data preserved."
             Write-Host ""
 
@@ -810,6 +841,9 @@ if (-not $NoStart) {
         }
     }
 }
+
+# Self-heal legacy stats schema after startup/reconfigure.
+Repair-StatsSchema
 
 # Read keys from .env
 $connectKey = ""

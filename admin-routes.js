@@ -9,7 +9,7 @@ const crypto = require('crypto');
 const fs = require('fs');
 const path = require('path');
 const os = require('os');
-const { execSync } = require('child_process');
+const { execSync, execFile } = require('child_process');
 const Busboy = require('busboy');
 const pipeline = require('./document-pipeline');
 const qdrant = require('./qdrant-client');
@@ -108,9 +108,60 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+function createSseSession(req, res) {
+  let closed = false;
+  const cleaners = [];
+
+  function runCleaners() {
+    if (closed) return;
+    closed = true;
+    while (cleaners.length) {
+      const fn = cleaners.pop();
+      try { fn(); } catch { /* best effort cleanup */ }
+    }
+  }
+
+  req.on('close', runCleaners);
+  res.on('close', runCleaners);
+  res.on('finish', runCleaners);
+
+  return {
+    isClosed: function () { return closed || res.writableEnded || res.destroyed; },
+    onClose: function (fn) { cleaners.push(fn); },
+    send: function (payload) {
+      if (closed || res.writableEnded || res.destroyed) return false;
+      res.write('data: ' + JSON.stringify(payload) + '\n\n');
+      return true;
+    },
+    sendRaw: function (rawLine) {
+      if (closed || res.writableEnded || res.destroyed) return false;
+      res.write('data: ' + rawLine + '\n\n');
+      return true;
+    },
+    end: function (payload) {
+      if (payload && !closed && !res.writableEnded && !res.destroyed) {
+        res.write('data: ' + JSON.stringify(payload) + '\n\n');
+      }
+      if (!res.writableEnded && !res.destroyed) {
+        res.end();
+      }
+      runCleaners();
+    },
+  };
+}
+
 // ── Static File Server ──────────────────────────────────────────
 
-function serveStatic(pathname, res) {
+function escapeInlineScriptJson(value) {
+  return JSON.stringify(value)
+    .replace(/</g, '\\u003c')
+    .replace(/>/g, '\\u003e')
+    .replace(/&/g, '\\u0026')
+    .replace(/\u2028/g, '\\u2028')
+    .replace(/\u2029/g, '\\u2029');
+}
+
+function serveStatic(pathname, res, bootstrapData) {
   if (pathname === '/admin' || pathname === '/admin/') {
     pathname = '/admin/index.html';
   }
@@ -125,8 +176,13 @@ function serveStatic(pathname, res) {
   }
 
   try {
-    const content = fs.readFileSync(full);
     const ext = path.extname(full);
+    let content = fs.readFileSync(full);
+    if (ext === '.html' && path.basename(full) === 'index.html' && bootstrapData) {
+      const html = content.toString('utf8');
+      const script = `<script>window.__HOLLER_ADMIN_BOOTSTRAP__=${escapeInlineScriptJson(bootstrapData)};</script>`;
+      content = Buffer.from(html.replace('<!--__ADMIN_BOOTSTRAP__-->', script), 'utf8');
+    }
     res.writeHead(200, {
       'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
       'Content-Security-Policy':
@@ -207,6 +263,7 @@ function handlePull(ollamaUrl, req, res, sendError) {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     });
+    const sse = createSseSession(req, res);
 
     const parsed = new URL(ollamaUrl);
     const proxyReq = http.request(
@@ -224,20 +281,21 @@ function handlePull(ollamaUrl, req, res, sendError) {
           const lines = buffer.split('\n');
           buffer = lines.pop();
           for (const line of lines) {
-            if (line.trim()) res.write(`data: ${line}\n\n`);
+            if (line.trim()) sse.sendRaw(line);
           }
         });
         proxyRes.on('end', () => {
-          if (buffer.trim()) res.write(`data: ${buffer}\n\n`);
-          res.write('data: {"done":true}\n\n');
-          res.end();
+          if (buffer.trim()) sse.sendRaw(buffer);
+          sse.end({ done: true });
         });
       }
     );
+    sse.onClose(() => {
+      try { proxyReq.destroy(); } catch { /* ignore */ }
+    });
 
     proxyReq.on('error', (err) => {
-      res.write(`data: ${JSON.stringify({ error: err.message })}\n\n`);
-      res.end();
+      sse.end({ error: err.message });
     });
 
     proxyReq.write(JSON.stringify({ name: body.name, stream: true }));
@@ -539,9 +597,18 @@ function detectConfiguredMode() {
   return 'cpu';
 }
 
-function detectNvidiaGpu() {
+function _execFileAsync(cmd, args, opts) {
+  return new Promise(function (resolve, reject) {
+    execFile(cmd, args, opts, function (err, stdout) {
+      if (err) return reject(err);
+      resolve(stdout);
+    });
+  });
+}
+
+async function detectNvidiaGpu() {
   try {
-    const out = execSync('nvidia-smi --query-gpu=name,memory.total,memory.used,memory.free --format=csv,noheader,nounits', { timeout: 5000, encoding: 'utf8' });
+    const out = await _execFileAsync('nvidia-smi', ['--query-gpu=name,memory.total,memory.used,memory.free', '--format=csv,noheader,nounits'], { timeout: 5000, encoding: 'utf8' });
     const parts = out.trim().split(',').map(s => s.trim());
     if (parts.length >= 4) {
       return {
@@ -562,7 +629,7 @@ async function detectGpuInfo(ollamaUrl) {
     const system = { total_mb: Math.round(os.totalmem() / 1048576), free_mb: Math.round(os.freemem() / 1048576) };
     const result = { gpu: null, system, mode };
 
-    const nvidiaGpu = detectNvidiaGpu();
+    const nvidiaGpu = await detectNvidiaGpu();
     if (nvidiaGpu) {
       result.gpu = nvidiaGpu;
     }
@@ -641,21 +708,25 @@ function getPlatformLabel() {
   return platform;
 }
 
-function readFirstNonEmptyLine(cmd) {
-  const out = execSync(cmd, { timeout: 5000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-  const line = out.split(/\r?\n/).map((v) => v.trim()).find(Boolean);
-  return line || '';
+async function readFirstNonEmptyLine(cmd, args) {
+  try {
+    const out = await _execFileAsync(cmd, args, { timeout: 5000, encoding: 'utf8' });
+    const line = out.split(/\r?\n/).map((v) => v.trim()).find(Boolean);
+    return line || '';
+  } catch {
+    return '';
+  }
 }
 
-function detectCpuTopology() {
+async function detectCpuTopology() {
   const cpus = os.cpus() || [];
   const cpuThreads = cpus.length || 1;
   let cpuCores = cpuThreads;
 
   try {
     if (process.platform === 'darwin') {
-      cpuCores = toNumber(readFirstNonEmptyLine('sysctl -n hw.physicalcpu'), cpuCores);
-      const logical = toNumber(readFirstNonEmptyLine('sysctl -n hw.logicalcpu'), cpuThreads);
+      cpuCores = toNumber(await readFirstNonEmptyLine('sysctl', ['-n', 'hw.physicalcpu']), cpuCores);
+      const logical = toNumber(await readFirstNonEmptyLine('sysctl', ['-n', 'hw.logicalcpu']), cpuThreads);
       return { cpuCores: Math.max(1, cpuCores), cpuThreads: Math.max(cpuThreads, logical) };
     }
 
@@ -677,8 +748,8 @@ function detectCpuTopology() {
       }
       if (physical.size > 0) cpuCores = physical.size;
     } else if (process.platform === 'win32') {
-      const psCmd = 'powershell -NoProfile -Command "$c=(Get-CimInstance Win32_Processor | Measure-Object NumberOfCores -Sum).Sum; $l=(Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum; Write-Output \\"$c,$l\\""';
-      const line = readFirstNonEmptyLine(psCmd);
+      const psScript = '$c=(Get-CimInstance Win32_Processor | Measure-Object NumberOfCores -Sum).Sum; $l=(Get-CimInstance Win32_Processor | Measure-Object NumberOfLogicalProcessors -Sum).Sum; Write-Output "$c,$l"';
+      const line = await readFirstNonEmptyLine('powershell', ['-NoProfile', '-Command', psScript]);
       const parts = line.split(',').map((v) => toNumber(v.trim(), 0));
       if (parts[0] > 0) cpuCores = parts[0];
       if (parts[1] > 0) return { cpuCores: Math.max(1, cpuCores), cpuThreads: Math.max(cpuThreads, parts[1]) };
@@ -718,10 +789,11 @@ async function sampleCpuUsagePercent() {
 async function getSystemGpuInfo() {
   // 1) NVIDIA
   try {
-    const out = execSync(
-      'nvidia-smi --query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,temperature.gpu --format=csv,noheader,nounits',
-      { timeout: 5000, encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] }
-    ).trim();
+    const out = (await _execFileAsync(
+      'nvidia-smi',
+      ['--query-gpu=name,driver_version,memory.total,memory.used,utilization.gpu,temperature.gpu', '--format=csv,noheader,nounits'],
+      { timeout: 5000, encoding: 'utf8' }
+    )).trim();
     if (out) {
       const firstLine = out.split(/\r?\n/)[0];
       const [name, driver, vramTotal, vramUsed, util, temp] = firstLine.split(',').map((s) => s.trim());
@@ -742,10 +814,9 @@ async function getSystemGpuInfo() {
   // 2) Apple Silicon / Metal
   if (os.platform() === 'darwin' && os.arch() === 'arm64') {
     try {
-      const spOutput = execSync('system_profiler SPDisplaysDataType -json', {
+      const spOutput = await _execFileAsync('system_profiler', ['SPDisplaysDataType', '-json'], {
         timeout: 5000,
         encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
       });
       const displays = JSON.parse(spOutput).SPDisplaysDataType || [];
       const gpu = displays[0] || {};
@@ -764,10 +835,9 @@ async function getSystemGpuInfo() {
 
   // 3) AMD ROCm
   try {
-    const out = execSync('rocm-smi --showproductname --showmeminfo vram --showuse --showtemp --csv', {
+    const out = await _execFileAsync('rocm-smi', ['--showproductname', '--showmeminfo', 'vram', '--showuse', '--showtemp', '--csv'], {
       timeout: 5000,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
     });
     const lines = out.split(/\r?\n/).filter(Boolean);
     if (lines.length >= 2) {
@@ -810,14 +880,13 @@ function parseContainerId() {
   return null;
 }
 
-function getDirectorySizeGb(targetPath) {
+async function getDirectorySizeGb(targetPath) {
   if (!targetPath || !fs.existsSync(targetPath)) return null;
   try {
-    const out = execSync(`du -sk "${targetPath.replace(/"/g, '\\"')}"`, {
+    const out = (await _execFileAsync('du', ['-sk', targetPath], {
       timeout: 5000,
       encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'ignore'],
-    }).trim();
+    })).trim();
     const kb = toNumber(out.split(/\s+/)[0], null);
     if (kb == null) return null;
     return round1(kb / (1024 * 1024));
@@ -1031,7 +1100,7 @@ function buildPorts(composeInfo) {
   return ports.sort((a, b) => a.port - b.port);
 }
 
-function getDockerDetails(composeInfo) {
+async function getDockerDetails(composeInfo) {
   if (!isDockerEnv()) return null;
   const volumes = [];
   const known = [
@@ -1044,7 +1113,7 @@ function getDockerDetails(composeInfo) {
     volumes.push({
       name: vol.name,
       mountpoint: vol.mountpoint,
-      sizeGb: getDirectorySizeGb(vol.mountpoint),
+      sizeGb: await getDirectorySizeGb(vol.mountpoint),
     });
   }
 
@@ -1185,13 +1254,13 @@ function getSecurityChecks(systemInfo) {
 async function collectSystemBase() {
   const cpus = os.cpus() || [];
   const cpuModel = cpus[0] && cpus[0].model ? cpus[0].model : 'Unknown';
-  const cpuTopo = detectCpuTopology();
+  const cpuTopo = await detectCpuTopology();
   const totalMem = os.totalmem();
   const freeMem = os.freemem();
   const usedMem = totalMem - freeMem;
   const cpuUsagePercent = await sampleCpuUsagePercent();
   const gpu = await getSystemGpuInfo();
-  const docker = getDockerDetails(parseComposeInfo());
+  const docker = await getDockerDetails(parseComposeInfo());
   const isDocker = !!docker;
 
   return {
@@ -1351,6 +1420,27 @@ function hfEncodeRepoPath(repoId) {
   return repoId.split('/').map(encodeURIComponent).join('/');
 }
 
+const ALLOWED_HF_DOWNLOAD_HOST_SUFFIXES = ['huggingface.co', 'hf.co'];
+
+function isAllowedHfDownloadUrl(rawUrl) {
+  try {
+    const parsed = new URL(rawUrl);
+    if (parsed.protocol !== 'https:') return false;
+    const host = parsed.hostname.toLowerCase();
+    return ALLOWED_HF_DOWNLOAD_HOST_SUFFIXES.some((suffix) => host === suffix || host.endsWith('.' + suffix));
+  } catch {
+    return false;
+  }
+}
+
+function resolveRedirectUrl(baseUrl, locationHeader) {
+  try {
+    return new URL(locationHeader, baseUrl).toString();
+  } catch {
+    return null;
+  }
+}
+
 async function handleHfModelFiles(req, res, sendError, db) {
   try {
     const params = new URL(req.url, 'http://localhost').searchParams;
@@ -1408,58 +1498,93 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
       return;
     }
 
+    const destPath = path.join(tmpDir, safeFilename);
+    const fileUrl = `https://huggingface.co/${body.repo_id}/resolve/main/${encodeURIComponent(body.filename)}`;
+    if (!isAllowedHfDownloadUrl(fileUrl)) {
+      sendError(res, 400, 'invalid_request', 'Invalid download URL');
+      return;
+    }
+
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     });
+    const sse = createSseSession(req, res);
 
-    const destPath = path.join(tmpDir, safeFilename);
-    const fileUrl = `https://huggingface.co/${body.repo_id}/resolve/main/${encodeURIComponent(body.filename)}`;
+    let activeDownloadReq = null;
+    let activeFileStream = null;
+    let activeHashStream = null;
+    let activeBlobReq = null;
+    let activeUploadStream = null;
+    let activeCreateReq = null;
 
-    res.write(`data: ${JSON.stringify({ phase: 'download', status: 'Starting download...' })}\n\n`);
+    sse.onClose(() => {
+      try { if (activeDownloadReq) activeDownloadReq.destroy(); } catch { /* ignore */ }
+      try { if (activeFileStream) activeFileStream.destroy(); } catch { /* ignore */ }
+      try { if (activeHashStream) activeHashStream.destroy(); } catch { /* ignore */ }
+      try { if (activeBlobReq) activeBlobReq.destroy(); } catch { /* ignore */ }
+      try { if (activeUploadStream) activeUploadStream.destroy(); } catch { /* ignore */ }
+      try { if (activeCreateReq) activeCreateReq.destroy(); } catch { /* ignore */ }
+      try { fs.unlinkSync(destPath); } catch { /* ignore */ }
+    });
+
+    sse.send({ phase: 'download', status: 'Starting download...' });
 
     // Download the GGUF file with redirect following
     function download(url, redirectCount) {
+      if (sse.isClosed()) return;
+      if (!isAllowedHfDownloadUrl(url)) {
+        sse.end({ error: 'Blocked download redirect target' });
+        return;
+      }
       if (redirectCount > 5) {
-        res.write(`data: ${JSON.stringify({ error: 'Too many redirects' })}\n\n`);
-        res.end();
+        sse.end({ error: 'Too many redirects' });
         return;
       }
 
       const proto = url.startsWith('https') ? https : http;
-      proto.get(url, { headers: { 'User-Agent': 'JimboMesh-Holler/1.0' } }, (dlRes) => {
+      activeDownloadReq = proto.get(url, { headers: { 'User-Agent': 'JimboMesh-Holler/1.0' } }, (dlRes) => {
+        if (sse.isClosed()) return;
         if (dlRes.statusCode >= 300 && dlRes.statusCode < 400 && dlRes.headers.location) {
-          download(dlRes.headers.location, redirectCount + 1);
+          const redirectedUrl = resolveRedirectUrl(url, dlRes.headers.location);
+          if (!redirectedUrl || !isAllowedHfDownloadUrl(redirectedUrl)) {
+            sse.end({ error: 'Blocked redirect target' });
+            return;
+          }
+          download(redirectedUrl, redirectCount + 1);
           return;
         }
         if (dlRes.statusCode !== 200) {
-          res.write(`data: ${JSON.stringify({ error: `Download failed: HTTP ${dlRes.statusCode}` })}\n\n`);
-          res.end();
+          sse.end({ error: `Download failed: HTTP ${dlRes.statusCode}` });
           return;
         }
 
         const totalBytes = parseInt(dlRes.headers['content-length'] || '0');
         let downloaded = 0;
         const fileStream = fs.createWriteStream(destPath);
+        activeFileStream = fileStream;
         let lastPct = -1;
 
         dlRes.on('data', (chunk) => {
+          if (sse.isClosed()) return;
           downloaded += chunk.length;
           fileStream.write(chunk);
           if (totalBytes > 0) {
             const pct = Math.round(downloaded / totalBytes * 100);
             if (pct !== lastPct) {
               lastPct = pct;
-              res.write(`data: ${JSON.stringify({ phase: 'download', status: `Downloading... ${pct}%`, completed: downloaded, total: totalBytes })}\n\n`);
+              sse.send({ phase: 'download', status: `Downloading... ${pct}%`, completed: downloaded, total: totalBytes });
             }
           }
         });
 
         dlRes.on('end', () => {
+          if (sse.isClosed()) return;
           fileStream.end(() => {
-            res.write(`data: ${JSON.stringify({ phase: 'download', status: 'Download complete', completed: downloaded, total: downloaded })}\n\n`);
-            res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Computing file hash...' })}\n\n`);
+            if (sse.isClosed()) return;
+            sse.send({ phase: 'download', status: 'Download complete', completed: downloaded, total: downloaded });
+            sse.send({ phase: 'import', status: 'Computing file hash...' });
 
             const ollamaParsed = new URL(ollamaUrl);
             const ollamaPort = parseInt(ollamaParsed.port) || 11435;
@@ -1467,16 +1592,17 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
             // Step 1: compute SHA-256 hash of the downloaded file
             const hash = crypto.createHash('sha256');
             const hashStream = fs.createReadStream(destPath);
+            activeHashStream = hashStream;
             hashStream.on('data', (chunk) => hash.update(chunk));
             hashStream.on('error', (err) => {
-              res.write(`data: ${JSON.stringify({ error: `Hash failed: ${err.message}` })}\n\n`);
-              res.end();
+              sse.end({ error: `Hash failed: ${err.message}` });
               try { fs.unlinkSync(destPath); } catch { /* ignore */ }
             });
             hashStream.on('end', () => {
+              if (sse.isClosed()) return;
               const digest = 'sha256:' + hash.digest('hex');
               const fileSize = fs.statSync(destPath).size;
-              res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Uploading to Ollama blob store...' })}\n\n`);
+              sse.send({ phase: 'import', status: 'Uploading to Ollama blob store...' });
 
               // Step 2: upload the GGUF file as a blob to Ollama
               const blobReq = http.request({
@@ -1486,19 +1612,20 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
                 method: 'POST',
                 headers: { 'Content-Length': fileSize },
               }, (blobRes) => {
+                if (sse.isClosed()) return;
                 let blobBody = '';
                 blobRes.on('data', (chunk) => (blobBody += chunk));
                 blobRes.on('end', () => {
+                  if (sse.isClosed()) return;
                   if (blobRes.statusCode >= 400 && blobRes.statusCode !== 409) {
                     let msg = `Ollama blob upload failed: HTTP ${blobRes.statusCode}`;
                     try { const e = JSON.parse(blobBody); if (e.error) msg = e.error; } catch { /* use default */ }
-                    res.write(`data: ${JSON.stringify({ error: msg })}\n\n`);
-                    res.end();
+                    sse.end({ error: msg });
                     try { fs.unlinkSync(destPath); } catch { /* ignore */ }
                     return;
                   }
 
-                  res.write(`data: ${JSON.stringify({ phase: 'import', status: 'Creating model in Ollama...' })}\n\n`);
+                  sse.send({ phase: 'import', status: 'Creating model in Ollama...' });
 
                   // Step 3: create the model referencing the uploaded blob
                   let createFailed = false;
@@ -1509,15 +1636,15 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                   }, (createRes) => {
+                    if (sse.isClosed()) return;
                     if (createRes.statusCode >= 400) {
                       let errBody = '';
                       createRes.on('data', (chunk) => (errBody += chunk));
                       createRes.on('end', () => {
+                        if (sse.isClosed()) return;
                         let msg = `Ollama returned HTTP ${createRes.statusCode}`;
                         try { const e = JSON.parse(errBody); if (e.error) msg = e.error; } catch { /* use default */ }
-                        res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg}` })}\n\n`);
-                        res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-                        res.end();
+                        sse.end({ error: `Ollama import failed: ${msg}` });
                         try { fs.unlinkSync(destPath); } catch { /* ignore */ }
                       });
                       return;
@@ -1525,6 +1652,7 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
 
                     let buffer = '';
                     createRes.on('data', (chunk) => {
+                      if (sse.isClosed()) return;
                       buffer += chunk.toString();
                       const lines = buffer.split('\n');
                       buffer = lines.pop();
@@ -1534,42 +1662,42 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
                             const msg = JSON.parse(line);
                             if (msg.error) {
                               createFailed = true;
-                              res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg.error}` })}\n\n`);
+                              sse.send({ error: `Ollama import failed: ${msg.error}` });
                             } else {
-                              res.write(`data: ${JSON.stringify({ phase: 'import', status: msg.status || 'Processing...', done: msg.status === 'success' })}\n\n`);
+                              sse.send({ phase: 'import', status: msg.status || 'Processing...', done: msg.status === 'success' });
                             }
                           } catch {
-                            res.write(`data: ${JSON.stringify({ phase: 'import', status: line })}\n\n`);
+                            sse.send({ phase: 'import', status: line });
                           }
                         }
                       }
                     });
                     createRes.on('end', () => {
+                      if (sse.isClosed()) return;
                       if (buffer.trim() && !createFailed) {
                         try {
                           const msg = JSON.parse(buffer);
                           if (msg.error) {
                             createFailed = true;
-                            res.write(`data: ${JSON.stringify({ error: `Ollama import failed: ${msg.error}` })}\n\n`);
+                            sse.send({ error: `Ollama import failed: ${msg.error}` });
                           } else {
-                            res.write(`data: ${JSON.stringify({ phase: 'import', status: msg.status || 'Done', done: true })}\n\n`);
+                            sse.send({ phase: 'import', status: msg.status || 'Done', done: true });
                           }
                         } catch {
-                          res.write(`data: ${JSON.stringify({ phase: 'import', status: buffer, done: true })}\n\n`);
+                          sse.send({ phase: 'import', status: buffer, done: true });
                         }
                       }
                       if (!createFailed && db) {
                         try { db.upsertHfImport(body.repo_id, safeFilename, body.model_name); } catch { /* non-critical */ }
                       }
-                      res.write(`data: ${JSON.stringify({ done: true })}\n\n`);
-                      res.end();
+                      sse.end({ done: true });
                       try { fs.unlinkSync(destPath); } catch { /* ignore */ }
                     });
                   });
+                  activeCreateReq = createReq;
 
                   createReq.on('error', (err) => {
-                    res.write(`data: ${JSON.stringify({ error: `Ollama create failed: ${err.message}` })}\n\n`);
-                    res.end();
+                    sse.end({ error: `Ollama create failed: ${err.message}` });
                     try { fs.unlinkSync(destPath); } catch { /* ignore */ }
                   });
 
@@ -1581,15 +1709,16 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
                   createReq.end();
                 });
               });
+              activeBlobReq = blobReq;
 
               blobReq.on('error', (err) => {
-                res.write(`data: ${JSON.stringify({ error: `Blob upload failed: ${err.message}` })}\n\n`);
-                res.end();
+                sse.end({ error: `Blob upload failed: ${err.message}` });
                 try { fs.unlinkSync(destPath); } catch { /* ignore */ }
               });
 
               // Stream the file to Ollama's blob store
               const uploadStream = fs.createReadStream(destPath);
+              activeUploadStream = uploadStream;
               uploadStream.pipe(blobReq);
             });
           });
@@ -1597,13 +1726,12 @@ function handleHfImport(ollamaUrl, req, res, sendError, db) {
 
         dlRes.on('error', (err) => {
           fileStream.end();
-          res.write(`data: ${JSON.stringify({ error: `Download error: ${err.message}` })}\n\n`);
-          res.end();
+          sse.end({ error: `Download error: ${err.message}` });
           try { fs.unlinkSync(destPath); } catch { /* ignore */ }
         });
-      }).on('error', (err) => {
-        res.write(`data: ${JSON.stringify({ error: `Connection error: ${err.message}` })}\n\n`);
-        res.end();
+      });
+      activeDownloadReq.on('error', (err) => {
+        sse.end({ error: `Connection error: ${err.message}` });
       });
     }
 
@@ -1715,6 +1843,7 @@ function handleDocumentUpload(req, res, db, sendError) {
     'Cache-Control': 'no-cache',
     'Connection': 'keep-alive',
   });
+  const sse = createSseSession(req, res);
 
   pipeline.ensureDocumentsDir();
   const docId = crypto.randomUUID();
@@ -1723,10 +1852,17 @@ function handleDocumentUpload(req, res, db, sendError) {
   let mimeType = '';
   let fileSize = 0;
   let fileLimitHit = false;
+  let writeStream = null;
 
   const busboy = Busboy({
     headers: req.headers,
     limits: { fileSize: MAX_SIZE, files: 1 },
+  });
+  sse.onClose(() => {
+    try { req.unpipe(busboy); } catch { /* ignore */ }
+    try { busboy.destroy(); } catch { /* ignore */ }
+    try { if (writeStream) writeStream.destroy(); } catch { /* ignore */ }
+    try { if (savedPath) fs.unlinkSync(savedPath); } catch { /* ignore */ }
   });
 
   const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf', '.csv', '.json', '.xml', '.html', '.doc', '.docx'];
@@ -1741,12 +1877,11 @@ function handleDocumentUpload(req, res, db, sendError) {
     const ext = path.extname(originalName).toLowerCase();
     if (!ALLOWED_EXTENSIONS.includes(ext)) {
       file.resume(); // drain the stream
-      res.write(`data: ${JSON.stringify({ error: 'Unsupported file type: ' + ext + '. Allowed: ' + ALLOWED_EXTENSIONS.join(', ') })}\n\n`);
-      res.end();
+      sse.end({ error: 'Unsupported file type: ' + ext + '. Allowed: ' + ALLOWED_EXTENSIONS.join(', ') });
       return;
     }
     savedPath = path.join(pipeline.DOCUMENTS_DIR, docId + ext);
-    const writeStream = fs.createWriteStream(savedPath);
+    writeStream = fs.createWriteStream(savedPath);
 
     file.on('data', (chunk) => { fileSize += chunk.length; });
     file.pipe(writeStream);
@@ -1755,28 +1890,27 @@ function handleDocumentUpload(req, res, db, sendError) {
       fileLimitHit = true;
       writeStream.destroy();
       try { fs.unlinkSync(savedPath); } catch (e) { /* ignore */ }
-      res.write('data: ' + JSON.stringify({ error: 'File exceeds maximum size (' + Math.round(MAX_SIZE / 1048576) + 'MB)' }) + '\n\n');
-      res.end();
+      sse.end({ error: 'File exceeds maximum size (' + Math.round(MAX_SIZE / 1048576) + 'MB)' });
     });
   });
 
   busboy.on('finish', async () => {
+    if (sse.isClosed()) return;
     if (fileLimitHit) return;
     if (!savedPath) {
-      res.write('data: ' + JSON.stringify({ error: 'No file uploaded' }) + '\n\n');
-      res.end();
+      sse.end({ error: 'No file uploaded' });
       return;
     }
 
     try {
       // Compute hash for dedup
-      res.write('data: ' + JSON.stringify({ phase: 'upload', status: 'Checking file...' }) + '\n\n');
+      sse.send({ phase: 'upload', status: 'Checking file...' });
       const fileHash = await pipeline.computeFileHash(savedPath);
+      if (sse.isClosed()) return;
       const existing = db.getDocumentByHash(fileHash, collection);
       if (existing) {
         fs.unlinkSync(savedPath);
-        res.write('data: ' + JSON.stringify({ error: 'duplicate', existing_id: existing.id, existing_name: existing.original_name }) + '\n\n');
-        res.end();
+        sse.end({ error: 'duplicate', existing_id: existing.id, existing_name: existing.original_name });
         return;
       }
 
@@ -1793,28 +1927,26 @@ function handleDocumentUpload(req, res, db, sendError) {
         status: 'processing',
       });
 
-      res.write('data: ' + JSON.stringify({ phase: 'upload', status: 'Upload complete', document_id: docId }) + '\n\n');
+      sse.send({ phase: 'upload', status: 'Upload complete', document_id: docId });
 
       // Process document with progress callbacks
       const result = await pipeline.processDocument(docId, savedPath, mimeType, collection, (progress) => {
-        res.write('data: ' + JSON.stringify(progress) + '\n\n');
+        sse.send(progress);
       });
+      if (sse.isClosed()) return;
 
       db.updateDocumentStatus(docId, 'ready', null, result.chunkCount);
-      res.write('data: ' + JSON.stringify({ done: true, document_id: docId, chunks: result.chunkCount }) + '\n\n');
-      res.end();
+      sse.end({ done: true, document_id: docId, chunks: result.chunkCount });
     } catch (err) {
       console.error('[documents] Processing error:', err.message);
       try { db.updateDocumentStatus(docId, 'error', err.message, 0); } catch (e) { /* ignore */ }
-      res.write('data: ' + JSON.stringify({ error: err.message }) + '\n\n');
-      res.end();
+      sse.end({ error: err.message });
     }
   });
 
   busboy.on('error', (err) => {
     console.error('[documents] Upload error:', err.message);
-    res.write('data: ' + JSON.stringify({ error: err.message }) + '\n\n');
-    res.end();
+    sse.end({ error: err.message });
   });
 
   req.pipe(busboy);
@@ -1837,15 +1969,16 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
       'Cache-Control': 'no-cache',
       'Connection': 'keep-alive',
     });
+    const sse = createSseSession(req, res);
 
     // Semantic search for relevant chunks
     var result = await pipeline.askDocuments(body.query, collection, chatModel, limit);
+    if (sse.isClosed()) return;
 
     if (!result.messages) {
-      res.write('data: ' + JSON.stringify({ phase: 'sources', hits: [] }) + '\n\n');
-      res.write('data: ' + JSON.stringify({ phase: 'answer', message: { role: 'assistant', content: 'No relevant documents found for your query.' } }) + '\n\n');
-      res.write('data: ' + JSON.stringify({ done: true }) + '\n\n');
-      res.end();
+      sse.send({ phase: 'sources', hits: [] });
+      sse.send({ phase: 'answer', message: { role: 'assistant', content: 'No relevant documents found for your query.' } });
+      sse.end({ done: true });
       return;
     }
 
@@ -1859,7 +1992,7 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
         text_preview: (h.payload.text || '').substring(0, 200),
       };
     });
-    res.write('data: ' + JSON.stringify({ phase: 'sources', hits: sourceSummary }) + '\n\n');
+    sse.send({ phase: 'sources', hits: sourceSummary });
 
     // Stream chat response from Ollama
     var parsed = new URL(ollamaUrl);
@@ -1874,6 +2007,7 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     }, function (chatRes) {
       var buffer = '';
       chatRes.on('data', function (chunk) {
+        if (sse.isClosed()) return;
         buffer += chunk.toString();
         var lines = buffer.split('\n');
         buffer = lines.pop();
@@ -1881,31 +2015,32 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
           if (lines[i].trim()) {
             try {
               var obj = JSON.parse(lines[i]);
-              res.write('data: ' + JSON.stringify({ phase: 'answer', message: obj.message, done: obj.done }) + '\n\n');
+              sse.send({ phase: 'answer', message: obj.message, done: obj.done });
             } catch (e) { /* skip */ }
           }
         }
       });
       chatRes.on('end', function () {
+        if (sse.isClosed()) return;
         if (buffer.trim()) {
           try {
             var obj = JSON.parse(buffer);
-            res.write('data: ' + JSON.stringify({ phase: 'answer', message: obj.message, done: obj.done }) + '\n\n');
+            sse.send({ phase: 'answer', message: obj.message, done: obj.done });
           } catch (e) { /* skip */ }
         }
-        res.write('data: ' + JSON.stringify({ done: true }) + '\n\n');
-        res.end();
+        sse.end({ done: true });
       });
+    });
+    sse.onClose(function () {
+      try { chatReq.destroy(); } catch { /* ignore */ }
     });
 
     chatReq.on('error', function (err) {
-      res.write('data: ' + JSON.stringify({ error: err.message }) + '\n\n');
-      res.end();
+      sse.end({ error: err.message });
     });
     chatReq.on('timeout', function () {
       chatReq.destroy();
-      res.write('data: ' + JSON.stringify({ error: 'Chat request timed out' }) + '\n\n');
-      res.end();
+      sse.end({ error: 'Chat request timed out' });
     });
     chatReq.write(chatBody);
     chatReq.end();
@@ -1950,6 +2085,133 @@ function handleMeshStatus(meshConnector, res, config) {
   json(res, 200, status);
 }
 
+function meshVersionFetch(url, headers, timeoutMs) {
+  return new Promise(function (resolve, reject) {
+    var target = new URL(url);
+    var client = target.protocol === 'https:' ? https : http;
+    var req = client.request({
+      hostname: target.hostname,
+      port: target.port ? parseInt(target.port) : (target.protocol === 'https:' ? 443 : 80),
+      path: target.pathname + (target.search || ''),
+      method: 'GET',
+      headers: headers || {},
+    }, function (res) {
+      var raw = '';
+      res.on('data', function (chunk) { raw += chunk.toString(); });
+      res.on('end', function () {
+        if (res.statusCode >= 400) {
+          reject(new Error('HTTP ' + res.statusCode));
+          return;
+        }
+        try {
+          resolve(JSON.parse(raw));
+        } catch (_) {
+          reject(new Error('Invalid JSON response'));
+        }
+      });
+    });
+    req.on('error', reject);
+    req.setTimeout(timeoutMs || 10000, function () { req.destroy(new Error('Request timeout')); });
+    req.end();
+  });
+}
+
+function extractMeshPublishedVersion(payload) {
+  if (!payload) return null;
+  if (typeof payload === 'string') return payload;
+  if (typeof payload.version === 'string') return payload.version;
+  if (payload.data && typeof payload.data.version === 'string') return payload.data.version;
+  if (payload.latest && typeof payload.latest.version === 'string') return payload.latest.version;
+  if (payload.release && typeof payload.release.version === 'string') return payload.release.version;
+  return null;
+}
+
+async function fetchLatestPublishedMeshVersion(meshConnector) {
+  var base = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
+  if (!base) throw new Error('Missing mesh URL');
+  var token = meshConnector.apiKey || '';
+  var headers = { 'User-Agent': 'JimboMesh-Holler/1.0' };
+  if (token) {
+    headers.Authorization = 'Bearer ' + token;
+    headers['X-API-Key'] = token;
+  }
+  var endpoints = [
+    base + '/api/holler/version',
+    base + '/api/version',
+    base + '/version',
+  ];
+  var lastErr = null;
+  for (var i = 0; i < endpoints.length; i++) {
+    try {
+      var payload = await meshVersionFetch(endpoints[i], headers, 10000);
+      var latestVersion = extractMeshPublishedVersion(payload);
+      if (latestVersion) {
+        return { latestVersion: latestVersion, source: endpoints[i] };
+      }
+    } catch (err) {
+      lastErr = err;
+    }
+  }
+  throw (lastErr || new Error('No mesh version endpoint returned a version'));
+}
+
+async function handleMeshLatestVersion(meshConnector, res, config) {
+  var currentVersion = (config && config.hollerVersion) || pkg.version;
+  var connected = !!(meshConnector && (meshConnector.connected || meshConnector._state === 'connected' || meshConnector._state === 'reconnecting'));
+  if (!connected) {
+    json(res, 200, {
+      connected: false,
+      currentVersion: currentVersion,
+      latestVersion: null,
+      updateAvailable: false,
+    });
+    return;
+  }
+  try {
+    var meshUrl = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
+    var data = await cachedAsync(
+      'mesh-latest-version:' + meshUrl,
+      async function () { return await fetchLatestPublishedMeshVersion(meshConnector); },
+      10 * 60 * 1000
+    );
+    json(res, 200, {
+      connected: true,
+      currentVersion: currentVersion,
+      latestVersion: data.latestVersion || null,
+      updateAvailable: false,
+      source: data.source || null,
+    });
+  } catch (_) {
+    json(res, 200, {
+      connected: true,
+      currentVersion: currentVersion,
+      latestVersion: null,
+      updateAvailable: false,
+    });
+  }
+}
+
+function _createAndStartConnector(config, apiKey, meshUrl, hollerName) {
+  var existing = config.getMeshConnector();
+  if (existing) {
+    existing.stop().catch(function () {});
+  }
+
+  var connector = new MeshConnector({
+    meshUrl: meshUrl,
+    apiKey: apiKey,
+    ollamaUrl: config.ollamaUrl,
+    hollerEndpoint: process.env.JIMBOMESH_HOLLER_ENDPOINT || 'http://127.0.0.1:11435',
+    db: config.db,
+    version: config.hollerVersion || pkg.version,
+    hollerName: hollerName || undefined,
+    getConcurrencyStats: config.getConcurrencyStats,
+  });
+  config.setMeshConnector(connector);
+  connector.start();
+  return connector;
+}
+
 function handleMeshConnect(req, res, config) {
   readBody(req).then(function (body) {
     if (!body || !body.apiKey) {
@@ -1980,25 +2242,7 @@ function handleMeshConnect(req, res, config) {
       config.db.setSetting('mesh_auto_connect', String(autoConnect));
     }
 
-    // Stop existing connector if any
-    var existing = config.getMeshConnector();
-    if (existing) {
-      existing.stop().catch(function () {});
-    }
-
-    // Create and start new connector
-    var connector = new MeshConnector({
-      meshUrl: meshUrl,
-      apiKey: apiKey,
-      ollamaUrl: config.ollamaUrl,
-      hollerEndpoint: process.env.JIMBOMESH_HOLLER_ENDPOINT || 'http://127.0.0.1:11435',
-      db: config.db,
-      version: require('./package.json').version,
-      hollerName: hollerName || undefined,
-      getConcurrencyStats: config.getConcurrencyStats,
-    });
-    config.setMeshConnector(connector);
-    connector.start();
+    _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
     // Defense-in-depth: verify local inference key was not modified
     var localKeyAfter = config.getApiKey();
@@ -2073,23 +2317,7 @@ function handleMeshConnectStored(res, config) {
 
   var originalLocalKey = config.getApiKey();
 
-  var existing = config.getMeshConnector();
-  if (existing) {
-    existing.stop().catch(function () {});
-  }
-
-  var connector = new MeshConnector({
-    meshUrl: meshUrl,
-    apiKey: apiKey,
-    ollamaUrl: config.ollamaUrl,
-    hollerEndpoint: process.env.JIMBOMESH_HOLLER_ENDPOINT || 'http://127.0.0.1:11435',
-    db: config.db,
-    version: require('./package.json').version,
-    hollerName: hollerName || undefined,
-    getConcurrencyStats: config.getConcurrencyStats,
-  });
-  config.setMeshConnector(connector);
-  connector.start();
+  _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
   var localKeyAfter = config.getApiKey();
   if (localKeyAfter !== originalLocalKey) {
@@ -2131,18 +2359,7 @@ function handleMeshReconnect(res, config) {
 
   var originalLocalKey = config.getApiKey();
 
-  var connector = new MeshConnector({
-    meshUrl: meshUrl,
-    apiKey: apiKey,
-    ollamaUrl: config.ollamaUrl,
-    hollerEndpoint: process.env.JIMBOMESH_HOLLER_ENDPOINT || 'http://127.0.0.1:11435',
-    db: config.db,
-    version: require('./package.json').version,
-    hollerName: hollerName || undefined,
-    getConcurrencyStats: config.getConcurrencyStats,
-  });
-  config.setMeshConnector(connector);
-  connector.start();
+  _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
   var localKeyAfter = config.getApiKey();
   if (localKeyAfter !== originalLocalKey) {
@@ -2213,9 +2430,18 @@ function createAdminRoutes(config) {
       return true;
     }
 
-    // Static files — no auth required
+    // Static files — no auth required (SPA requires client-side login;
+    // source code of app.js is visible to unauthenticated users but contains no secrets)
     if (!pathname.startsWith('/admin/api/')) {
-      serveStatic(pathname, res);
+      const dbName = db && db.getSetting('server_name');
+      const serverName = dbName || process.env.HOLLER_SERVER_NAME || 'Holler Server';
+      const adminTitle = process.env.HOLLER_ADMIN_TITLE || 'JimboMesh Holler Server — Admin';
+      serveStatic(pathname, res, {
+        serverName: serverName,
+        adminTitle: adminTitle,
+        hollerVersion: config.hollerVersion || pkg.version,
+        nodeVersion: config.nodeVersion || process.version,
+      });
       return true;
     }
 
@@ -2228,6 +2454,8 @@ function createAdminRoutes(config) {
       json(res, 200, {
         serverName,
         adminTitle: process.env.HOLLER_ADMIN_TITLE || 'JimboMesh Holler Server \u2014 Admin',
+        hollerVersion: config.hollerVersion || pkg.version,
+        nodeVersion: config.nodeVersion || process.version,
       });
       return true;
     }
@@ -2433,20 +2661,22 @@ function createAdminRoutes(config) {
       if (!fs.existsSync(filePath)) { sendError(res, 404, 'file_not_found', 'Document file not found on disk'); return; }
       // SSE for reindex progress
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', 'Connection': 'keep-alive' });
+      const sse = createSseSession(req, res);
       db.updateDocumentStatus(docId, 'processing', null, 0);
-      res.write('data: ' + JSON.stringify({ phase: 'reindex', status: 'Deleting old vectors...' }) + '\n\n');
+      sse.send({ phase: 'reindex', status: 'Deleting old vectors...' });
       pipeline.deleteDocumentVectors(docId, doc.collection).then(function () {
+        if (sse.isClosed()) return null;
         return pipeline.processDocument(docId, filePath, doc.mime_type, doc.collection, function (progress) {
-          res.write('data: ' + JSON.stringify(progress) + '\n\n');
+          sse.send(progress);
         });
       }).then(function (result) {
+        if (sse.isClosed() || !result) return;
         db.updateDocumentStatus(docId, 'ready', null, result.chunkCount);
-        res.write('data: ' + JSON.stringify({ done: true, chunks: result.chunkCount }) + '\n\n');
-        res.end();
+        sse.end({ done: true, chunks: result.chunkCount });
       }).catch(function (err) {
+        if (sse.isClosed()) return;
         db.updateDocumentStatus(docId, 'error', err.message, 0);
-        res.write('data: ' + JSON.stringify({ error: err.message }) + '\n\n');
-        res.end();
+        sse.end({ error: err.message });
       });
     } else if (req.method === 'POST' && route === '/documents/query') {
       readBody(req).then(async function (body) {
@@ -2482,6 +2712,8 @@ function createAdminRoutes(config) {
     // ── Mesh Connectivity Routes ──────────────────────────────────
     } else if (req.method === 'GET' && route === '/mesh/status') {
       handleMeshStatus(config.getMeshConnector(), res, config);
+    } else if (req.method === 'GET' && route === '/mesh/latest-version') {
+      handleMeshLatestVersion(config.getMeshConnector(), res, config);
     } else if (req.method === 'POST' && route === '/mesh/connect') {
       handleMeshConnect(req, res, config);
     } else if (req.method === 'POST' && route === '/mesh/disconnect') {
@@ -2518,4 +2750,10 @@ function createAdminRoutes(config) {
   };
 }
 
-module.exports = { createAdminRoutes };
+module.exports = {
+  createAdminRoutes,
+  __test: {
+    isAllowedHfDownloadUrl,
+    resolveRedirectUrl,
+  },
+};

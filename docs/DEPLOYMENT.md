@@ -194,7 +194,7 @@ docker compose up -d
 
 Services started: `jimbomesh-still`
 
-### Mode 2: Ollama + Qdrant
+### Mode 2: Ollama and Qdrant
 
 Standalone stack with its own Qdrant instance. Useful for development, testing, or running a separate embedding environment.
 

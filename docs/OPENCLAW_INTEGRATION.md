@@ -276,8 +276,8 @@ See [SECURITY.md](SECURITY.md) for details.
 
 ## Next Steps
 
-- [Install more models](CONFIGURATION.md#alternative-embedding-models)
-- [Enable Qdrant vector DB](DEPLOYMENT.md#mode-2-ollama--qdrant) for document search
+- [Install or switch models](CONFIGURATION.md#changing-models)
+- [Enable Qdrant vector DB](DEPLOYMENT.md#mode-2-ollama-and-qdrant) for document search
 - [Set up TLS](SECURITY.md) for production use
 - [Monitor performance](TROUBLESHOOTING.md) in the admin dashboard
 

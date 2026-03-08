@@ -47,3 +47,5 @@ node_modules/
 *.log
 
 *.sqlite
+test-results/
+playwright-report/

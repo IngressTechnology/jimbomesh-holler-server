@@ -6,7 +6,18 @@
   "description": "On-prem AI inference node — Ollama API gateway with auth, rate limiting, and admin UI",
   "main": "api-gateway.js",
   "scripts": {
-    "start": "node api-gateway.js"
+    "start": "node api-gateway.js",
+    "test": "node --test test/*.test.js",
+    "test:watch": "node --test --watch test/*.test.js",
+    "test:ui": "npx playwright test test/ui/",
+    "test:api": "npx playwright test test/api/",
+    "test:e2e": "npx playwright test",
+    "test:ui:headed": "npx playwright test test/ui/ --headed",
+    "test:ui:debug": "npx playwright test test/ui/ --debug",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   },
   "dependencies": {
     "better-sqlite3": "^11.8.1",
@@ -20,5 +31,13 @@
   },
   "engines": {
     "node": ">=22.0.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@playwright/test": "^1.58.2",
+    "dotenv": "^17.3.1",
+    "eslint": "^10.0.3",
+    "eslint-config-prettier": "^10.1.8",
+    "prettier": "^3.8.1"
   }
 }

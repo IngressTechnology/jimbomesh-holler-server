@@ -73,7 +73,7 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 /opt/jimbomesh-still/document-pipeline.js ← Document RAG pipeline
 /opt/jimbomesh-still/swagger-brand.js  ← Swagger UI branding
 /opt/jimbomesh-still/swagger-brand.css ← Swagger UI custom styles
-/opt/jimbomesh-still/openapi.yaml      ← OpenAPI spec (v0.6.0)
+/opt/jimbomesh-still/openapi.yaml      ← OpenAPI spec (v0.7.2)
 /opt/jimbomesh-still/admin/            ← Admin UI static files (HTML, JS, CSS)
 /opt/jimbomesh-still/data/holler.db    ← SQLite database (volume mounted)
 /opt/jimbomesh-still/healthcheck.sh    ← Docker health check script

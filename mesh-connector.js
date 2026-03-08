@@ -16,6 +16,7 @@ const os = require('os');
 const { execSync } = require('child_process');
 const stats = require('./stats-collector');
 const db = require('./db');
+const { inferMeshRequestPath, maskKey: _maskKeyShared } = require('./mesh-utils');
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -30,14 +31,6 @@ function log(msg) {
 
 function hasToolCallsInMessage(message) {
   return !!(message && Array.isArray(message.tool_calls) && message.tool_calls.length > 0);
-}
-
-function inferMeshRequestPath(payload, fallbackPath) {
-  if (payload && Array.isArray(payload.input)) return '/api/embed';
-  if (payload && typeof payload.input === 'string') return '/api/embed';
-  if (payload && payload.endpoint === 'embed') return '/api/embed';
-  if (payload && payload.type === 'embed') return '/api/embed';
-  return fallbackPath || '/api/chat';
 }
 
 /**
@@ -446,6 +439,7 @@ class MeshConnector {
         this._mgmtWsPongReceived = false;
         try { this._mgmtWs.send(JSON.stringify({ type: 'ping' })); } catch (e) { try { this._mgmtWs.close(); } catch (_) {} return; }
 
+        if (this._mgmtPongTimeout) { clearTimeout(this._mgmtPongTimeout); this._mgmtPongTimeout = null; }
         this._mgmtPongTimeout = setTimeout(() => {
           if (!this._mgmtWsPongReceived && this._mgmtWs) {
             this._addLog('warning', 'Pong timeout — reconnecting management WebSocket');

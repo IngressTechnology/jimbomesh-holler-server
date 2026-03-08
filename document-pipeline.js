@@ -15,6 +15,8 @@ const OLLAMA_URL = process.env.OLLAMA_INTERNAL_URL || 'http://127.0.0.1:11435';
 const EMBED_MODEL = process.env.OLLAMA_EMBED_MODEL || 'nomic-embed-text';
 const CHUNK_SIZE = parseInt(process.env.DOCUMENT_CHUNK_SIZE || '500');
 const CHUNK_OVERLAP = parseInt(process.env.DOCUMENT_CHUNK_OVERLAP || '50');
+const EMBED_BATCH_SIZE = parseInt(process.env.EMBED_BATCH_SIZE || '10', 10);
+const MAX_UPLOAD_SIZE_MB = parseInt(process.env.MAX_UPLOAD_SIZE_MB || '50', 10);
 const CHARS_PER_TOKEN = 4; // heuristic matching api-gateway.js
 
 const DOCUMENTS_DIR = path.join(
@@ -202,7 +204,7 @@ function ollamaEmbed(texts) {
 }
 
 async function embedBatch(texts, onProgress) {
-  var BATCH_SIZE = 10;
+  var BATCH_SIZE = EMBED_BATCH_SIZE;
   var allEmbeddings = [];
 
   for (var i = 0; i < texts.length; i += BATCH_SIZE) {
@@ -229,6 +231,13 @@ async function embedBatch(texts, onProgress) {
 // ── Full Processing Pipeline ──────────────────────────────────
 
 async function processDocument(docId, filePath, mimeType, collection, onProgress) {
+  // Pre-check: reject files exceeding the configured size limit
+  var fileStat = fs.statSync(filePath);
+  var maxBytes = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+  if (fileStat.size > maxBytes) {
+    throw new Error('File exceeds maximum upload size of ' + MAX_UPLOAD_SIZE_MB + ' MB');
+  }
+
   // Phase 1: Extract text
   onProgress({ phase: 'extract', status: 'Extracting text...' });
   var extracted = await extractText(filePath, mimeType);

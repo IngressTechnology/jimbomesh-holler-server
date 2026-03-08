@@ -4,6 +4,7 @@
   // ── i18n shorthand ─────────────────────────────────────────────
 
   var t = window.i18n ? window.i18n.t : function (k) { return k; };
+  var ADMIN_BOOTSTRAP = window.__HOLLER_ADMIN_BOOTSTRAP__ || {};
 
   // ── Utilities ─────────────────────────────────────────────────
 
@@ -58,6 +59,25 @@
     return role === 'user' ? t('playground.userLabel') : t('playground.assistantLabel');
   }
 
+  function parseSemver(v) {
+    if (!v) return null;
+    var raw = String(v).trim().replace(/^v/i, '').split('+')[0].split('-')[0];
+    var m = raw.match(/^(\d+)\.(\d+)\.(\d+)/);
+    if (!m) return null;
+    return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
+  }
+
+  function compareSemver(a, b) {
+    var pa = parseSemver(a);
+    var pb = parseSemver(b);
+    if (!pa || !pb) return 0;
+    for (var i = 0; i < 3; i++) {
+      if (pa[i] > pb[i]) return 1;
+      if (pa[i] < pb[i]) return -1;
+    }
+    return 0;
+  }
+
   var EMBEDDING_MODEL_PATTERNS = [
     /embed/i,
     /nomic/i,
@@ -97,6 +117,11 @@
     loginLoading: false,
     tab: 'dashboard',
     serverName: 'Holler Server',
+    hollerVersion: ADMIN_BOOTSTRAP.hollerVersion || '',
+    nodeVersion: ADMIN_BOOTSTRAP.nodeVersion || '',
+    latestPublishedVersion: null,
+    updateAvailable: false,
+    lastMeshVersionCheckAt: 0,
   };
 
   var activeIntervals = [];
@@ -362,25 +387,59 @@
 
   function shellHTML() {
     var tabBtns = TAB_KEYS.map(function (key) {
-      return '<button class="tab-btn' + (state.tab === key ? ' active' : '') +
-        '" data-tab="' + key + '">' + esc(t(TAB_LANG_KEYS[key])) + '</button>';
+      var isActive = state.tab === key;
+      return '<button class="tab-btn' + (isActive ? ' active' : '') +
+        '" data-tab="' + key + '" role="tab" aria-selected="' + isActive + '"' +
+        ' aria-controls="tab-content">' + esc(t(TAB_LANG_KEYS[key])) + '</button>';
     }).join('');
+
+    function versionBadgeHTML() {
+      if (!state.hollerVersion) return '';
+      var tooltip = 'JimboMesh Holler v' + state.hollerVersion;
+      if (state.nodeVersion) tooltip += ' • Node.js ' + state.nodeVersion;
+      var update = state.updateAvailable
+        ? '<span class="header-version-update" title="A newer version is available">update available</span>'
+        : '';
+      return '<span class="header-version-badge" title="' + esc(tooltip) + '">' +
+        '<span class="header-version-label">v' + esc(state.hollerVersion) + '</span>' +
+        update +
+      '</span>';
+    }
 
     return '<header class="app-header">' +
         '<div class="brand"><a href="https://jimbomesh.ai/Holler" target="_blank" rel="noopener noreferrer"><img src="/admin/assets/logo.png" class="brand-icon" alt=""></a>' + esc(state.serverName) + ' <span>' + esc(t('header.admin')) + '</span></div>' +
         '<div class="header-actions">' +
           '<button class="btn btn-sm btn-save" id="header-save-btn" disabled style="display:none">' + esc(t('configuration.save')) + '</button>' +
+          '<span id="header-version-slot">' + versionBadgeHTML() + '</span>' +
           langSelectorHTML() +
           '<button class="btn btn-sm" id="logout-btn">' + esc(t('nav.signOut')) + '</button>' +
         '</div>' +
       '</header>' +
-      '<nav class="tab-bar" id="tab-bar">' + tabBtns + '</nav>' +
-      '<div class="tab-content" id="tab-content"></div>' +
+      '<nav class="tab-bar" id="tab-bar" role="tablist" aria-label="Admin sections">' + tabBtns + '</nav>' +
+      '<div class="tab-content" id="tab-content" role="tabpanel"></div>' +
       '<footer class="app-footer">' +
         '<a href="https://ingresstechnology.ai/" target="_blank" rel="noopener">' + t('footer.createdWith') + ' ' +
           '<img src="/admin/assets/ingresslogo_inline.png" alt="Ingress Technology" class="footer-logo">' +
         '</a>' +
       '</footer>';
+  }
+
+  function refreshVersionBadge() {
+    var slot = $('#header-version-slot');
+    if (!slot) return;
+    if (!state.hollerVersion) {
+      slot.innerHTML = '';
+      return;
+    }
+    var tooltip = 'JimboMesh Holler v' + state.hollerVersion;
+    if (state.nodeVersion) tooltip += ' • Node.js ' + state.nodeVersion;
+    var update = state.updateAvailable
+      ? '<span class="header-version-update" title="A newer version is available">update available</span>'
+      : '';
+    slot.innerHTML = '<span class="header-version-badge" title="' + esc(tooltip) + '">' +
+      '<span class="header-version-label">v' + esc(state.hollerVersion) + '</span>' +
+      update +
+    '</span>';
   }
 
   function attachShellEvents() {
@@ -389,6 +448,32 @@
     $('#tab-bar').addEventListener('click', function (e) {
       var btn = e.target.closest('[data-tab]');
       if (btn) switchTab(btn.dataset.tab);
+    });
+    $('#tab-bar').addEventListener('keydown', function (e) {
+      var tabs = Array.from(e.currentTarget.querySelectorAll('[data-tab]'));
+      var idx = tabs.indexOf(document.activeElement);
+      if (idx === -1) return;
+      var next = -1;
+      if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
+        next = (idx + 1) % tabs.length;
+      } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
+        next = (idx - 1 + tabs.length) % tabs.length;
+      } else if (e.key === 'Home') {
+        next = 0;
+      } else if (e.key === 'End') {
+        next = tabs.length - 1;
+      }
+      if (next >= 0) {
+        e.preventDefault();
+        tabs[next].focus();
+        switchTab(tabs[next].dataset.tab);
+      }
+    });
+    document.addEventListener('keydown', function (e) {
+      if (e.key === 'Escape') {
+        var overlay = document.querySelector('.confirm-overlay');
+        if (overlay) overlay.remove();
+      }
     });
   }
 
@@ -726,6 +811,8 @@
       c = document.createElement('div');
       c.id = 'toast-container';
       c.className = 'toast-container';
+      c.setAttribute('aria-live', 'polite');
+      c.setAttribute('aria-atomic', 'false');
       document.body.appendChild(c);
     }
     return c;
@@ -1120,7 +1207,7 @@
     var el = $('#delete-dialog');
     if (!el) return;
     el.innerHTML =
-      '<div class="confirm-overlay" id="delete-overlay">' +
+      '<div class="confirm-overlay" role="dialog" aria-modal="true" id="delete-overlay">' +
         '<div class="confirm-dialog">' +
           '<h3>' + esc(t('models.deleteTitle')) + '</h3>' +
           '<p>' + t('models.deleteConfirm', { name: esc(name) }) + '</p>' +
@@ -1552,7 +1639,7 @@
     var suggestedName = filename.replace(/\.gguf$/i, '').replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
 
     el.innerHTML =
-      '<div class="confirm-overlay" id="hf-import-overlay">' +
+      '<div class="confirm-overlay" role="dialog" aria-modal="true" id="hf-import-overlay">' +
         '<div class="confirm-dialog">' +
           '<h3>' + esc(t('marketplace.import')) + ': ' + esc(filename) + '</h3>' +
           '<p class="text-muted text-sm">' + esc(repoId) + '</p>' +
@@ -2512,7 +2599,7 @@
             state.serverName = nameChange.value;
             var brandEl = $('.brand');
             if (brandEl) {
-              brandEl.innerHTML = '<img src="/admin/assets/logo.png" class="brand-icon" alt="">' +
+              brandEl.innerHTML = '<a href="https://jimbomesh.ai/Holler" target="_blank" rel="noopener noreferrer"><img src="/admin/assets/logo.png" class="brand-icon" alt=""></a>' +
                 esc(state.serverName) + ' <span>' + esc(t('header.admin')) + '</span>';
             }
           }
@@ -2848,6 +2935,36 @@
   var _meshLastState = null;
   var _meshLastLogLen = 0;
   var _meshLastLogTail = '';
+  var meshLatestVersionCheckInFlight = false;
+
+  function clearMeshUpdateIndicator() {
+    if (state.updateAvailable || state.latestPublishedVersion) {
+      state.updateAvailable = false;
+      state.latestPublishedVersion = null;
+      refreshVersionBadge();
+    }
+  }
+
+  function maybeCheckMeshLatestVersion(meshState) {
+    if (meshState !== 'connected' && meshState !== 'reconnecting') {
+      clearMeshUpdateIndicator();
+      return;
+    }
+    var now = Date.now();
+    if (meshLatestVersionCheckInFlight) return;
+    if (state.lastMeshVersionCheckAt && (now - state.lastMeshVersionCheckAt) < 5 * 60 * 1000) return;
+    meshLatestVersionCheckInFlight = true;
+    apiJSON('/mesh/latest-version').then(function (data) {
+      state.lastMeshVersionCheckAt = Date.now();
+      state.latestPublishedVersion = data && data.latestVersion ? String(data.latestVersion) : null;
+      state.updateAvailable = !!(state.latestPublishedVersion && state.hollerVersion && compareSemver(state.hollerVersion, state.latestPublishedVersion) < 0);
+      refreshVersionBadge();
+    }).catch(function () {
+      state.lastMeshVersionCheckAt = Date.now();
+    }).finally(function () {
+      meshLatestVersionCheckInFlight = false;
+    });
+  }
 
   function meshLogTailSignature(entries) {
     if (!entries || entries.length === 0) return '';
@@ -2926,6 +3043,7 @@
     // Resolve state from new enum or legacy booleans
     var meshState = data.state || (data.connected ? 'connected' : (data.connecting ? 'connecting' : 'disconnected'));
     var logEntries = data.log || [];
+    maybeCheckMeshLatestVersion(meshState);
 
     // Clear any existing refresh interval
     if (meshRefreshInterval) { clearInterval(meshRefreshInterval); meshRefreshInterval = null; }
@@ -4750,11 +4868,16 @@
       window.i18n.onChange(function () { render(); });
     }
 
+    if (ADMIN_BOOTSTRAP.serverName) state.serverName = ADMIN_BOOTSTRAP.serverName;
+    if (ADMIN_BOOTSTRAP.adminTitle) document.title = ADMIN_BOOTSTRAP.adminTitle;
+
     fetch('/admin/api/branding')
       .then(function (r) { return r.json(); })
       .then(function (b) {
         state.serverName = b.serverName || 'Holler Server';
         if (b.adminTitle) document.title = b.adminTitle;
+        if (b.hollerVersion) state.hollerVersion = String(b.hollerVersion);
+        if (b.nodeVersion) state.nodeVersion = String(b.nodeVersion);
       })
       .catch(function () {})
       .then(tryRestore);

@@ -11,10 +11,12 @@
 
 const crypto = require('crypto');
 const db = require('./db');
+const { inferMeshRequestPath } = require('./mesh-utils');
 
 const MAX_PEER_CONNECTIONS = parseInt(process.env.MAX_PEER_CONNECTIONS || '10', 10);
 const SIGNALING_TIMEOUT_MS = 30000;
 const NEGOTIATION_TIMEOUT_MS = 30000;
+const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
 
 // ── Logging ─────────────────────────────────────────────────────
 
@@ -22,19 +24,6 @@ function log(msg) {
   console.log('[webrtc] ' + msg);
 }
 
-function maskCredential(str) {
-  if (!str) return '****';
-  if (str.length < 8) return '****';
-  return str.slice(0, 4) + '****' + str.slice(-4);
-}
-
-function inferMeshRequestPath(request, fallbackPath) {
-  if (request && Array.isArray(request.input)) return '/api/embed';
-  if (request && typeof request.input === 'string') return '/api/embed';
-  if (request && request.endpoint === 'embed') return '/api/embed';
-  if (request && request.type === 'embed') return '/api/embed';
-  return fallbackPath || '/api/chat';
-}
 
 // ── HollerPeerHandler ───────────────────────────────────────────
 
@@ -243,6 +232,10 @@ class PeerSession {
         clearTimeout(timeout);
         reject(new Error('Signaling WebSocket error'));
       });
+
+      self.signalingWs.addEventListener('close', function () {
+        clearTimeout(timeout);
+      });
     });
   }
 
@@ -328,6 +321,9 @@ class PeerSession {
         || process.env.OLLAMA_INTERNAL_URL
         || 'http://127.0.0.1:11435';
 
+      var abortController = new AbortController();
+      var fetchTimeout = setTimeout(function () { abortController.abort(); }, OLLAMA_TIMEOUT_MS);
+
       var response = await fetch(ollamaUrl + '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -337,6 +333,7 @@ class PeerSession {
           stream: true,
           options: request.parameters || {},
         }),
+        signal: abortController.signal,
       });
 
       if (!response.ok) {
@@ -403,6 +400,7 @@ class PeerSession {
         }
       }
 
+      clearTimeout(fetchTimeout);
       self.state = 'complete';
       var processingMs = Date.now() - startTime;
       if (tracking && !statsFinalized) {
@@ -424,8 +422,9 @@ class PeerSession {
       self.recordLocalRequestLog(request.model, processingMs, null, request);
 
     } catch (err) {
+      clearTimeout(fetchTimeout);
       if (tracking && !statsFinalized) {
-        statsFinalized = true;
+        statsFinalized = true; // eslint-disable-line no-useless-assignment
         statsCollector.failRequest(tracking, err).catch(function () {});
       }
       log('Job ' + self.jobId + ': error — ' + err.message);
@@ -504,9 +503,9 @@ class PeerSession {
    * Close all connections and free resources.
    */
   cleanup() {
-    try { if (this.signalingWs) this.signalingWs.close(); } catch (_) {}
-    try { if (this.dataChannel) this.dataChannel.close(); } catch (_) {}
-    try { if (this.pc) this.pc.close(); } catch (_) {}
+    try { if (this.signalingWs) this.signalingWs.close(); } catch (_) { /* expected during teardown */ }
+    try { if (this.dataChannel) this.dataChannel.close(); } catch (_) { /* expected during teardown */ }
+    try { if (this.pc) this.pc.close(); } catch (_) { /* expected during teardown */ }
     this.signalingWs = null;
     this.dataChannel = null;
     this.pc = null;

@@ -8,15 +8,15 @@ const http = require('http');
 const https = require('https');
 const fs = require('fs');
 const path = require('path');
-const url = require('url');
 const crypto = require('crypto');
-const { execSync } = require('child_process');
+const { execFile } = require('child_process');
 const db = require('./db');
 const stats = require('./stats-collector');
 const { createAdminRoutes } = require('./admin-routes');
 const tokenManager = require('./token-manager');
 const jwtValidator = require('./jwt-validator');
 const { MeshConnector } = require('./mesh-connector');
+const pkg = require('./package.json');
 
 // ── Global Safety Nets ───────────────────────────────────────
 // Prevent stray errors (e.g. from mesh WebSocket handlers) from killing the process.
@@ -35,6 +35,7 @@ process.on('uncaughtException', (err) => {
 // Boot-time configuration (ports/TLS cannot change at runtime)
 const PORT = parseInt(process.env.GATEWAY_PORT || '1920');
 const OLLAMA_URL = process.env.OLLAMA_INTERNAL_URL || 'http://127.0.0.1:11435';
+const OLLAMA_PARSED = new URL(OLLAMA_URL);
 let currentApiKey = process.env.JIMBOMESH_HOLLER_API_KEY;
 const ADMIN_API_KEY = process.env.ADMIN_API_KEY || null;
 const SHUTDOWN_TIMEOUT_MS = parseInt(process.env.SHUTDOWN_TIMEOUT_MS || '10000');
@@ -42,6 +43,8 @@ const TLS_CERT_PATH = process.env.TLS_CERT_PATH || null;
 const TLS_KEY_PATH = process.env.TLS_KEY_PATH || null;
 const TLS_PASSPHRASE = process.env.TLS_PASSPHRASE || null;
 const TRUST_PROXY = process.env.TRUST_PROXY === 'true';
+const HOLLER_VERSION = pkg.version;
+const NODE_RUNTIME_VERSION = process.version;
 
 // Mesh connectivity (off-grid by default — set JIMBOMESH_API_KEY to enable)
 const MESH_API_KEY = process.env.JIMBOMESH_API_KEY || '';
@@ -90,9 +93,18 @@ function MAX_CONCURRENT_REQUESTS(){
 }
 function MAX_QUEUE_SIZE()         { return cfg('max_queue_size', 50); }
 
+function _execFileAsync(cmd, args, opts) {
+  return new Promise(function (resolve, reject) {
+    execFile(cmd, args, opts, function (err, stdout) {
+      if (err) return reject(err);
+      resolve(stdout);
+    });
+  });
+}
+
 async function detectGpuCount() {
   try {
-    const output = execSync('nvidia-smi --query-gpu=name --format=csv,noheader', { timeout: 5000 }).toString().trim();
+    const output = (await _execFileAsync('nvidia-smi', ['--query-gpu=name', '--format=csv,noheader'], { timeout: 5000 })).trim();
     const gpus = output.split('\n').filter((line) => line.trim().length > 0);
     console.log(`[api-gateway] Detected ${gpus.length} GPU(s): ${gpus.join(', ')}`);
     return gpus.length;
@@ -252,6 +264,8 @@ const handleAdmin = createAdminRoutes({
   setMeshConnector: (mc) => { meshConnector = mc; },
   getConcurrencyStats,
   meshUrl: MESH_URL,
+  hollerVersion: HOLLER_VERSION,
+  nodeVersion: NODE_RUNTIME_VERSION,
 });
 
 const adminEnabled = (process.env.ADMIN_ENABLED || 'true').toLowerCase() !== 'false';
@@ -273,7 +287,7 @@ function initMeshConnectivity() {
       ollamaUrl: OLLAMA_URL,
       hollerEndpoint: HOLLER_ENDPOINT,
       db,
-      version: require('./package.json').version,
+      version: HOLLER_VERSION,
       hollerName: HOLLER_NAME || undefined,
       getConcurrencyStats,
     });
@@ -520,10 +534,9 @@ function fetchModelList() {
       return;
     }
 
-    const parsedUrl = url.parse(OLLAMA_URL);
     const req = http.request({
-      hostname: parsedUrl.hostname,
-      port: parseInt(parsedUrl.port) || 11435,
+      hostname: OLLAMA_PARSED.hostname,
+      port: parseInt(OLLAMA_PARSED.port) || 11435,
       path: '/api/tags',
       method: 'GET',
       timeout: 5000,
@@ -556,6 +569,24 @@ function fetchModelList() {
     });
 
     req.end();
+  });
+}
+
+function readRequestBody(req, maxBytes) {
+  return new Promise(function (resolve, reject) {
+    let body = '';
+    let bytesRead = 0;
+    req.on('data', function (chunk) {
+      bytesRead += chunk.length;
+      if (maxBytes && bytesRead > maxBytes) {
+        req.destroy();
+        reject(Object.assign(new Error('Body exceeds size limit'), { code: 'BODY_TOO_LARGE', bytesRead: bytesRead }));
+        return;
+      }
+      body += chunk;
+    });
+    req.on('end', function () { resolve(body); });
+    req.on('error', reject);
   });
 }
 
@@ -808,11 +839,10 @@ function createRequestHandler() {
         let slotReleased = false;
         function releaseOnce() { if (!slotReleased) { slotReleased = true; releaseSlot(); } }
 
-        const ollamaParsed = url.parse(OLLAMA_URL);
         const ollamaBody = JSON.stringify({ model, input: inputs });
         const ollamaReq = http.request({
-          hostname: ollamaParsed.hostname,
-          port: parseInt(ollamaParsed.port) || 11435,
+          hostname: OLLAMA_PARSED.hostname,
+          port: parseInt(OLLAMA_PARSED.port) || 11435,
           path: '/api/embed',
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
@@ -1062,11 +1092,10 @@ function createRequestHandler() {
         let slotReleased = false;
         function releaseOnce() { if (!slotReleased) { slotReleased = true; releaseSlot(); } }
 
-        const ollamaParsed = url.parse(OLLAMA_URL);
         const ollamaBody = JSON.stringify(ollamaReqBody);
         const ollamaReq = http.request({
-          hostname: ollamaParsed.hostname,
-          port: parseInt(ollamaParsed.port) || 11435,
+          hostname: OLLAMA_PARSED.hostname,
+          port: parseInt(OLLAMA_PARSED.port) || 11435,
           path: '/api/chat',
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
@@ -1341,10 +1370,9 @@ function createRequestHandler() {
 
         // Chat with Ollama
         const ollamaBody = JSON.stringify({ model: chatModel, messages: askResult.messages, stream: true });
-        const ollamaParsed = url.parse(OLLAMA_URL);
         const chatReq = http.request({
-          hostname: ollamaParsed.hostname,
-          port: parseInt(ollamaParsed.port) || 11435,
+          hostname: OLLAMA_PARSED.hostname,
+          port: parseInt(OLLAMA_PARSED.port) || 11435,
           path: '/api/chat',
           method: 'POST',
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
@@ -1399,13 +1427,12 @@ function createRequestHandler() {
     }
   }
 
-  const parsedUrl = url.parse(OLLAMA_URL);
   const proxyHeaders = { ...req.headers };
   delete proxyHeaders['x-api-key'];
 
   const proxyOpts = {
-    hostname: parsedUrl.hostname,
-    port: parseInt(parsedUrl.port) || 11435,
+    hostname: OLLAMA_PARSED.hostname,
+    port: parseInt(OLLAMA_PARSED.port) || 11435,
     path: req.url,
     method: req.method,
     headers: proxyHeaders,

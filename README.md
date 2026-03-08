@@ -60,6 +60,22 @@ Start with the section that matches your role:
 - **Admins / Operators**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/CONFIGURATION.md](docs/CONFIGURATION.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/MAC_WINDOWS_SETUP.md](docs/MAC_WINDOWS_SETUP.md)
 - **Contributors / Developers**: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CURSOR_VS_CODE.md](docs/CURSOR_VS_CODE.md), [docs/DOCKERBUILD.md](docs/DOCKERBUILD.md)
 
+## Testing
+
+The test suite has three layers:
+
+| Layer | Command | Runner | Notes |
+|------|---------|--------|-------|
+| Unit | `npm test` | Node.js built-in test runner | Fast logic tests in `test/*.test.js` |
+| API | `npm run test:api` | Playwright APIRequestContext | Runs specs in `test/api/*.spec.js` against `http://localhost:1920` |
+| UI | `npm run test:ui` | Playwright browser automation | Runs specs in `test/ui/*.spec.js` against `/admin` |
+
+Prerequisites for API/UI tests:
+
+- Start the server first (`npm start` or Docker stack).
+- Ensure `.env` has a valid auth key (`ADMIN_TOKEN`, `ADMIN_API_KEY`, or `JIMBOMESH_HOLLER_API_KEY`).
+- Keep Ollama reachable (`OLLAMA_HOST`, default `http://localhost:11434`) for inference-dependent tests.
+
 ### Manual
 
 ```bash

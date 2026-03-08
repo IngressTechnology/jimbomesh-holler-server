@@ -101,8 +101,9 @@ git checkout -b fix/descriptive-name
 
 Run the checks that match your change:
 
-- API smoke checks (`/api/tags`, `/api/embed`, `/v1/embeddings`)
-- Admin UI flows you changed
+- Unit tests (`npm test`) for shared logic and utilities
+- API tests (`npm run test:api`) for live endpoint behavior
+- UI tests (`npm run test:ui`) for Admin workflows
 - Docs links and command validity
 - Qdrant flow if you touched document pipeline
 - Setup script path if you changed install behavior
@@ -114,6 +115,12 @@ docker compose logs -f jimbomesh-still
 curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/health
 curl http://localhost:9090/healthz
 ```
+
+API and UI tests use Playwright and read auth/config from `.env`. Before running them:
+
+- Ensure Holler is running on `http://localhost:1920`
+- Ensure at least one auth key is set (`ADMIN_TOKEN`, `ADMIN_API_KEY`, or `JIMBOMESH_HOLLER_API_KEY`)
+- Ensure Ollama is reachable for model-backed test cases
 
 ## Documentation Requirements
 

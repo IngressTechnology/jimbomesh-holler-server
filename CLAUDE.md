@@ -6,7 +6,7 @@
   - Docker Compose: `docker-compose.yml`
   - Environment: `.env` / `.env.example`
   - Docs: `docs/` (ARCHITECTURE.md, DEPLOYMENT.md, CONFIGURATION.md, DOCKERBUILD.md, INTEGRATION.md, API_USAGE.md, CURSOR_VS_CODE.md, IDE_INTEGRATIONS.md, OPENCLAW_INTEGRATION.md, SECURITY.md, CUSTOMIZATION.md, MAC_WINDOWS_SETUP.md, ARM_SUPPORT.md, MODEL_BENCHMARKS.md, TROUBLESHOOTING.md)
-  - API Spec: `openapi.yaml` (OpenAPI 3.0.3, spec version 0.6.0, served at `/docs` via Swagger UI)
+  - API Spec: `openapi.yaml` (OpenAPI 3.0.3, spec version 0.7.2, served at `/docs` via Swagger UI)
   - Scripts: `scripts/` (embed.sh, healthcheck.sh, health-server.js, init-qdrant.sh, benchmark-models.sh, test-openclaw-connection.sh)
 
 - **Integration notes:**
@@ -33,7 +33,7 @@ jimbomesh-holler-server/
   db.js                   # SQLite database layer (better-sqlite3, WAL mode, prepared statements)
   qdrant-client.js        # Qdrant vector DB HTTP client (collections, points, search)
   document-pipeline.js    # Document RAG pipeline (extract, chunk, embed, store, search, Q&A)
-  openapi.yaml            # OpenAPI 3.0.3 spec, version 0.6.0 (served by Swagger UI at /docs)
+  openapi.yaml            # OpenAPI 3.0.3 spec, version 0.7.2 (served by Swagger UI at /docs)
   admin-routes.js         # Admin UI API route handlers + static file server
   stats-collector.js      # Request stats collection, model metadata/pricing, Moonshine pricing
   mesh-connector.js       # JimboMesh SaaS mesh connector (registration, heartbeat, job polling, WebRTC)

@@ -3,7 +3,7 @@
 This guide covers two independent topics:
 
 1. **[Mac Metal GPU — Performance Mode](#mac-metal-gpu-performance-mode)** — Run Ollama natively on your Mac for Apple Silicon GPU acceleration, with Docker handling only the API gateway.
-2. **[Mac → Windows Cross-Machine Setup](#mac--windows-cross-machine-setup)** — Connect JimboMesh running on Mac to the Holler Server running on a separate Windows machine.
+2. **[Mac and Windows Cross-Machine Setup](#mac-and-windows-cross-machine-setup)** — Connect JimboMesh running on Mac to the Holler Server running on a separate Windows machine.
 
 ---
 
@@ -187,7 +187,7 @@ See [UNINSTALL-OLLAMA.md](../UNINSTALL-OLLAMA.md) in the project root for step-b
 
 ---
 
-## Mac → Windows Cross-Machine Setup
+## Mac and Windows Cross-Machine Setup
 
 This section documents how to set up JimboMesh (running on Mac) to use the Holler Server (running on a separate Windows machine).
 
@@ -493,8 +493,8 @@ bash scripts/embed.sh knowledge_base test-check '{"test":"true"}' < /dev/null 2>
 - [Ollama Documentation](https://github.com/ollama/ollama/blob/main/docs/api.md)
 - [nomic-embed-text Model Card](https://ollama.com/library/nomic-embed-text)
 - [Qdrant Documentation](https://qdrant.tech/documentation/)
-- [jimbomesh-holler-server ARCHITECTURE.md](./ARCHITECTURE.md)
-- [jimbomesh-holler-server DEPLOYMENT.md](./DEPLOYMENT.md)
+- [jimbomesh-holler-server ARCHITECTURE.md](ARCHITECTURE.md)
+- [jimbomesh-holler-server DEPLOYMENT.md](DEPLOYMENT.md)
 
 ### Changelog
 

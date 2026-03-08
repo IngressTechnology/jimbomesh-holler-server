@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JimboMesh Holler Server API
-  version: 0.6.0
+  version: 0.7.2
   contact:
     email: security@jimbomesh.ai
   description: |
@@ -641,6 +641,14 @@ components:
           type: string
           enum: [HTTP Polling, WebSocket]
           description: Active job transport path used by the connector
+        reconnectAttempt:
+          type: integer
+          minimum: 0
+          description: Current management WebSocket reconnect attempt counter
+        nextReconnectAt:
+          type: integer
+          nullable: true
+          description: Unix timestamp (ms) when the next reconnect attempt is scheduled
         meshUrl:
           type: string
           format: uri
@@ -656,8 +664,9 @@ components:
           type: boolean
           description: Whether a mesh API key is persisted in SQLite for one-click reconnect
         lastHeartbeat:
-          type: string
+          type: integer
           nullable: true
+          description: Unix timestamp (ms) of most recent successful heartbeat
         jobsProcessed:
           type: integer
         moonshineEarned:
@@ -3094,11 +3103,14 @@ paths:
                 connected: true
                 connecting: false
                 mode: mesh-contributor
+                connectionMode: WebSocket
+                reconnectAttempt: 0
+                nextReconnectAt: null
                 meshUrl: https://api.jimbomesh.ai
                 hollerName: warehouse-holler-1
                 autoConnect: true
                 hasStoredMeshKey: true
-                lastHeartbeat: "2026-03-01T15:45:10.114Z"
+                lastHeartbeat: 1709312400114
                 errorMessage: null
                 log: []
         "401":

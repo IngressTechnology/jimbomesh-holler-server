@@ -7,8 +7,8 @@ Use your JimboMesh Holler as the AI backend for your favorite development tools.
 | IDE/Tool | Type | Chat | Autocomplete | Inline Edit | Embeddings | Guide |
 |----------|------|------|--------------|-------------|------------|-------|
 | Cursor | IDE | ✅ | ✅ | ✅ | ✅ | [Setup →](#cursor) |
-| VS Code + Continue | Extension | ✅ | ✅ | ✅ | ✅ | [Setup →](#vs-code--continue) |
-| VS Code + Cody | Extension | ✅ | ✅ | ✅ | ❌ | [Setup →](#vs-code--cody) |
+| VS Code + Continue | Extension | ✅ | ✅ | ✅ | ✅ | [Setup →](#vs-code-continue) |
+| VS Code + Cody | Extension | ✅ | ✅ | ✅ | ❌ | [Setup →](#vs-code-cody) |
 | JetBrains + Continue | Plugin | ✅ | ✅ | ✅ | ✅ | [Setup →](#jetbrains-ides) |
 | Neovim | Editor | ✅ | ✅ | ✅ | Varies | [Setup →](#neovim) |
 | Zed | IDE | ✅ | ✅ | ❌ | ❌ | [Setup →](#zed) |
@@ -113,7 +113,7 @@ For Cursor's Tab autocomplete with your Holler:
 
 ---
 
-## VS Code + Continue
+## VS Code Continue
 
 Continue is the best open-source AI coding extension for VS Code. Full chat, autocomplete, and inline edit — all pointing at your Holler.
 
@@ -184,7 +184,7 @@ Edit `~/.continue/config.json` (Continue creates this on first launch):
 
 ---
 
-## VS Code + Cody
+## VS Code Cody
 
 Cody (by Sourcegraph) supports custom LLM providers via experimental configuration.
 

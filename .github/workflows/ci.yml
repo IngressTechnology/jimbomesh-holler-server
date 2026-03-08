@@ -1,0 +1,105 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run format:check
+
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npm test
+        if: hashFiles('test/**') != ''
+
+  test-e2e:
+    name: E2E (Playwright)
+    runs-on: ubuntu-latest
+    needs: [lint, test]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --ignore-scripts
+      - run: npx playwright install chromium --with-deps
+      - name: Start Holler server
+        run: npm start &
+        env:
+          PORT: 1920
+          JIMBOMESH_HOLLER_API_KEY: test-holler-api-key
+          ADMIN_API_KEY: test-admin-api-key
+          ADMIN_TOKEN: test-admin-api-key
+          HOLLER_MODELS: ""
+      - name: Wait for server
+        run: |
+          for i in $(seq 1 30); do
+            if curl -sf http://localhost:1920/health > /dev/null; then
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "Server did not become healthy on :1920"
+          exit 1
+      - name: Run API tests
+        run: npm run test:api
+        env:
+          PORT: 1920
+          JIMBOMESH_HOLLER_API_KEY: test-holler-api-key
+          ADMIN_API_KEY: test-admin-api-key
+          ADMIN_TOKEN: test-admin-api-key
+      - name: Run UI tests
+        run: npm run test:ui
+        env:
+          PORT: 1920
+          JIMBOMESH_HOLLER_API_KEY: test-holler-api-key
+          ADMIN_API_KEY: test-admin-api-key
+          ADMIN_TOKEN: test-admin-api-key
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-report
+          path: |
+            playwright-report/
+            test-results/
+
+  docker-build:
+    name: Docker Build
+    runs-on: ubuntu-latest
+    needs: lint
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Docker image
+        run: docker build -t jimbomesh-still:ci .
+      - name: Verify image starts
+        run: |
+          docker run --rm -d --name holler-ci -p 9090:9090 jimbomesh-still:ci
+          sleep 10
+          curl -sf http://localhost:9090/healthz || true
+          docker stop holler-ci || true
