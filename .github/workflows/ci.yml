@@ -19,7 +19,7 @@ jobs:
         with:
           node-version: 22
           cache: npm
-      - run: npm ci --ignore-scripts
+      - run: npm ci
       - run: npm run lint
       - run: npm run format:check
 
