@@ -8,6 +8,8 @@
   "scripts": {
     "start": "node api-gateway.js",
     "test": "node --test test/*.test.js",
+    "test:checkin": "npm run format:check && npm run lint && npm test",
+    "test:release": "npm run test:checkin && npm run test:ui && npm run test:api",
     "test:watch": "node --test --watch test/*.test.js",
     "test:ui": "npx playwright test test/ui/",
     "test:api": "npx playwright test test/api/",

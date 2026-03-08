@@ -1,13 +1,7 @@
-# Ensure shell scripts always use LF line endings
-*.sh text eol=lf
+# Normalize all text files to LF in the repo
+* text=auto eol=lf
 
-# Docker files use LF
-Dockerfile text eol=lf
-docker-entrypoint.sh text eol=lf
-docker-compose.yml text eol=lf
-
-# Documentation
-*.md text eol=lf
-
-# Environment files
-.env* text eol=lf
+# Windows scripts keep CRLF
+*.cmd text eol=crlf
+*.bat text eol=crlf
+*.ps1 text eol=crlf
