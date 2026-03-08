@@ -4,3 +4,8 @@ docs/
 *.md
 package-lock.json
 *.ps1
+*.sh
+*.bash
+*.cmd
+*.bat
+setup.*

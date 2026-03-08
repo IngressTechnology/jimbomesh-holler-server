@@ -29,6 +29,8 @@ git clone https://github.com/IngressTechnology/jimbomesh-holler-server.git && cd
 git clone https://github.com/IngressTechnology/jimbomesh-holler-server.git; cd jimbomesh-holler-server; .\setup.ps1
 ```
 
+> **Windows Users:** Requires PowerShell 7+. Install with `winget install Microsoft.PowerShell`, then run `pwsh .\setup.ps1` (not `powershell`).
+
 ### No git? No problem.
 
 **Linux / macOS — curl:**
@@ -48,6 +50,8 @@ wget -qO- https://github.com/IngressTechnology/jimbomesh-holler-server/archive/r
 ```powershell
 irm https://github.com/IngressTechnology/jimbomesh-holler-server/archive/refs/heads/main.zip -OutFile holler.zip; Expand-Archive holler.zip .; cd jimbomesh-holler-server-main; .\setup.ps1
 ```
+
+> **Windows Users:** Requires PowerShell 7+. Install with `winget install Microsoft.PowerShell`, then run `pwsh .\setup.ps1` (not `powershell`).
 
 Add `--gpu` / `-WithGpu` for NVIDIA GPU support, `--qdrant` / `-WithQdrant` for a local vector DB.
 See the [Quick Start Guide](QUICK_START.md) for all flags and the manual install path.

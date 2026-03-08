@@ -16,6 +16,20 @@ param(
     [switch]$Help
 )
 
+if ($PSVersionTable.PSVersion.Major -lt 7) {
+    Write-Host ""
+    Write-Host "  PowerShell 7+ is required to run this script." -ForegroundColor Yellow
+    Write-Host "  You are running PowerShell $($PSVersionTable.PSVersion)" -ForegroundColor Yellow
+    Write-Host ""
+    Write-Host "  Install PowerShell 7:" -ForegroundColor Cyan
+    Write-Host "    winget install Microsoft.PowerShell" -ForegroundColor White
+    Write-Host ""
+    Write-Host "  Then re-run this script with:" -ForegroundColor Cyan
+    Write-Host "    pwsh .\setup.ps1" -ForegroundColor White
+    Write-Host ""
+    exit 1
+}
+
 # Config
 $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $ImageName = "jimbomesh-still:latest"
