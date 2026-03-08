@@ -103,7 +103,7 @@ function deletePoints(collection, filter) {
 }
 
 function searchPoints(collection, vector, filter, limit) {
-  var body = {
+  const body = {
     vector: vector,
     limit: limit || 5,
     with_payload: true,
@@ -116,7 +116,7 @@ function searchPoints(collection, vector, filter, limit) {
 }
 
 function scrollPoints(collection, filter, limit, offset) {
-  var body = {
+  const body = {
     limit: limit || 100,
     with_payload: true,
   };
@@ -129,7 +129,7 @@ function scrollPoints(collection, filter, limit, offset) {
 }
 
 function countPoints(collection, filter) {
-  var body = { exact: true };
+  const body = { exact: true };
   if (filter) body.filter = filter;
   return qdrantFetch('POST', '/collections/' + encodeURIComponent(collection) + '/points/count', body).then(function (r) {
     if (r.status !== 200) throw new Error('Qdrant countPoints: HTTP ' + r.status);

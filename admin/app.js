@@ -3,14 +3,14 @@
 
   // ── i18n shorthand ─────────────────────────────────────────────
 
-  var t = window.i18n ? window.i18n.t : function (k) { return k; };
-  var ADMIN_BOOTSTRAP = window.__HOLLER_ADMIN_BOOTSTRAP__ || {};
+  const t = window.i18n ? window.i18n.t : function (k) { return k; };
+  const ADMIN_BOOTSTRAP = window.__HOLLER_ADMIN_BOOTSTRAP__ || {};
 
   // ── Utilities ─────────────────────────────────────────────────
 
-  var $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
-  var $$ = function (sel, ctx) { return (ctx || document).querySelectorAll(sel); };
-  var $id = function (id) { return document.getElementById(id); };
+  const $ = function (sel, ctx) { return (ctx || document).querySelector(sel); };
+  const $$ = function (sel, ctx) { return (ctx || document).querySelectorAll(sel); };
+  const $id = function (id) { return document.getElementById(id); };
 
   function safeId(s) {
     return String(s).replace(/[^a-zA-Z0-9_-]/g, '-');
@@ -18,25 +18,25 @@
 
   function esc(s) {
     if (s == null) return '';
-    var d = document.createElement('div');
+    const d = document.createElement('div');
     d.textContent = String(s);
     return d.innerHTML;
   }
 
   function formatBytes(bytes) {
     if (!bytes) return '\u2014';
-    var u = ['B', 'KB', 'MB', 'GB', 'TB'];
-    var i = 0; var v = bytes;
+    const u = ['B', 'KB', 'MB', 'GB', 'TB'];
+    let i = 0; let v = bytes;
     while (v >= 1024 && i < u.length - 1) { v /= 1024; i++; }
     return v.toFixed(i > 0 ? 1 : 0) + ' ' + u[i];
   }
 
   function formatUptime(sec) {
     if (sec == null) return '\u2014';
-    var d = Math.floor(sec / 86400);
-    var h = Math.floor((sec % 86400) / 3600);
-    var m = Math.floor((sec % 3600) / 60);
-    var s = sec % 60;
+    const d = Math.floor(sec / 86400);
+    const h = Math.floor((sec % 86400) / 3600);
+    const m = Math.floor((sec % 3600) / 60);
+    const s = sec % 60;
     if (d > 0) return d + 'd ' + h + 'h ' + m + 'm';
     if (h > 0) return h + 'h ' + m + 'm ' + s + 's';
     if (m > 0) return m + 'm ' + s + 's';
@@ -61,24 +61,24 @@
 
   function parseSemver(v) {
     if (!v) return null;
-    var raw = String(v).trim().replace(/^v/i, '').split('+')[0].split('-')[0];
-    var m = raw.match(/^(\d+)\.(\d+)\.(\d+)/);
+    const raw = String(v).trim().replace(/^v/i, '').split('+')[0].split('-')[0];
+    const m = raw.match(/^(\d+)\.(\d+)\.(\d+)/);
     if (!m) return null;
     return [parseInt(m[1], 10), parseInt(m[2], 10), parseInt(m[3], 10)];
   }
 
   function compareSemver(a, b) {
-    var pa = parseSemver(a);
-    var pb = parseSemver(b);
+    const pa = parseSemver(a);
+    const pb = parseSemver(b);
     if (!pa || !pb) return 0;
-    for (var i = 0; i < 3; i++) {
+    for (let i = 0; i < 3; i++) {
       if (pa[i] > pb[i]) return 1;
       if (pa[i] < pb[i]) return -1;
     }
     return 0;
   }
 
-  var EMBEDDING_MODEL_PATTERNS = [
+  const EMBEDDING_MODEL_PATTERNS = [
     /embed/i,
     /nomic/i,
     /bge/i,
@@ -110,7 +110,7 @@
 
   // ── State ─────────────────────────────────────────────────────
 
-  var state = {
+  const state = {
     apiKey: '',
     authenticated: false,
     loginError: '',
@@ -124,25 +124,25 @@
     lastMeshVersionCheckAt: 0,
   };
 
-  var activeIntervals = [];
+  let activeIntervals = [];
   function clearIntervals() {
     activeIntervals.forEach(function (id) { clearInterval(id); });
     activeIntervals = [];
   }
 
-  var chatMessages = [];
-  var chatStreaming = false;
+  let chatMessages = [];
+  let chatStreaming = false;
 
-  var configOriginal = {};
-  var configDirty = {};
-  var enhancedSecurityEnabled = false;
-  var bearerTokens = [];
+  let configOriginal = {};
+  let configDirty = {};
+  let enhancedSecurityEnabled = false;
+  let bearerTokens = [];
 
   // ── API ───────────────────────────────────────────────────────
 
   function api(path, opts) {
     opts = opts || {};
-    var headers = { 'X-API-Key': state.apiKey };
+    const headers = { 'X-API-Key': state.apiKey };
     if (opts.headers) {
       Object.keys(opts.headers).forEach(function (k) { headers[k] = opts.headers[k]; });
     }
@@ -165,7 +165,7 @@
 
   function ollamaFetch(path, opts) {
     opts = opts || {};
-    var headers = { 'X-API-Key': state.apiKey };
+    const headers = { 'X-API-Key': state.apiKey };
     if (opts.headers) {
       Object.keys(opts.headers).forEach(function (k) { headers[k] = opts.headers[k]; });
     }
@@ -208,9 +208,9 @@
   }
 
   function tryHashLogin() {
-    var hash = window.location.hash || '';
+    const hash = window.location.hash || '';
     if (hash.indexOf('#key=') === 0) {
-      var hashKey = decodeURIComponent(hash.slice(5));
+      const hashKey = decodeURIComponent(hash.slice(5));
       history.replaceState(null, '', window.location.pathname + window.location.search);
       if (hashKey) { login(hashKey); return true; }
     }
@@ -218,23 +218,23 @@
   }
 
   function getTabFromHash() {
-    var hash = window.location.hash || '';
+    const hash = window.location.hash || '';
     if (!hash || hash.indexOf('#key=') === 0) return null;
-    var tabName = hash.slice(1);
+    const tabName = hash.slice(1);
     return TAB_KEYS.indexOf(tabName) !== -1 ? tabName : null;
   }
 
   function tryRestore() {
     if (tryHashLogin()) return;
-    var tabFromHash = getTabFromHash();
+    const tabFromHash = getTabFromHash();
     if (tabFromHash) state.tab = tabFromHash;
-    var saved = sessionStorage.getItem('admin_api_key');
+    const saved = sessionStorage.getItem('admin_api_key');
     if (saved) { login(saved); } else { render(); }
   }
 
   window.addEventListener('hashchange', function () {
     if (tryHashLogin()) return;
-    var tabFromHash = getTabFromHash();
+    const tabFromHash = getTabFromHash();
     if (tabFromHash && state.authenticated && state.tab !== tabFromHash) {
       switchTab(tabFromHash);
     }
@@ -242,7 +242,7 @@
 
   // ── Language Selector ─────────────────────────────────────────
 
-  var LANG_FLAGS = {
+  const LANG_FLAGS = {
     en: '<svg class="lang-flag" viewBox="0 0 30 20" width="18" height="12"><rect fill="#B22234" width="30" height="20"/><rect fill="#fff" y="1.54" width="30" height="1.54"/><rect fill="#fff" y="4.62" width="30" height="1.54"/><rect fill="#fff" y="7.69" width="30" height="1.54"/><rect fill="#fff" y="10.77" width="30" height="1.54"/><rect fill="#fff" y="13.85" width="30" height="1.54"/><rect fill="#fff" y="16.92" width="30" height="1.54"/><rect fill="#3C3B6E" width="12" height="10.77"/><g fill="#fff" transform="translate(1.2,1)"><circle cx="1.5" cy="1.2" r=".5"/><circle cx="3.5" cy="1.2" r=".5"/><circle cx="5.5" cy="1.2" r=".5"/><circle cx="7.5" cy="1.2" r=".5"/><circle cx="9.5" cy="1.2" r=".5"/><circle cx="2.5" cy="2.8" r=".5"/><circle cx="4.5" cy="2.8" r=".5"/><circle cx="6.5" cy="2.8" r=".5"/><circle cx="8.5" cy="2.8" r=".5"/><circle cx="1.5" cy="4.4" r=".5"/><circle cx="3.5" cy="4.4" r=".5"/><circle cx="5.5" cy="4.4" r=".5"/><circle cx="7.5" cy="4.4" r=".5"/><circle cx="9.5" cy="4.4" r=".5"/><circle cx="2.5" cy="6" r=".5"/><circle cx="4.5" cy="6" r=".5"/><circle cx="6.5" cy="6" r=".5"/><circle cx="8.5" cy="6" r=".5"/><circle cx="1.5" cy="7.6" r=".5"/><circle cx="3.5" cy="7.6" r=".5"/><circle cx="5.5" cy="7.6" r=".5"/><circle cx="7.5" cy="7.6" r=".5"/><circle cx="9.5" cy="7.6" r=".5"/></g></svg>',
     es: '<svg class="lang-flag" viewBox="0 0 30 20" width="18" height="12"><rect fill="#AA151B" width="30" height="20"/><rect fill="#F1BF00" y="5" width="30" height="10"/></svg>',
     hillbilly: '<span class="lang-flag-emoji">🤠</span>',
@@ -253,11 +253,11 @@
   }
 
   function langSelectorHTML() {
-    var available = window.i18n ? window.i18n.getAvailable() : [];
-    var current = window.i18n ? window.i18n.getLang() : '';
-    var currentMeta = available.find(function (l) { return l.code === current; }) || {};
+    const available = window.i18n ? window.i18n.getAvailable() : [];
+    const current = window.i18n ? window.i18n.getLang() : '';
+    const currentMeta = available.find(function (l) { return l.code === current; }) || {};
 
-    var options = available.map(function (l) {
+    const options = available.map(function (l) {
       return '<div class="lang-option' + (l.code === current ? ' active' : '') + '" data-lang="' + esc(l.code) + '">' +
         langFlagFor(l.code) + ' ' + esc(l.name) +
       '</div>';
@@ -274,8 +274,8 @@
   }
 
   function attachLangEvents() {
-    var toggle = $('#lang-toggle');
-    var menu = $('#lang-menu');
+    const toggle = $('#lang-toggle');
+    const menu = $('#lang-menu');
     if (!toggle || !menu || !window.i18n) return;
 
     toggle.addEventListener('click', function (e) {
@@ -284,7 +284,7 @@
     });
 
     menu.addEventListener('click', function (e) {
-      var opt = e.target.closest('[data-lang]');
+      const opt = e.target.closest('[data-lang]');
       if (opt) {
         menu.classList.remove('open');
         window.i18n.setLang(opt.dataset.lang);
@@ -299,7 +299,7 @@
   // ── Main Render ───────────────────────────────────────────────
 
   function render() {
-    var app = $('#app');
+    const app = $('#app');
     clearIntervals();
     if (!state.authenticated) {
       app.innerHTML = loginHTML();
@@ -345,19 +345,19 @@
   }
 
   function attachLoginEvents() {
-    var form = $('#login-form');
+    const form = $('#login-form');
     if (form) {
       form.addEventListener('submit', function (e) {
         e.preventDefault();
-        var key = $('#api-key').value.trim();
+        const key = $('#api-key').value.trim();
         if (key) login(key);
       });
     }
   }
 
   function updateLoginUI() {
-    var err = $('#login-error');
-    var btn = $('#login-btn');
+    const err = $('#login-error');
+    const btn = $('#login-btn');
     if (err) {
       err.textContent = state.loginError;
       err.style.display = state.loginError ? '' : 'none';
@@ -372,8 +372,8 @@
 
   // ── App Shell ─────────────────────────────────────────────────
 
-  var TAB_KEYS = ['dashboard', 'models', 'playground', 'statistics', 'config', 'system', 'activity', 'documents', 'feedback'];
-  var TAB_LANG_KEYS = {
+  const TAB_KEYS = ['dashboard', 'models', 'playground', 'statistics', 'config', 'system', 'activity', 'documents', 'feedback'];
+  const TAB_LANG_KEYS = {
     dashboard: 'nav.dashboard',
     models: 'nav.models',
     playground: 'nav.playground',
@@ -386,8 +386,8 @@
   };
 
   function shellHTML() {
-    var tabBtns = TAB_KEYS.map(function (key) {
-      var isActive = state.tab === key;
+    const tabBtns = TAB_KEYS.map(function (key) {
+      const isActive = state.tab === key;
       return '<button class="tab-btn' + (isActive ? ' active' : '') +
         '" data-tab="' + key + '" role="tab" aria-selected="' + isActive + '"' +
         ' aria-controls="tab-content">' + esc(t(TAB_LANG_KEYS[key])) + '</button>';
@@ -395,9 +395,9 @@
 
     function versionBadgeHTML() {
       if (!state.hollerVersion) return '';
-      var tooltip = 'JimboMesh Holler v' + state.hollerVersion;
+      let tooltip = 'JimboMesh Holler v' + state.hollerVersion;
       if (state.nodeVersion) tooltip += ' • Node.js ' + state.nodeVersion;
-      var update = state.updateAvailable
+      const update = state.updateAvailable
         ? '<span class="header-version-update" title="A newer version is available">update available</span>'
         : '';
       return '<span class="header-version-badge" title="' + esc(tooltip) + '">' +
@@ -425,15 +425,15 @@
   }
 
   function refreshVersionBadge() {
-    var slot = $('#header-version-slot');
+    const slot = $('#header-version-slot');
     if (!slot) return;
     if (!state.hollerVersion) {
       slot.innerHTML = '';
       return;
     }
-    var tooltip = 'JimboMesh Holler v' + state.hollerVersion;
+    let tooltip = 'JimboMesh Holler v' + state.hollerVersion;
     if (state.nodeVersion) tooltip += ' • Node.js ' + state.nodeVersion;
-    var update = state.updateAvailable
+    const update = state.updateAvailable
       ? '<span class="header-version-update" title="A newer version is available">update available</span>'
       : '';
     slot.innerHTML = '<span class="header-version-badge" title="' + esc(tooltip) + '">' +
@@ -446,14 +446,14 @@
     $('#logout-btn').addEventListener('click', logout);
     $('#header-save-btn').addEventListener('click', saveConfig);
     $('#tab-bar').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-tab]');
+      const btn = e.target.closest('[data-tab]');
       if (btn) switchTab(btn.dataset.tab);
     });
     $('#tab-bar').addEventListener('keydown', function (e) {
-      var tabs = Array.from(e.currentTarget.querySelectorAll('[data-tab]'));
-      var idx = tabs.indexOf(document.activeElement);
+      const tabs = Array.from(e.currentTarget.querySelectorAll('[data-tab]'));
+      const idx = tabs.indexOf(document.activeElement);
       if (idx === -1) return;
-      var next = -1;
+      let next = -1;
       if (e.key === 'ArrowRight' || e.key === 'ArrowDown') {
         next = (idx + 1) % tabs.length;
       } else if (e.key === 'ArrowLeft' || e.key === 'ArrowUp') {
@@ -471,7 +471,7 @@
     });
     document.addEventListener('keydown', function (e) {
       if (e.key === 'Escape') {
-        var overlay = document.querySelector('.confirm-overlay');
+        const overlay = document.querySelector('.confirm-overlay');
         if (overlay) overlay.remove();
       }
     });
@@ -493,14 +493,14 @@
   }
 
   function updateHeaderSaveButton() {
-    var btn = $('#header-save-btn');
+    const btn = $('#header-save-btn');
     if (!btn) return;
     if (state.tab !== 'config') {
       btn.style.display = 'none';
       return;
     }
     btn.style.display = '';
-    var dirtyCount = Object.keys(configDirty).length;
+    const dirtyCount = Object.keys(configDirty).length;
     btn.disabled = dirtyCount === 0;
     btn.textContent = dirtyCount > 0
       ? t('configuration.saveDirty', { count: dirtyCount })
@@ -508,7 +508,7 @@
   }
 
   function renderTab() {
-    var ct = $('#tab-content');
+    const ct = $('#tab-content');
     if (!ct) return;
     switch (state.tab) {
       case 'dashboard': initDashboard(ct); break;
@@ -559,11 +559,11 @@
 
   function refreshDashboard() {
     apiJSON('/status').then(function (s) {
-      var h = $('#d-health');
+      const h = $('#d-health');
       if (h) h.innerHTML = '<span class="status-dot ' + (s.healthy ? 'green' : 'red') +
         '"></span>' + (s.healthy ? esc(t('dashboard.healthy')) : esc(t('dashboard.unhealthy')));
 
-      var l = $('#d-latency');
+      const l = $('#d-latency');
       if (l) {
         l.textContent = s.ollama_latency_ms >= 0 ? s.ollama_latency_ms + ' ms' : 'N/A';
         l.className = 'stat-value ' +
@@ -577,7 +577,7 @@
       setText('#d-requests', s.total_requests != null ? s.total_requests : s.recent_requests);
       if (s.db_size_bytes != null) setText('#d-db-size', formatBytes(s.db_size_bytes));
 
-      var errEl = $('#d-error');
+      const errEl = $('#d-error');
       if (errEl) {
         errEl.innerHTML = s.error
           ? '<div class="card"><div class="login-error">' + esc(t('dashboard.ollamaError', { message: s.error })) + '</div></div>'
@@ -587,8 +587,8 @@
 
     apiJSON('/stats').then(function (data) {
       if (!data || !data.summary) return;
-      var allTime = data.summary.all_time || {};
-      var today = data.summary.today || {};
+      const allTime = data.summary.all_time || {};
+      const today = data.summary.today || {};
 
       setText('#d-today', today.total_requests != null ? today.total_requests : '\u2014');
       setText('#d-embeds', allTime.embed_requests != null ? allTime.embed_requests : '\u2014');
@@ -599,7 +599,7 @@
   }
 
   function setText(sel, val) {
-    var el = $(sel);
+    const el = $(sel);
     if (el) el.textContent = val != null ? val : '\u2014';
   }
 
@@ -656,7 +656,7 @@
   }
 
   function systemCheckNameLabel(name) {
-    var keyByName = {
+    const keyByName = {
       'API Authentication': 'system.checkNames.apiAuthentication',
       'Admin Portal Binding': 'system.checkNames.adminPortalBinding',
       'Ollama Binding': 'system.checkNames.ollamaBinding',
@@ -682,27 +682,27 @@
     apiJSON('/system').then(function (data) {
       renderSystemData(data);
     }).catch(function (err) {
-      var ct = $('#tab-content');
+      const ct = $('#tab-content');
       if (!ct || state.tab !== 'system') return;
       ct.innerHTML = '<div class="card"><div class="login-error">' + esc(t('status.errorDetail', { message: err.message })) + '</div></div>';
     });
   }
 
   function renderSystemData(data) {
-    var ct = $('#tab-content');
+    const ct = $('#tab-content');
     if (!ct || state.tab !== 'system' || !data) return;
 
-    var envLabel = data.network && data.network.isDocker ? t('system.environmentDocker') : t('system.environmentNative');
-    var dockerName = data.network && data.network.hostname ? data.network.hostname : '\u2014';
-    var gpu = data.hardware ? data.hardware.gpu : null;
-    var memPct = data.hardware ? data.hardware.memoryUsagePercent : null;
-    var cpuPct = data.hardware ? data.hardware.cpuUsagePercent : null;
-    var gpuPct = gpu ? gpu.vramUsagePercent : null;
-    var gpuUtil = gpu ? gpu.utilizationPercent : null;
-    var sec = data.security || { score: 0, rating: 'Critical', checks: [] };
-    var secCls = scoreClass(sec.score);
+    const envLabel = data.network && data.network.isDocker ? t('system.environmentDocker') : t('system.environmentNative');
+    const dockerName = data.network && data.network.hostname ? data.network.hostname : '\u2014';
+    const gpu = data.hardware ? data.hardware.gpu : null;
+    const memPct = data.hardware ? data.hardware.memoryUsagePercent : null;
+    const cpuPct = data.hardware ? data.hardware.cpuUsagePercent : null;
+    const gpuPct = gpu ? gpu.vramUsagePercent : null;
+    const gpuUtil = gpu ? gpu.utilizationPercent : null;
+    const sec = data.security || { score: 0, rating: 'Critical', checks: [] };
+    const secCls = scoreClass(sec.score);
 
-    var portsRows = (data.ports || []).map(function (p) {
+    const portsRows = (data.ports || []).map(function (p) {
       return '<tr>' +
         '<td class="mono">' + esc(p.port) + '</td>' +
         '<td>' + esc(p.service) + '</td>' +
@@ -712,16 +712,16 @@
       '</tr>';
     }).join('');
 
-    var secRows = (sec.checks || []).map(function (c) {
+    const secRows = (sec.checks || []).map(function (c) {
       return '<div class="system-check-row">' +
         '<span>' + checkIcon(c.status) + ' ' + esc(systemCheckNameLabel(c.name)) + '</span>' +
         '<span class="text-muted text-sm">' + esc(c.detail || '') + '</span>' +
       '</div>';
     }).join('');
 
-    var dockerCard = '';
+    let dockerCard = '';
     if (data.docker) {
-      var volumesRows = (data.docker.volumes || []).map(function (v) {
+      const volumesRows = (data.docker.volumes || []).map(function (v) {
         return '<tr>' +
           '<td class="mono">' + esc(v.name) + '</td>' +
           '<td class="mono">' + esc(v.mountpoint) + '</td>' +
@@ -806,7 +806,7 @@
   // ── Toast Notifications ──────────────────────────────────────
 
   function ensureToastContainer() {
-    var c = $('#toast-container');
+    let c = $('#toast-container');
     if (!c) {
       c = document.createElement('div');
       c.id = 'toast-container';
@@ -819,8 +819,8 @@
   }
 
   function showToast(message, type) {
-    var container = ensureToastContainer();
-    var toast = document.createElement('div');
+    const container = ensureToastContainer();
+    const toast = document.createElement('div');
     toast.className = 'toast toast-' + (type || 'info');
     toast.textContent = message;
     container.appendChild(toast);
@@ -832,18 +832,18 @@
 
   // ── Models / Marketplace Tab ────────────────────────────────
 
-  var mpMode = 'installed';
-  var modelsData = { models: [], running: [] };
-  var gpuInfo = null;
-  var ollamaCatalog = [];
-  var ollamaFilterTask = '';
-  var ollamaSearch = '';
-  var hfResults = [];
-  var hfImported = {};
-  var hfSearch = '';
-  var hfTask = '';
-  var hfSort = 'downloads';
-  var activePulls = {};  // track pull/import progress by model name
+  let mpMode = 'installed';
+  const modelsData = { models: [], running: [] };
+  let gpuInfo = null;
+  let ollamaCatalog = [];
+  let ollamaFilterTask = '';
+  let ollamaSearch = '';
+  let hfResults = [];
+  let hfImported = {};
+  let hfSearch = '';
+  let hfTask = '';
+  let hfSort = 'downloads';
+  const activePulls = {};  // track pull/import progress by model name
 
   function initModels(ct) {
     ct.innerHTML =
@@ -858,7 +858,7 @@
       '<div id="delete-dialog"></div>';
 
     $('#mp-tabs').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-mp]');
+      const btn = e.target.closest('[data-mp]');
       if (!btn) return;
       mpMode = btn.dataset.mp;
       $$('#mp-tabs .sub-tab').forEach(function (b) {
@@ -879,14 +879,13 @@
   }
 
   function renderVramBar() {
-    var el = $('#mp-vram');
+    const el = $('#mp-vram');
     if (!el || !gpuInfo) return;
-    var label, pct, cls, badge;
+    let label, pct, cls, badge;
     if (gpuInfo.gpu && gpuInfo.gpu.type === 'metal') {
-      var g = gpuInfo.gpu;
-      var og = gpuInfo.ollama_gpu;
-      var s = gpuInfo.system;
-      var usedMem = s.total_mb - s.free_mb;
+      const og = gpuInfo.ollama_gpu;
+      const s = gpuInfo.system;
+      const usedMem = s.total_mb - s.free_mb;
       pct = s.total_mb > 0 ? Math.round(usedMem / s.total_mb * 100) : 0;
       cls = pct < 60 ? 'green' : pct < 85 ? 'yellow' : 'red';
       badge = esc(t('marketplace.metalDetected'));
@@ -900,9 +899,9 @@
         label = t('marketplace.vramMetalIdle', { total: formatMb(s.total_mb) });
       }
     } else if (gpuInfo.gpu && gpuInfo.gpu.type === 'nvidia') {
-      var ng = gpuInfo.gpu;
-      var used = ng.vram_used_mb;
-      var total = ng.vram_total_mb;
+      const ng = gpuInfo.gpu;
+      const used = ng.vram_used_mb;
+      const total = ng.vram_total_mb;
       pct = total > 0 ? Math.round(used / total * 100) : 0;
       cls = pct < 60 ? 'green' : pct < 85 ? 'yellow' : 'red';
       badge = esc(t('marketplace.gpuDetected'));
@@ -912,8 +911,8 @@
         total: formatMb(total),
       });
     } else {
-      var sys = gpuInfo.system;
-      var usedSys = sys.total_mb - sys.free_mb;
+      const sys = gpuInfo.system;
+      const usedSys = sys.total_mb - sys.free_mb;
       pct = sys.total_mb > 0 ? Math.round(usedSys / sys.total_mb * 100) : 0;
       cls = 'yellow';
       badge = esc(t('marketplace.cpuOnly'));
@@ -941,7 +940,7 @@
   }
 
   function fitBadge(sizeGb) {
-    var avail = getAvailableVramGb();
+    const avail = getAvailableVramGb();
     if (avail <= 0) return '';
     if (sizeGb <= avail * 0.8) return '<span class="fit-badge fit-badge-green">' + esc(t('marketplace.willFit')) + '</span>';
     if (sizeGb <= avail) return '<span class="fit-badge fit-badge-yellow">' + esc(t('marketplace.willFitTight')) + '</span>';
@@ -949,7 +948,7 @@
   }
 
   function renderMpMode() {
-    var ct = $('#mp-content');
+    const ct = $('#mp-content');
     if (!ct) return;
     switch (mpMode) {
       case 'installed':    renderInstalled(ct); break;
@@ -992,11 +991,11 @@
     $('#refresh-models').addEventListener('click', refreshModels);
 
     ct.addEventListener('click', function (e) {
-      var showBtn = e.target.closest('[data-show]');
+      const showBtn = e.target.closest('[data-show]');
       if (showBtn) { showModelDetail(showBtn.dataset.show); return; }
-      var delBtn = e.target.closest('[data-delete]');
+      const delBtn = e.target.closest('[data-delete]');
       if (delBtn) { confirmDeleteModel(delBtn.dataset.delete); return; }
-      var updBtn = e.target.closest('[data-update]');
+      const updBtn = e.target.closest('[data-update]');
       if (updBtn) { pullModelByName(updBtn.dataset.update); }
     });
 
@@ -1014,22 +1013,22 @@
   }
 
   function renderModelTable() {
-    var el = $('#models-body');
+    const el = $('#models-body');
     if (!el) return;
-    var models = modelsData.models;
-    var running = modelsData.running;
+    const models = modelsData.models;
+    const running = modelsData.running;
     if (models.length === 0) {
       el.innerHTML = '<div class="empty-state">' + esc(t('models.emptyState')) + '</div>';
       return;
     }
-    var isRunning = function (name) {
+    const isRunning = function (name) {
       return running.some(function (m) { return m.name === name; });
     };
-    var rows = models.map(function (m) {
-      var statusBadge = isRunning(m.name)
+    const rows = models.map(function (m) {
+      const statusBadge = isRunning(m.name)
         ? '<span class="badge badge-success">' + esc(t('models.running')) + '</span>'
         : '<span class="badge badge-info">' + esc(t('models.loaded')) + '</span>';
-      var modified = m.modified_at ? formatTime(m.modified_at) : '\u2014';
+      const modified = m.modified_at ? formatTime(m.modified_at) : '\u2014';
       return '<tr>' +
         '<td class="mono">' + esc(m.name) + '</td>' +
         '<td class="mono">' + formatBytes(m.size) + '</td>' +
@@ -1060,8 +1059,8 @@
   }
 
   function pullModel() {
-    var input = $('#pull-input');
-    var btn = $('#pull-btn');
+    const input = $('#pull-input');
+    const btn = $('#pull-btn');
     if (!input || !input.value.trim()) return;
     if (btn && btn.disabled) return;
     pullModelByName(input.value.trim());
@@ -1070,11 +1069,11 @@
   function pullModelByName(name) {
     if (activePulls[name]) return;
 
-    var progress = $('#pull-progress');
-    var bar = $('#pull-bar');
-    var status = $('#pull-status');
-    var input = $('#pull-input');
-    var btn = $('#pull-btn');
+    const progress = $('#pull-progress');
+    const bar = $('#pull-bar');
+    const status = $('#pull-status');
+    const input = $('#pull-input');
+    const btn = $('#pull-btn');
 
     if (progress) progress.style.display = '';
     if (bar) bar.style.width = '0%';
@@ -1084,7 +1083,7 @@
 
     streamPull(name, function (data) {
       if (data.status && status) {
-        var pct = (data.total && data.completed)
+        const pct = (data.total && data.completed)
           ? ' (' + Math.round(data.completed / data.total * 100) + '%)'
           : '';
         status.textContent = data.status + pct;
@@ -1112,7 +1111,7 @@
   }
 
   function streamPull(name, onData, onDone) {
-    var controller = new AbortController();
+    const controller = new AbortController();
     activePulls[name] = controller;
 
     api('/models/pull', {
@@ -1121,24 +1120,24 @@
       body: JSON.stringify({ name: name }),
       signal: controller.signal,
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      var lastError = null;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let lastError = null;
 
       function pump() {
         return reader.read().then(function (result) {
           if (result.done) { onDone(lastError); return; }
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.startsWith('data: ')) return;
             try {
-              var data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6));
               if (data.error) lastError = data.error;
               onData(data);
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
@@ -1156,7 +1155,7 @@
   }
 
   function showModelDetail(name) {
-    var el = $('#model-detail');
+    const el = $('#model-detail');
     if (!el) return;
     el.innerHTML =
       '<div class="card">' +
@@ -1173,7 +1172,7 @@
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name }),
     }).then(function (data) {
-      var content = '';
+      let content = '';
       if (data.modelfile) {
         content += '<p class="text-muted text-sm mb-1">' + esc(t('models.modelfile')) + '</p>' +
           '<div class="detail-panel">' + esc(data.modelfile) + '</div>';
@@ -1204,7 +1203,7 @@
   }
 
   function confirmDeleteModel(name) {
-    var el = $('#delete-dialog');
+    const el = $('#delete-dialog');
     if (!el) return;
     el.innerHTML =
       '<div class="confirm-overlay" role="dialog" aria-modal="true" id="delete-overlay">' +
@@ -1218,13 +1217,13 @@
         '</div>' +
       '</div>';
 
-    var close = function () { el.innerHTML = ''; };
+    const close = function () { el.innerHTML = ''; };
     $('#cancel-delete').addEventListener('click', close);
     $('#delete-overlay').addEventListener('click', function (e) {
       if (e.target === e.currentTarget) close();
     });
     $('#confirm-delete').addEventListener('click', function () {
-      var cbtn = $('#confirm-delete');
+      const cbtn = $('#confirm-delete');
       if (cbtn) { cbtn.disabled = true; cbtn.innerHTML = '<span class="spinner"></span> ' + esc(t('models.deleting')); }
       api('/models/' + encodeURIComponent(name), { method: 'DELETE' })
         .then(function () {
@@ -1256,9 +1255,9 @@
       '<div id="ollama-grid"><div class="mp-empty"><span class="spinner"></span> ' + esc(t('marketplace.loading')) + '</div></div>' +
       '<p class="text-muted text-sm" style="margin-top:0.75rem">' + esc(t('marketplace.catalogNote')) + '</p>';
 
-    var searchInput = $('#ollama-search');
-    var taskFilter = $('#ollama-task-filter');
-    var searchTimer = null;
+    const searchInput = $('#ollama-search');
+    const taskFilter = $('#ollama-task-filter');
+    let searchTimer = null;
 
     searchInput.addEventListener('input', function () {
       ollamaSearch = searchInput.value;
@@ -1278,19 +1277,19 @@
       ollamaCatalog = data.models || [];
       renderOllamaGrid();
     }).catch(function () {
-      var el = $('#ollama-grid');
+      const el = $('#ollama-grid');
       if (el) el.innerHTML = '<div class="mp-empty">' + esc(t('marketplace.noResults')) + '</div>';
     });
   }
 
   function renderOllamaGrid() {
-    var el = $('#ollama-grid');
+    const el = $('#ollama-grid');
     if (!el) return;
 
-    var filtered = ollamaCatalog.filter(function (m) {
+    const filtered = ollamaCatalog.filter(function (m) {
       if (ollamaFilterTask && m.tasks.indexOf(ollamaFilterTask) === -1) return false;
       if (ollamaSearch) {
-        var q = ollamaSearch.toLowerCase();
+        const q = ollamaSearch.toLowerCase();
         return m.name.toLowerCase().indexOf(q) !== -1 || m.description.toLowerCase().indexOf(q) !== -1;
       }
       return true;
@@ -1301,19 +1300,19 @@
       return;
     }
 
-    var cards = filtered.map(function (m) {
-      var isInstalled = m.installed_tags && m.installed_tags.length > 0;
-      var badges = '';
+    const cards = filtered.map(function (m) {
+      const isInstalled = m.installed_tags && m.installed_tags.length > 0;
+      let badges = '';
       if (isInstalled) badges += '<span class="badge-installed">' + esc(t('marketplace.installedBadge')) + '</span> ';
 
-      var taskTags = m.tasks.map(function (tk) {
+      const taskTags = m.tasks.map(function (tk) {
         return '<span class="model-tag">' + esc(tk) + '</span>';
       }).join('');
 
-      var variantBtns = m.variants.map(function (v) {
-        var fullName = v.tag === 'latest' ? m.name : m.name + ':' + v.tag;
-        var installed = m.installed_tags && m.installed_tags.indexOf(v.tag) !== -1;
-        var fit = fitBadge(v.vram_gb);
+      const variantBtns = m.variants.map(function (v) {
+        const fullName = v.tag === 'latest' ? m.name : m.name + ':' + v.tag;
+        const installed = m.installed_tags && m.installed_tags.indexOf(v.tag) !== -1;
+        const fit = fitBadge(v.vram_gb);
         if (installed) {
           return '<div class="variant-row">' +
             '<span class="variant-btn installed">' + esc(v.params) + ' (' + v.size_gb + ' GB)</span>' +
@@ -1327,11 +1326,10 @@
         '</div>';
       }).join('');
 
-      var bestBadge = '';
       if (gpuInfo) {
-        var avail = getAvailableVramGb();
-        var bestVariant = null;
-        for (var i = m.variants.length - 1; i >= 0; i--) {
+        const avail = getAvailableVramGb();
+        let bestVariant = null;
+        for (let i = m.variants.length - 1; i >= 0; i--) {
           if (m.variants[i].vram_gb <= avail * 0.8) { bestVariant = m.variants[i]; break; }
         }
         if (bestVariant) badges += '<span class="badge-best">' + esc(t('marketplace.bestForHardware')) + '</span> ';
@@ -1361,38 +1359,38 @@
     el.innerHTML = '<div class="model-grid">' + cards + '</div>';
 
     el.onclick = function (e) {
-      var pullBtn = e.target.closest('[data-pull-name]');
+      const pullBtn = e.target.closest('[data-pull-name]');
       if (pullBtn) {
         e.stopPropagation();
         ollamaPullFromCard(pullBtn.dataset.pullName, pullBtn);
         return;
       }
-      var stopBtn = e.target.closest('[data-stop-pull]');
+      const stopBtn = e.target.closest('[data-stop-pull]');
       if (stopBtn) {
         e.stopPropagation();
         ollamaStopPull(stopBtn.dataset.stopPull);
         return;
       }
-      var removeBtn = e.target.closest('[data-remove-name]');
+      const removeBtn = e.target.closest('[data-remove-name]');
       if (removeBtn) {
         e.stopPropagation();
         ollamaRemoveVariant(removeBtn.dataset.removeName, removeBtn);
         return;
       }
-      var card = e.target.closest('[data-card]');
+      const card = e.target.closest('[data-card]');
       if (card) card.classList.toggle('expanded');
     };
   }
 
   function ollamaPullFromCard(name, btn) {
     if (activePulls[name]) return;
-    var origText = btn.innerHTML;
+    const origText = btn.innerHTML;
     btn.disabled = true;
     btn.textContent = t('marketplace.installing');
 
     // Find progress container from the card (use safeId to handle dots in names)
-    var safe = safeId(name.split(':')[0]);
-    var progressEl = $id('card-progress-' + safe);
+    const safe = safeId(name.split(':')[0]);
+    const progressEl = $id('card-progress-' + safe);
     if (progressEl) {
       progressEl.innerHTML =
         '<div class="card-progress">' +
@@ -1405,10 +1403,10 @@
     }
 
     streamPull(name, function (data) {
-      var bar = $id('cpbar-' + safe);
-      var status = $id('cpstatus-' + safe);
+      const bar = $id('cpbar-' + safe);
+      const status = $id('cpstatus-' + safe);
       if (data.status && status) {
-        var pct = (data.total && data.completed) ? ' (' + Math.round(data.completed / data.total * 100) + '%)' : '';
+        const pct = (data.total && data.completed) ? ' (' + Math.round(data.completed / data.total * 100) + '%)' : '';
         status.textContent = data.status + pct;
       }
       if (data.total && data.completed && bar) {
@@ -1434,14 +1432,14 @@
   }
 
   function ollamaStopPull(name) {
-    var controller = activePulls[name];
+    const controller = activePulls[name];
     if (controller && controller.abort) {
       controller.abort();
     }
   }
 
   function ollamaRemoveVariant(name, btn) {
-    var origText = btn.innerHTML;
+    const origText = btn.innerHTML;
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> ' + esc(t('marketplace.removing'));
 
@@ -1506,13 +1504,13 @@
   }
 
   function loadHfModels() {
-    var searchInput = $('#hf-search');
+    const searchInput = $('#hf-search');
     if (searchInput) hfSearch = searchInput.value;
 
-    var gridEl = $('#hf-grid');
+    const gridEl = $('#hf-grid');
     if (gridEl) gridEl.innerHTML = '<div class="mp-empty"><span class="spinner"></span> ' + esc(t('marketplace.loading')) + '</div>';
 
-    var params = '?sort=' + encodeURIComponent(hfSort) + '&limit=24';
+    let params = '?sort=' + encodeURIComponent(hfSort) + '&limit=24';
     if (hfSearch) params += '&search=' + encodeURIComponent(hfSearch);
     if (hfTask) params += '&task=' + encodeURIComponent(hfTask);
 
@@ -1526,7 +1524,7 @@
   }
 
   function renderHfGrid() {
-    var el = $('#hf-grid');
+    const el = $('#hf-grid');
     if (!el) return;
 
     if (hfResults.length === 0) {
@@ -1534,16 +1532,16 @@
       return;
     }
 
-    var cards = hfResults.map(function (m) {
-      var repoId = m.modelId || m.id;
-      var downloads = m.downloads != null ? formatNumber(m.downloads) : '0';
-      var likes = m.likes != null ? m.likes : 0;
-      var pipeline = m.pipeline_tag || '';
-      var license = (m.tags || []).find(function (t) { return t.startsWith('license:'); });
+    const cards = hfResults.map(function (m) {
+      const repoId = m.modelId || m.id;
+      const downloads = m.downloads != null ? formatNumber(m.downloads) : '0';
+      const likes = m.likes != null ? m.likes : 0;
+      const pipeline = m.pipeline_tag || '';
+      let license = (m.tags || []).find(function (t) { return t.startsWith('license:'); });
       license = license ? license.split(':')[1] : '';
-      var lastMod = m.lastModified ? new Date(m.lastModified).toLocaleDateString() : '';
-      var repoImports = hfImported[repoId];
-      var isInstalled = repoImports && repoImports.length > 0;
+      const lastMod = m.lastModified ? new Date(m.lastModified).toLocaleDateString() : '';
+      const repoImports = hfImported[repoId];
+      const isInstalled = repoImports && repoImports.length > 0;
 
       return '<div class="model-card model-card-expand" data-hf-card="' + esc(repoId) + '">' +
         '<div class="model-card-header">' +
@@ -1572,15 +1570,15 @@
     el.innerHTML = '<div class="model-grid">' + cards + '</div>';
 
     el.onclick = function (e) {
-      var importBtn = e.target.closest('[data-hf-import]');
+      const importBtn = e.target.closest('[data-hf-import]');
       if (importBtn) {
         e.stopPropagation();
         showHfImportDialog(importBtn.dataset.hfImport, importBtn.dataset.hfRepo);
         return;
       }
-      var card = e.target.closest('[data-hf-card]');
+      const card = e.target.closest('[data-hf-card]');
       if (card) {
-        var wasExpanded = card.classList.contains('expanded');
+        const wasExpanded = card.classList.contains('expanded');
         card.classList.toggle('expanded');
         if (!wasExpanded) {
           loadHfFiles(card.dataset.hfCard);
@@ -1590,21 +1588,21 @@
   }
 
   function loadHfFiles(repoId) {
-    var safeRepoId = repoId.replace(/\//g, '--');
-    var el = $id('hf-files-' + safeRepoId);
+    const safeRepoId = repoId.replace(/\//g, '--');
+    const el = $id('hf-files-' + safeRepoId);
     if (!el) return;
 
     apiJSON('/marketplace/huggingface/files?repo=' + encodeURIComponent(repoId)).then(function (data) {
-      var files = data.files || [];
+      const files = data.files || [];
       if (files.length === 0) {
         el.innerHTML = '<span class="text-muted">' + esc(t('marketplace.noFiles')) + '</span>';
         return;
       }
 
-      var rows = files.map(function (f) {
-        var sizeGb = f.size ? (f.size / (1024 * 1024 * 1024)).toFixed(2) : '?';
-        var fit = f.size ? fitBadge(f.size / (1024 * 1024 * 1024)) : '';
-        var actionCol;
+      const rows = files.map(function (f) {
+        const sizeGb = f.size ? (f.size / (1024 * 1024 * 1024)).toFixed(2) : '?';
+        const fit = f.size ? fitBadge(f.size / (1024 * 1024 * 1024)) : '';
+        let actionCol;
         if (f.installed_as) {
           actionCol = '<span class="badge-installed">' + esc(t('marketplace.installedBadge')) + '</span>' +
             '<span class="text-muted text-sm" style="margin-left:0.5rem">' + esc(f.installed_as) + '</span>';
@@ -1633,10 +1631,10 @@
   }
 
   function showHfImportDialog(filename, repoId) {
-    var el = $('#hf-import-dialog');
+    const el = $('#hf-import-dialog');
     if (!el) return;
 
-    var suggestedName = filename.replace(/\.gguf$/i, '').replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
+    const suggestedName = filename.replace(/\.gguf$/i, '').replace(/[^a-zA-Z0-9._-]/g, '-').toLowerCase();
 
     el.innerHTML =
       '<div class="confirm-overlay" role="dialog" aria-modal="true" id="hf-import-overlay">' +
@@ -1658,37 +1656,37 @@
         '</div>' +
       '</div>';
 
-    var close = function () { el.innerHTML = ''; };
+    const close = function () { el.innerHTML = ''; };
     $('#hf-import-cancel').addEventListener('click', close);
     $('#hf-import-overlay').addEventListener('click', function (e) {
       if (e.target === e.currentTarget) close();
     });
 
     $('#hf-import-confirm').addEventListener('click', function () {
-      var modelName = ($('#hf-model-name') || {}).value;
+      let modelName = ($('#hf-model-name') || {}).value;
       if (!modelName || !modelName.trim()) return;
       modelName = modelName.trim();
 
-      var confirmBtn = $('#hf-import-confirm');
-      var cancelBtn = $('#hf-import-cancel');
+      const confirmBtn = $('#hf-import-confirm');
+      const cancelBtn = $('#hf-import-cancel');
       if (confirmBtn) { confirmBtn.disabled = true; confirmBtn.textContent = t('marketplace.importing'); }
       if (cancelBtn) cancelBtn.disabled = true;
 
-      var progressDiv = $('#hf-import-progress');
-      var bar = $('#hf-import-bar');
-      var statusEl = $('#hf-import-status');
+      const progressDiv = $('#hf-import-progress');
+      const bar = $('#hf-import-bar');
+      const statusEl = $('#hf-import-status');
       if (progressDiv) progressDiv.style.display = '';
 
-      var importFailed = false;
+      let importFailed = false;
 
       api('/models/import-hf', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ repo_id: repoId, filename: filename, model_name: modelName }),
       }).then(function (res) {
-        var reader = res.body.getReader();
-        var decoder = new TextDecoder();
-        var buffer = '';
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
 
         function pump() {
           return reader.read().then(function (result) {
@@ -1702,12 +1700,12 @@
               return;
             }
             buffer += decoder.decode(result.value, { stream: true });
-            var lines = buffer.split('\n');
+            const lines = buffer.split('\n');
             buffer = lines.pop();
             lines.forEach(function (line) {
               if (!line.startsWith('data: ') || importFailed) return;
               try {
-                var data = JSON.parse(line.slice(6));
+                const data = JSON.parse(line.slice(6));
                 if (data.error) {
                   importFailed = true;
                   if (statusEl) statusEl.textContent = data.error;
@@ -1727,7 +1725,7 @@
                   refreshModels();
                   loadHfModels();
                 }
-              } catch (e) { /* skip */ }
+              } catch (_e) { /* intentionally empty */ }
             });
             return pump();
           });
@@ -1748,13 +1746,13 @@
 
   // ── Playground Tab ────────────────────────────────────────────
 
-  var pgModels = [];
-  var pgMode = 'embed';
-  var activeStreamController = null;
-  var loadingHintTimer = null;
-  var selectedEmbedModel = '';
-  var selectedChatModel = '';
-  var selectedGenerateModel = '';
+  let pgModels = [];
+  let pgMode = 'embed';
+  let activeStreamController = null;
+  let loadingHintTimer = null;
+  let selectedEmbedModel = '';
+  let selectedChatModel = '';
+  let selectedGenerateModel = '';
 
   function abortActiveStream() {
     if (activeStreamController) {
@@ -1768,7 +1766,7 @@
     chatStreaming = false;
   }
 
-  var chatPresets = [
+  const chatPresets = [
     { labelKey: 'quickPrompts.sayHello', text: 'Say hello.' },
     { labelKey: 'quickPrompts.small', text: 'You are a helpful assistant. Answer concisely.\n\nWhat are the three laws of thermodynamics? Explain each in one sentence.' },
     { labelKey: 'quickPrompts.medium', text: 'You are a senior software architect. Analyze the following and provide your response as valid JSON.\n\nA startup is building a real-time multiplayer game with these constraints:\n- 10,000 concurrent users\n- Sub-50ms latency requirement\n- State must survive server restarts\n- Budget: $2,000/month cloud spend\n\nProvide your response as JSON with these keys:\n- "architecture": a description of the recommended stack\n- "components": array of {name, purpose, technology}\n- "tradeoffs": array of {decision, pro, con}\n- "estimated_monthly_cost": breakdown object\n- "risks": array of top 3 risks\n\nBe thorough. This is a real design review.' },
@@ -1785,7 +1783,7 @@
       '<div id="pg-content"></div>';
 
     $('#pg-tabs').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-pg]');
+      const btn = e.target.closest('[data-pg]');
       if (!btn) return;
       abortActiveStream();
       pgMode = btn.dataset.pg;
@@ -1802,7 +1800,7 @@
   }
 
   function renderPgMode() {
-    var ct = $('#pg-content');
+    const ct = $('#pg-content');
     if (!ct) return;
     switch (pgMode) {
       case 'embed':    renderEmbed(ct); break;
@@ -1813,7 +1811,7 @@
 
   function modelOptions(models, selected) {
     return (models || []).map(function (m) {
-      var sel = (m === selected) ? ' selected' : '';
+      const sel = (m === selected) ? ' selected' : '';
       return '<option value="' + esc(m) + '"' + sel + '>' + esc(m) + '</option>';
     }).join('');
   }
@@ -1821,7 +1819,7 @@
   // ── Playground: Embed ─────────────────────────────────────────
 
   function renderEmbed(ct) {
-    var embeddingModels = filterEmbeddingModels(pgModels);
+    const embeddingModels = filterEmbeddingModels(pgModels);
     if (!selectedEmbedModel || embeddingModels.indexOf(selectedEmbedModel) === -1) {
       selectedEmbedModel = embeddingModels[0] || '';
     }
@@ -1860,10 +1858,10 @@
   }
 
   function runEmbed() {
-    var input = $('#embed-input');
-    var embedModelSelect = $('#embed-model');
-    var btn = $('#embed-btn');
-    var result = $('#embed-result');
+    const input = $('#embed-input');
+    const embedModelSelect = $('#embed-model');
+    const btn = $('#embed-btn');
+    const result = $('#embed-result');
     if (!input || !input.value.trim()) return;
     if (!embedModelSelect || !embedModelSelect.value) {
       showToast(t('playground.noEmbeddingModels'), 'error');
@@ -1873,9 +1871,9 @@
     btn.disabled = true;
     btn.innerHTML = '<span class="spinner"></span> ' + esc(t('embed.generating'));
 
-    var embedModel = embedModelSelect.value;
+    const embedModel = embedModelSelect.value;
     selectedEmbedModel = embedModel;
-    var start = performance.now();
+    const start = performance.now();
 
     activeStreamController = new AbortController();
 
@@ -1887,12 +1885,12 @@
     }).then(function (res) { return res.json(); })
       .then(function (data) {
         activeStreamController = null;
-        var elapsed = Math.round(performance.now() - start);
-        var embeddings = data.embeddings || data.embedding;
-        var vector = Array.isArray(embeddings)
+        const elapsed = Math.round(performance.now() - start);
+        const embeddings = data.embeddings || data.embedding;
+        const vector = Array.isArray(embeddings)
           ? (Array.isArray(embeddings[0]) ? embeddings[0] : embeddings)
           : [];
-        var preview = vector.slice(0, 10).map(function (v) { return v.toFixed(6); }).join(', ') + '\u2026';
+        const preview = vector.slice(0, 10).map(function (v) { return v.toFixed(6); }).join(', ') + '\u2026';
 
         result.innerHTML =
           '<div class="mt-2">' +
@@ -1920,12 +1918,12 @@
   // ── Playground: Chat ──────────────────────────────────────────
 
   function renderChat(ct) {
-    var chatModels = filterChatModels(pgModels);
+    const chatModels = filterChatModels(pgModels);
     if (!selectedChatModel || chatModels.indexOf(selectedChatModel) === -1) {
       selectedChatModel = chatModels[0] || '';
     }
 
-    var msgsHTML = '';
+    let msgsHTML;
     if (chatModels.length === 0) {
       msgsHTML =
         '<div class="empty-state">' +
@@ -1944,7 +1942,7 @@
       }).join('');
     }
 
-    var presetBtns = chatPresets.map(function (p, i) {
+    const presetBtns = chatPresets.map(function (p, i) {
       return '<button class="btn btn-sm chat-preset-btn" data-preset="' + i + '">' + esc(t(p.labelKey)) + '</button>';
     }).join('');
 
@@ -1984,8 +1982,8 @@
 
     $$('.chat-preset-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
-        var idx = parseInt(btn.dataset.preset, 10);
-        var input = $('#chat-input');
+        const idx = parseInt(btn.dataset.preset, 10);
+        const input = $('#chat-input');
         if (input && chatPresets[idx]) {
           input.value = chatPresets[idx].text;
           input.focus();
@@ -1993,21 +1991,21 @@
       });
     });
 
-    var msgsEl = $('#chat-messages');
+    const msgsEl = $('#chat-messages');
     if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
   }
 
   function sendChat() {
-    var input = $('#chat-input');
-    var sendBtn = $('#chat-send');
-    var msgsEl = $('#chat-messages');
+    const input = $('#chat-input');
+    const sendBtn = $('#chat-send');
+    const msgsEl = $('#chat-messages');
     if (!input || !input.value.trim() || chatStreaming) return;
     if (!selectedChatModel) {
       showToast(t('playground.noChatModels'), 'error');
       return;
     }
 
-    var msg = input.value.trim();
+    const msg = input.value.trim();
     input.value = '';
     chatStreaming = true;
 
@@ -2027,20 +2025,20 @@
     if (sendBtn) { sendBtn.disabled = true; sendBtn.innerHTML = '<span class="spinner"></span> \u2026'; }
     if (input) input.disabled = true;
 
-    var model = $('#chat-model');
-    var apiMsgs = chatMessages
+    const model = $('#chat-model');
+    const apiMsgs = chatMessages
       .filter(function (m) { return m.content; })
       .slice(0, -1)
       .concat([{ role: 'user', content: msg }]);
 
     activeStreamController = new AbortController();
-    var gotFirstToken = false;
+    let gotFirstToken = false;
 
     loadingHintTimer = setTimeout(function () {
       loadingHintTimer = null;
       if (gotFirstToken) return;
-      var allMsgs = $$('#chat-messages .msg-content');
-      var lastEl = allMsgs[allMsgs.length - 1];
+      const allMsgs = $$('#chat-messages .msg-content');
+      const lastEl = allMsgs[allMsgs.length - 1];
       if (lastEl) {
         lastEl.innerHTML = '<span class="spinner"></span> ' + esc(t('playground.modelLoading'));
       }
@@ -2055,10 +2053,10 @@
       }),
       signal: activeStreamController.signal,
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      var lastMsg = chatMessages[chatMessages.length - 1];
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      const lastMsg = chatMessages[chatMessages.length - 1];
 
       function pump() {
         return reader.read().then(function (result) {
@@ -2068,20 +2066,20 @@
             if (loadingHintTimer) { clearTimeout(loadingHintTimer); loadingHintTimer = null; }
           }
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.trim()) return;
             try {
-              var data = JSON.parse(line);
+              const data = JSON.parse(line);
               if (data.message && data.message.content) {
                 lastMsg.content += data.message.content;
-                var allMsgs = $$('#chat-messages .msg-content');
-                var lastEl = allMsgs[allMsgs.length - 1];
+                const allMsgs = $$('#chat-messages .msg-content');
+                const lastEl = allMsgs[allMsgs.length - 1];
                 if (lastEl) lastEl.textContent = lastMsg.content;
                 if (msgsEl) msgsEl.scrollTop = msgsEl.scrollHeight;
               }
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
@@ -2092,8 +2090,8 @@
       if (loadingHintTimer) { clearTimeout(loadingHintTimer); loadingHintTimer = null; }
       if (err.name === 'AbortError') return;
       chatMessages[chatMessages.length - 1].content = t('status.errorDetail', { message: err.message });
-      var allMsgs = $$('#chat-messages .msg-content');
-      var lastEl = allMsgs[allMsgs.length - 1];
+      const allMsgs = $$('#chat-messages .msg-content');
+      const lastEl = allMsgs[allMsgs.length - 1];
       if (lastEl) lastEl.textContent = chatMessages[chatMessages.length - 1].content;
       endChat(input, sendBtn);
     });
@@ -2133,10 +2131,10 @@
   }
 
   function runGenerate() {
-    var prompt = $('#gen-prompt');
-    var model = $('#gen-model');
-    var btn = $('#gen-btn');
-    var output = $('#gen-output');
+    const prompt = $('#gen-prompt');
+    const model = $('#gen-model');
+    const btn = $('#gen-btn');
+    const output = $('#gen-output');
     if (!prompt || !prompt.value.trim()) return;
     if (btn && btn.disabled) return;
 
@@ -2148,11 +2146,11 @@
         '<div class="playground-output" id="gen-text"></div>' +
       '</div>';
 
-    var textEl = $('#gen-text');
-    var full = '';
+    const textEl = $('#gen-text');
+    let full = '';
 
     activeStreamController = new AbortController();
-    var gotFirstToken = false;
+    let gotFirstToken = false;
 
     loadingHintTimer = setTimeout(function () {
       loadingHintTimer = null;
@@ -2169,9 +2167,9 @@
       }),
       signal: activeStreamController.signal,
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
       function pump() {
         return reader.read().then(function (result) {
@@ -2186,17 +2184,17 @@
             if (loadingHintTimer) { clearTimeout(loadingHintTimer); loadingHintTimer = null; }
           }
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.trim()) return;
             try {
-              var data = JSON.parse(line);
+              const data = JSON.parse(line);
               if (data.response) {
                 full += data.response;
                 if (textEl) textEl.textContent = full;
               }
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
@@ -2214,7 +2212,7 @@
 
   // ── Configuration Tab ─────────────────────────────────────────
 
-  var SETTING_GROUPS = [
+  const SETTING_GROUPS = [
     { titleKey: 'configGroups.branding', keys: {
       server_name: 'configLabels.serverName',
     }},
@@ -2250,7 +2248,7 @@
     }},
   ];
 
-  var DANGEROUS_KEYS = [
+  const DANGEROUS_KEYS = [
     'gateway_port', 'ollama_internal_port', 'admin_enabled',
     'rate_limit_per_min', 'max_concurrent_requests', 'max_queue_size',
     'shutdown_timeout_ms',
@@ -2261,9 +2259,9 @@
 
     Promise.all([apiJSON('/config'), apiJSON('/settings').catch(function () { return { settings: [] }; })])
       .then(function (results) {
-        var c = results[0];
-        var settingsData = results[1].settings || [];
-        var settingsMap = {};
+        const c = results[0];
+        const settingsData = results[1].settings || [];
+        const settingsMap = {};
         settingsData.forEach(function (s) { settingsMap[s.key] = s.value; });
 
         configOriginal = {};
@@ -2277,12 +2275,12 @@
           if (configDirty[key] === configOriginal[key]) delete configDirty[key];
         });
 
-        var groupsHTML = SETTING_GROUPS.map(function (group) {
-          var rows = Object.keys(group.keys).map(function (key) {
-            var labelKey = group.keys[key];
-            var isDirty = configDirty[key] != null;
-            var val = isDirty ? configDirty[key] : configOriginal[key];
-            var dangerHint = DANGEROUS_KEYS.indexOf(key) !== -1 ? ' title="Changing this may affect server availability"' : '';
+        const groupsHTML = SETTING_GROUPS.map(function (group) {
+          const rows = Object.keys(group.keys).map(function (key) {
+            const labelKey = group.keys[key];
+            const isDirty = configDirty[key] != null;
+            const val = isDirty ? configDirty[key] : configOriginal[key];
+            const dangerHint = DANGEROUS_KEYS.indexOf(key) !== -1 ? ' title="Changing this may affect server availability"' : '';
             return '<div class="config-item" data-setting-key="' + esc(key) + '">' +
               '<span class="key"' + dangerHint + '>' + esc(t(labelKey)) +
                 (DANGEROUS_KEYS.indexOf(key) !== -1 ? ' <span class="danger-icon">\u26A0</span>' : '') +
@@ -2302,7 +2300,7 @@
           '</div>';
         }).join('');
 
-        var securityHTML =
+        const securityHTML =
           '<div class="card config-group">' +
             '<h3>' + esc(t('configGroups.security')) + '</h3>' +
             '<div class="config-item">' +
@@ -2355,7 +2353,7 @@
           '</div>';
 
         // Enhanced Security section (Tier 2 Bearer Tokens)
-        var enhancedSecHTML =
+        const enhancedSecHTML =
           '<div class="card config-group" id="enhanced-security-card">' +
             '<div class="enhanced-security-header">' +
               '<h3>' + esc(t('enhancedSecurity.title')) + '</h3>' +
@@ -2370,13 +2368,13 @@
           '</div>';
 
         // SaaS Connection section (Tier 3 Auth0 JWT) — rendered below
-        var saasHTML = '<div id="saas-connection-card"></div>';
+        const saasHTML = '<div id="saas-connection-card"></div>';
 
         // Mesh Connection section — rendered below
-        var meshHTML = '<div id="mesh-connection-card"></div>';
-        var pricingHTML = '<div id="model-pricing-card"></div>';
+        const meshHTML = '<div id="mesh-connection-card"></div>';
+        const pricingHTML = '<div id="model-pricing-card"></div>';
 
-        var utilitiesHTML = '<div class="card config-group">' +
+        const utilitiesHTML = '<div class="card config-group">' +
           '<h3>' + esc(t('admin.utilities')) + '</h3>' +
           '<div class="mesh-actions">' +
             '<button class="btn btn-sm btn-warning" id="restart-holler-btn">' + esc(t('admin.restartHoller')) + '</button>' +
@@ -2402,9 +2400,9 @@
         loadApiKeyMasked();
 
         $$('.setting-input').forEach(function (input) {
-          var row = input.closest('[data-setting-key]');
+          const row = input.closest('[data-setting-key]');
           if (!row) return;
-          var key = row.dataset.settingKey;
+          const key = row.dataset.settingKey;
           input.addEventListener('input', function () {
             if (input.value === configOriginal[key]) {
               delete configDirty[key];
@@ -2417,28 +2415,28 @@
           });
         });
 
-        var copyBtn = $('#apikey-copy');
+        const copyBtn = $('#apikey-copy');
         if (copyBtn) copyBtn.addEventListener('click', copyApiKey);
 
         if ($('#qdrantkey-masked')) {
           loadQdrantKeyMasked();
         }
 
-        var regenBtn = $('#apikey-regen');
+        const regenBtn = $('#apikey-regen');
         if (regenBtn) regenBtn.addEventListener('click', confirmRegenerateApiKey);
 
         // Enhanced Security toggle
-        var secToggle = $('#enhanced-security-toggle');
+        const secToggle = $('#enhanced-security-toggle');
         if (secToggle) {
           secToggle.addEventListener('change', function () {
-            var enabled = secToggle.checked;
+            const enabled = secToggle.checked;
             api('/settings', {
               method: 'POST',
               headers: { 'Content-Type': 'application/json' },
               body: JSON.stringify({ key: 'enhanced_security_enabled', value: String(enabled) }),
             }).then(function () {
               enhancedSecurityEnabled = enabled;
-              var tokensSec = $('#bearer-tokens-section');
+              const tokensSec = $('#bearer-tokens-section');
               if (tokensSec) tokensSec.style.display = enabled ? '' : 'none';
               if (enabled) loadBearerTokens();
             });
@@ -2453,7 +2451,7 @@
         loadModelPricingEditor();
 
         // Restart buttons
-        var restartHollerBtn = $('#restart-holler-btn');
+        const restartHollerBtn = $('#restart-holler-btn');
         if (restartHollerBtn) {
           restartHollerBtn.addEventListener('click', function () {
             if (!confirm(t('admin.restartConfirm') || 'Restart the Holler server? It will be briefly unavailable.')) return;
@@ -2468,7 +2466,7 @@
           });
         }
 
-        var restartOllamaBtn = $('#restart-ollama-btn');
+        const restartOllamaBtn = $('#restart-ollama-btn');
         if (restartOllamaBtn) {
           restartOllamaBtn.addEventListener('click', function () {
             if (!confirm(t('admin.restartOllamaConfirm') || 'Restart Ollama? Models will briefly be unavailable.')) return;
@@ -2493,21 +2491,21 @@
   }
 
   function loadModelPricingEditor() {
-    var card = $('#model-pricing-card');
+    const card = $('#model-pricing-card');
     if (!card) return;
     Promise.all([
       apiJSON('/models').catch(function () { return { models: [] }; }),
       apiJSON('/stats/pricing').catch(function () { return { pricing: [] }; }),
     ]).then(function (result) {
-      var models = (result[0].models || []).map(function (m) { return m.name; });
-      var pricing = result[1].pricing || [];
-      var byModel = {};
+      const models = (result[0].models || []).map(function (m) { return m.name; });
+      const pricing = result[1].pricing || [];
+      const byModel = {};
       pricing.forEach(function (p) { byModel[p.model] = p; });
 
-      var rows = models.map(function (name) {
-        var p = byModel[name] || {};
-        var inV = p.moonshine_input_per_1k != null ? p.moonshine_input_per_1k : '';
-        var outV = p.moonshine_output_per_1k != null ? p.moonshine_output_per_1k : '';
+      const rows = models.map(function (name) {
+        const p = byModel[name] || {};
+        const inV = p.moonshine_input_per_1k != null ? p.moonshine_input_per_1k : '';
+        const outV = p.moonshine_output_per_1k != null ? p.moonshine_output_per_1k : '';
         return '<tr>' +
           '<td class="mono">' + esc(name) + '</td>' +
           '<td><input type="number" step="0.01" class="setting-input" data-price-in="' + esc(name) + '" value="' + esc(inV) + '"></td>' +
@@ -2527,12 +2525,12 @@
 
       card.querySelectorAll('[data-price-save]').forEach(function (btn) {
         btn.addEventListener('click', function () {
-          var model = btn.dataset.priceSave;
-          var inEl = card.querySelector('[data-price-in="' + model.replace(/"/g, '\\"') + '"]');
-          var outEl = card.querySelector('[data-price-out="' + model.replace(/"/g, '\\"') + '"]');
-          var inV2 = parseFloat((inEl && inEl.value) || '0');
-          var outRaw = outEl ? outEl.value : '';
-          var outV2 = outRaw === '' ? null : parseFloat(outRaw);
+          const model = btn.dataset.priceSave;
+          const inEl = card.querySelector('[data-price-in="' + model.replace(/"/g, '\\"') + '"]');
+          const outEl = card.querySelector('[data-price-out="' + model.replace(/"/g, '\\"') + '"]');
+          const inV2 = parseFloat((inEl && inEl.value) || '0');
+          const outRaw = outEl ? outEl.value : '';
+          const outV2 = outRaw === '' ? null : parseFloat(outRaw);
           if (!Number.isFinite(inV2) || (outV2 != null && !Number.isFinite(outV2))) return;
           api('/stats/pricing', {
             method: 'POST',
@@ -2555,12 +2553,12 @@
   }
 
   function saveConfig() {
-    var changes = Object.keys(configDirty).map(function (key) {
+    const changes = Object.keys(configDirty).map(function (key) {
       return { key: key, value: configDirty[key] };
     });
     if (changes.length === 0) return;
 
-    var hasDangerous = changes.some(function (c) {
+    const hasDangerous = changes.some(function (c) {
       return DANGEROUS_KEYS.indexOf(c.key) !== -1;
     });
 
@@ -2572,7 +2570,7 @@
   }
 
   function doSaveConfig(changes) {
-    var btn = $('#header-save-btn');
+    const btn = $('#header-save-btn');
     if (btn) { btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + esc(t('configuration.saving')); }
 
     api('/settings/batch', {
@@ -2587,24 +2585,24 @@
 
           $$('.setting-input.dirty').forEach(function (el) { el.classList.remove('dirty'); });
 
-          var statusEl = $('#setting-status');
+          const statusEl = $('#setting-status');
           if (statusEl) {
             statusEl.textContent = t('configuration.saveSuccess');
             statusEl.style.color = '#4ade80';
             setTimeout(function () { if (statusEl) statusEl.textContent = ''; }, 4000);
           }
 
-          var nameChange = changes.find(function (c) { return c.key === 'server_name'; });
+          const nameChange = changes.find(function (c) { return c.key === 'server_name'; });
           if (nameChange) {
             state.serverName = nameChange.value;
-            var brandEl = $('.brand');
+            const brandEl = $('.brand');
             if (brandEl) {
               brandEl.innerHTML = '<a href="https://jimbomesh.ai/Holler" target="_blank" rel="noopener noreferrer"><img src="/admin/assets/logo.png" class="brand-icon" alt=""></a>' +
                 esc(state.serverName) + ' <span>' + esc(t('header.admin')) + '</span>';
             }
           }
         } else {
-          var statusEl2 = $('#setting-status');
+          const statusEl2 = $('#setting-status');
           if (statusEl2) {
             statusEl2.textContent = t('configuration.saveError');
             statusEl2.style.color = '#f87171';
@@ -2614,7 +2612,7 @@
         updateHeaderSaveButton();
       })
       .catch(function () {
-        var statusEl = $('#setting-status');
+        const statusEl = $('#setting-status');
         if (statusEl) {
           statusEl.textContent = t('configuration.saveConnectionError');
           statusEl.style.color = '#f87171';
@@ -2625,8 +2623,8 @@
   }
 
   function showDangerConfirm(callback) {
-    var confirmWord = t('configuration.dangerConfirmPlaceholder');
-    var overlay = document.createElement('div');
+    const confirmWord = t('configuration.dangerConfirmPlaceholder');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog danger-dialog">' +
@@ -2643,20 +2641,20 @@
 
     document.body.appendChild(overlay);
 
-    var close = function () { overlay.remove(); };
-    var cancelBtn = overlay.querySelector('#danger-cancel');
-    var confirmBtn = overlay.querySelector('#danger-confirm');
-    var input = overlay.querySelector('#danger-input');
+    const close = function () { overlay.remove(); };
+    const cancelBtn = overlay.querySelector('#danger-cancel');
+    const confirmBtn = overlay.querySelector('#danger-confirm');
+    const input = overlay.querySelector('#danger-input');
 
     function revertAll() {
       configDirty = {};
       $$('.setting-input').forEach(function (el) {
-        var row = el.closest('[data-setting-key]');
+        const row = el.closest('[data-setting-key]');
         if (row) el.value = configOriginal[row.dataset.settingKey] || '';
         el.classList.remove('dirty');
       });
       updateHeaderSaveButton();
-      var statusEl = $('#setting-status');
+      const statusEl = $('#setting-status');
       if (statusEl) {
         statusEl.textContent = t('configuration.changesReverted');
         statusEl.style.color = '#94a3b8';
@@ -2691,30 +2689,30 @@
 
   // ── API Key Management ────────────────────────────────────────
 
-  var cachedFullKey = null;
+  let cachedFullKey = null;
 
   function loadApiKeyMasked() {
     apiJSON('/apikey').then(function (data) {
-      var el = $('#apikey-masked');
+      const el = $('#apikey-masked');
       if (el) el.textContent = data.masked || '****';
     }).catch(function () {
-      var el = $('#apikey-masked');
+      const el = $('#apikey-masked');
       if (el) el.textContent = '****';
     });
   }
 
   function copyApiKey() {
-    var btn = $('#apikey-copy');
-    var raw = cachedFullKey || state.apiKey;
+    const btn = $('#apikey-copy');
+    const raw = cachedFullKey || state.apiKey;
     copyToClipboard('JIMBOMESH_HOLLER_API_KEY=' + raw, btn);
   }
 
   function loadQdrantKeyMasked() {
     apiJSON('/qdrantkey').then(function (data) {
-      var el = $('#qdrantkey-masked');
+      const el = $('#qdrantkey-masked');
       if (el) el.textContent = data.masked || '****';
     }).catch(function () {
-      var el = $('#qdrantkey-masked');
+      const el = $('#qdrantkey-masked');
       if (el) el.textContent = '****';
     });
   }
@@ -2735,19 +2733,19 @@
   }
 
   function fallbackCopy(text) {
-    var ta = document.createElement('textarea');
+    const ta = document.createElement('textarea');
     ta.value = text;
     ta.style.position = 'fixed';
     ta.style.left = '-9999px';
     document.body.appendChild(ta);
     ta.select();
-    try { document.execCommand('copy'); } catch (e) { /* noop */ }
+    try { document.execCommand('copy'); } catch (_e) { /* intentionally empty */ }
     document.body.removeChild(ta);
   }
 
   function showCopyFeedback(btn) {
     if (!btn) return;
-    var orig = btn.textContent;
+    const orig = btn.textContent;
     btn.textContent = t('apiKey.copied');
     btn.classList.add('btn-success-flash');
     setTimeout(function () {
@@ -2758,7 +2756,7 @@
 
   function confirmRegenerateApiKey() {
     showDangerConfirmApiKey(function () {
-      var regenBtn = $('#apikey-regen');
+      const regenBtn = $('#apikey-regen');
       if (regenBtn) { regenBtn.disabled = true; regenBtn.innerHTML = '<span class="spinner"></span> ' + esc(t('apiKey.regenerating')); }
 
       api('/apikey/regenerate', {
@@ -2772,12 +2770,12 @@
             state.apiKey = data.key;
             sessionStorage.setItem('admin_api_key', data.key);
 
-            var maskedEl = $('#apikey-masked');
+            const maskedEl = $('#apikey-masked');
             if (maskedEl) maskedEl.textContent = data.masked;
 
             showNewKeyDialog(data.key);
           } else {
-            var statusEl = $('#apikey-status');
+            const statusEl = $('#apikey-status');
             if (statusEl) {
               statusEl.textContent = t('apiKey.regenError');
               statusEl.style.color = '#f87171';
@@ -2786,7 +2784,7 @@
           if (regenBtn) { regenBtn.disabled = false; regenBtn.innerHTML = esc(t('apiKey.regenerate')); }
         })
         .catch(function (err) {
-          var statusEl = $('#apikey-status');
+          const statusEl = $('#apikey-status');
           if (statusEl) {
             statusEl.textContent = t('status.errorDetail', { message: err.message });
             statusEl.style.color = '#f87171';
@@ -2797,7 +2795,7 @@
   }
 
   function showDangerConfirmApiKey(callback) {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog danger-dialog">' +
@@ -2814,10 +2812,10 @@
 
     document.body.appendChild(overlay);
 
-    var close = function () { overlay.remove(); };
-    var cancelBtn = overlay.querySelector('#apikey-danger-cancel');
-    var confirmBtn = overlay.querySelector('#apikey-danger-confirm');
-    var input = overlay.querySelector('#apikey-danger-input');
+    const close = function () { overlay.remove(); };
+    const cancelBtn = overlay.querySelector('#apikey-danger-cancel');
+    const confirmBtn = overlay.querySelector('#apikey-danger-confirm');
+    const input = overlay.querySelector('#apikey-danger-input');
 
     cancelBtn.addEventListener('click', close);
     overlay.addEventListener('click', function (e) {
@@ -2844,7 +2842,7 @@
   }
 
   function showNewKeyDialog(newKey) {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog newkey-dialog">' +
@@ -2862,8 +2860,8 @@
 
     document.body.appendChild(overlay);
 
-    var dismissBtn = overlay.querySelector('#newkey-dismiss');
-    var copyBtn = overlay.querySelector('#newkey-copy');
+    const dismissBtn = overlay.querySelector('#newkey-dismiss');
+    const copyBtn = overlay.querySelector('#newkey-copy');
 
     copyBtn.addEventListener('click', function () {
       copyToClipboard('JIMBOMESH_HOLLER_API_KEY=' + newKey, copyBtn);
@@ -2876,16 +2874,16 @@
 
   function renderUsageSparkline(hourlyData) {
     // Build 24-point array from hourly_usage, fill missing with 0
-    var now = new Date();
-    var points = [];
-    for (var i = 23; i >= 0; i--) {
-      var d = new Date(now.getTime() - i * 3600000);
-      var key = d.toISOString().slice(0, 13);
+    const now = new Date();
+    const points = [];
+    for (let i = 23; i >= 0; i--) {
+      const d = new Date(now.getTime() - i * 3600000);
+      const key = d.toISOString().slice(0, 13);
       points.push(hourlyData[key] || 0);
     }
-    var max = Math.max.apply(null, points) || 1;
-    var w = 80, h = 20;
-    var coords = points.map(function (v, idx) {
+    const max = Math.max.apply(null, points) || 1;
+    const w = 80, h = 20;
+    const coords = points.map(function (v, idx) {
       return (idx * (w / 23)).toFixed(1) + ',' + (h - (v / max) * h).toFixed(1);
     }).join(' ');
     return '<svg class="sparkline" width="' + w + '" height="' + h + '" viewBox="0 0 ' + w + ' ' + h + '">' +
@@ -2896,14 +2894,14 @@
   function loadAuthStatus() {
     apiJSON('/auth/status').then(function (data) {
       enhancedSecurityEnabled = data.tier2.enabled;
-      var toggle = $('#enhanced-security-toggle');
+      const toggle = $('#enhanced-security-toggle');
       if (toggle) toggle.checked = enhancedSecurityEnabled;
-      var tokensSec = $('#bearer-tokens-section');
+      const tokensSec = $('#bearer-tokens-section');
       if (tokensSec) tokensSec.style.display = enhancedSecurityEnabled ? '' : 'none';
       if (enhancedSecurityEnabled) loadBearerTokens();
 
       // SaaS Connection section
-      var saasCard = $('#saas-connection-card');
+      const saasCard = $('#saas-connection-card');
       if (saasCard && data.tier3.configured) {
         saasCard.innerHTML =
           '<div class="card config-group">' +
@@ -2931,11 +2929,11 @@
 
   // ── Mesh Connection ─────────────────────────────────────────────
 
-  var meshRefreshInterval = null;
-  var _meshLastState = null;
-  var _meshLastLogLen = 0;
-  var _meshLastLogTail = '';
-  var meshLatestVersionCheckInFlight = false;
+  let meshRefreshInterval = null;
+  let _meshLastState = null;
+  let _meshLastLogLen = 0;
+  let _meshLastLogTail = '';
+  let meshLatestVersionCheckInFlight = false;
 
   function clearMeshUpdateIndicator() {
     if (state.updateAvailable || state.latestPublishedVersion) {
@@ -2950,7 +2948,7 @@
       clearMeshUpdateIndicator();
       return;
     }
-    var now = Date.now();
+    const now = Date.now();
     if (meshLatestVersionCheckInFlight) return;
     if (state.lastMeshVersionCheckAt && (now - state.lastMeshVersionCheckAt) < 5 * 60 * 1000) return;
     meshLatestVersionCheckInFlight = true;
@@ -2968,7 +2966,7 @@
 
   function meshLogTailSignature(entries) {
     if (!entries || entries.length === 0) return '';
-    var last = entries[entries.length - 1] || {};
+    const last = entries[entries.length - 1] || {};
     return String(last.time || '') + '|' + String(last.type || '') + '|' + String(last.message || '');
   }
 
@@ -2986,8 +2984,8 @@
     }
     return '<div class="mesh-log" id="mesh-log">' +
       entries.map(function (entry) {
-        var d = new Date(entry.time);
-        var time = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+        const d = new Date(entry.time);
+        const time = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
         return '<div class="mesh-log-entry">' +
           '<span class="mesh-log-time">[' + time + ']</span>' +
           '<span class="mesh-log-' + (entry.type || 'info') + '">' + esc(entry.message) + '</span>' +
@@ -2997,21 +2995,21 @@
   }
 
   function meshScrollLog() {
-    var logEl = $('#mesh-log');
+    const logEl = $('#mesh-log');
     if (logEl) logEl.scrollTop = logEl.scrollHeight;
   }
 
   function meshAppendLogEntries(entries, fromIndex) {
-    var logEl = $('#mesh-log');
+    const logEl = $('#mesh-log');
     if (!logEl) return;
     // Remove empty placeholder if present
-    var empty = logEl.querySelector('.mesh-log-empty');
+    const empty = logEl.querySelector('.mesh-log-empty');
     if (empty) empty.remove();
-    for (var i = fromIndex; i < entries.length; i++) {
-      var entry = entries[i];
-      var d = new Date(entry.time);
-      var time = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
-      var div = document.createElement('div');
+    for (let i = fromIndex; i < entries.length; i++) {
+      const entry = entries[i];
+      const d = new Date(entry.time);
+      const time = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+      const div = document.createElement('div');
       div.className = 'mesh-log-entry';
       div.innerHTML = '<span class="mesh-log-time">[' + time + ']</span>' +
         '<span class="mesh-log-' + (entry.type || 'info') + '">' + esc(entry.message) + '</span>';
@@ -3021,15 +3019,15 @@
   }
 
   function meshGetStateBadge(meshState) {
-    var dotClass = meshState || 'disconnected';
-    var badgeMap = {
+    const dotClass = meshState || 'disconnected';
+    const badgeMap = {
       disconnected: { cls: 'badge-error', key: 'mesh.statusDisconnected' },
       connecting:   { cls: 'badge-warning', key: 'mesh.statusConnecting' },
       connected:    { cls: 'badge-success', key: 'mesh.statusConnected' },
       error:        { cls: 'badge-error', key: 'mesh.statusError' },
       reconnecting: { cls: 'badge-warning', key: 'mesh.statusReconnecting' },
     };
-    var badge = badgeMap[meshState] || badgeMap.disconnected;
+    const badge = badgeMap[meshState] || badgeMap.disconnected;
     return '<span class="saas-status">' +
       '<span class="mesh-state-dot ' + dotClass + '"></span>' +
       '<span class="badge ' + badge.cls + '">' + esc(t(badge.key)) + '</span>' +
@@ -3037,12 +3035,12 @@
   }
 
   function renderMeshCard(data) {
-    var card = $('#mesh-connection-card');
+    const card = $('#mesh-connection-card');
     if (!card) return;
 
     // Resolve state from new enum or legacy booleans
-    var meshState = data.state || (data.connected ? 'connected' : (data.connecting ? 'connecting' : 'disconnected'));
-    var logEntries = data.log || [];
+    const meshState = data.state || (data.connected ? 'connected' : (data.connecting ? 'connecting' : 'disconnected'));
+    const logEntries = data.log || [];
     maybeCheckMeshLatestVersion(meshState);
 
     // Clear any existing refresh interval
@@ -3053,7 +3051,7 @@
     _meshLastLogLen = logEntries.length;
     _meshLastLogTail = meshLogTailSignature(logEntries);
 
-    var html = '<div class="card config-group">';
+    let html = '<div class="card config-group">';
 
     // ── Header: Title + Status Badge ──
     html += '<h3>' + esc(t('mesh.title')) + '</h3>';
@@ -3080,10 +3078,10 @@
 
     // ── Config fields (disconnected / error) ──
     if (meshState === 'disconnected' || meshState === 'error') {
-      var urlVal = data.meshUrl || 'https://api.jimbomesh.ai';
-      var nameVal = data.hollerName || '';
-      var autoChecked = data.autoConnect ? ' checked' : '';
-      var hasStoredKey = !!data.hasStoredMeshKey;
+      const urlVal = data.meshUrl || 'https://api.jimbomesh.ai';
+      const nameVal = data.hollerName || '';
+      const autoChecked = data.autoConnect ? ' checked' : '';
+      const hasStoredKey = !!data.hasStoredMeshKey;
 
       if (!hasStoredKey || meshState === 'error') {
         html += '<div class="config-item">' +
@@ -3116,9 +3114,9 @@
 
     // ── Connected info ──
     if (meshState === 'connected' || meshState === 'reconnecting') {
-      var lastHb = '\u2014';
+      let lastHb = '\u2014';
       if (data.lastHeartbeat) {
-        var ago = Math.round((Date.now() - data.lastHeartbeat) / 1000);
+        const ago = Math.round((Date.now() - data.lastHeartbeat) / 1000);
         lastHb = ago < 60 ? t('mesh.secondsAgo', { seconds: ago }) : t('mesh.minutesAgo', { minutes: Math.round(ago / 60) });
       }
 
@@ -3154,10 +3152,10 @@
       }
 
       if (meshState === 'reconnecting') {
-        var attemptNum = data.reconnectAttempt || 0;
-        var retryText = '\u2014';
+        const attemptNum = data.reconnectAttempt || 0;
+        let retryText = '\u2014';
         if (data.nextReconnectAt) {
-          var retrySeconds = Math.max(0, Math.ceil((data.nextReconnectAt - Date.now()) / 1000));
+          const retrySeconds = Math.max(0, Math.ceil((data.nextReconnectAt - Date.now()) / 1000));
           retryText = retrySeconds + 's';
         }
         html += '<div class="config-item">' +
@@ -3185,9 +3183,9 @@
             '</tr></thead>' +
             '<tbody>' +
               data.peerConnections.jobs.map(function (p) {
-                var stateClass = p.state === 'streaming' ? 'badge-success' : (p.state === 'connected' ? 'badge-success' : 'badge-warning');
-                var durS = Math.round((Date.now() - p.startedAt) / 1000);
-                var dur = durS < 60 ? durS + 's' : Math.round(durS / 60) + 'm';
+                const stateClass = p.state === 'streaming' ? 'badge-success' : (p.state === 'connected' ? 'badge-success' : 'badge-warning');
+                const durS = Math.round((Date.now() - p.startedAt) / 1000);
+                const dur = durS < 60 ? durS + 's' : Math.round(durS / 60) + 'm';
                 return '<tr>' +
                   '<td class="mono">' + esc((p.jobId || '').slice(0, 12)) + '</td>' +
                   '<td>' + esc(p.model || '') + '</td>' +
@@ -3238,13 +3236,13 @@
 
     // ── Wire up event handlers ──
 
-    var connectBtn = $('#mesh-connect-btn');
+    const connectBtn = $('#mesh-connect-btn');
     if (connectBtn) {
       connectBtn.addEventListener('click', function () {
-        var meshUrl = ($('#mesh-url-input') || {}).value || 'https://api.jimbomesh.ai';
-        var meshKey = ($('#mesh-key-input') || {}).value || '';
-        var hollerName = ($('#mesh-name-input') || {}).value || '';
-        var autoConnect = $('#mesh-auto-connect') ? $('#mesh-auto-connect').checked : false;
+        const meshUrl = ($('#mesh-url-input') || {}).value || 'https://api.jimbomesh.ai';
+        const meshKey = ($('#mesh-key-input') || {}).value || '';
+        const hollerName = ($('#mesh-name-input') || {}).value || '';
+        const autoConnect = $('#mesh-auto-connect') ? $('#mesh-auto-connect').checked : false;
         if (!meshKey) return;
 
         connectBtn.disabled = true;
@@ -3266,7 +3264,7 @@
       });
     }
 
-    var cancelBtn = $('#mesh-cancel-btn');
+    const cancelBtn = $('#mesh-cancel-btn');
     if (cancelBtn) {
       cancelBtn.addEventListener('click', function () {
         cancelBtn.disabled = true;
@@ -3276,7 +3274,7 @@
       });
     }
 
-    var disconnectBtn = $('#mesh-disconnect-btn');
+    const disconnectBtn = $('#mesh-disconnect-btn');
     if (disconnectBtn) {
       disconnectBtn.addEventListener('click', function () {
         disconnectBtn.disabled = true;
@@ -3290,13 +3288,13 @@
       });
     }
 
-    var retryBtn = $('#mesh-retry-btn');
+    const retryBtn = $('#mesh-retry-btn');
     if (retryBtn) {
       retryBtn.addEventListener('click', function () {
-        var meshUrl = ($('#mesh-url-input') || {}).value || 'https://api.jimbomesh.ai';
-        var meshKey = ($('#mesh-key-input') || {}).value || '';
-        var hollerName = ($('#mesh-name-input') || {}).value || '';
-        var autoConnect = $('#mesh-auto-connect') ? $('#mesh-auto-connect').checked : false;
+        const meshUrl = ($('#mesh-url-input') || {}).value || 'https://api.jimbomesh.ai';
+        const meshKey = ($('#mesh-key-input') || {}).value || '';
+        const hollerName = ($('#mesh-name-input') || {}).value || '';
+        const autoConnect = $('#mesh-auto-connect') ? $('#mesh-auto-connect').checked : false;
         if (!meshKey) return;
 
         retryBtn.disabled = true;
@@ -3318,7 +3316,7 @@
       });
     }
 
-    var dismissBtn = $('#mesh-dismiss-btn');
+    const dismissBtn = $('#mesh-dismiss-btn');
     if (dismissBtn) {
       dismissBtn.addEventListener('click', function () {
         dismissBtn.disabled = true;
@@ -3328,7 +3326,7 @@
       });
     }
 
-    var quickConnectBtn = $('#mesh-quick-connect-btn');
+    const quickConnectBtn = $('#mesh-quick-connect-btn');
     if (quickConnectBtn) {
       quickConnectBtn.addEventListener('click', function () {
         quickConnectBtn.disabled = true;
@@ -3345,7 +3343,7 @@
       });
     }
 
-    var forgetKeyBtn = $('#mesh-forget-key-btn');
+    const forgetKeyBtn = $('#mesh-forget-key-btn');
     if (forgetKeyBtn) {
       forgetKeyBtn.addEventListener('click', function () {
         forgetKeyBtn.disabled = true;
@@ -3355,7 +3353,7 @@
       });
     }
 
-    var reconnectBtn = $('#mesh-reconnect-btn');
+    const reconnectBtn = $('#mesh-reconnect-btn');
     if (reconnectBtn) {
       reconnectBtn.addEventListener('click', function () {
         reconnectBtn.disabled = true;
@@ -3372,7 +3370,7 @@
       });
     }
 
-    var autoConnectEl = $('#mesh-auto-connect');
+    const autoConnectEl = $('#mesh-auto-connect');
     if (autoConnectEl) {
       autoConnectEl.addEventListener('change', function () {
         api('/mesh/auto-connect', {
@@ -3389,10 +3387,10 @@
     meshRefreshInterval = setInterval(function () {
       if (state.tab !== 'config') { clearInterval(meshRefreshInterval); meshRefreshInterval = null; return; }
       apiJSON('/mesh/status').then(function (d) {
-        var newState = d.state || (d.connected ? 'connected' : (d.connecting ? 'connecting' : 'disconnected'));
-        var newLogLen = d.log ? d.log.length : 0;
-        var newLogTail = meshLogTailSignature(d.log || []);
-        var peerCount = d.peerConnections ? d.peerConnections.activeConnections : 0;
+        const newState = d.state || (d.connected ? 'connected' : (d.connecting ? 'connecting' : 'disconnected'));
+        const newLogLen = d.log ? d.log.length : 0;
+        const newLogTail = meshLogTailSignature(d.log || []);
+        const peerCount = d.peerConnections ? d.peerConnections.activeConnections : 0;
 
         // Full re-render if state changed or peers changed
         if (newState !== _meshLastState || peerCount > 0) {
@@ -3414,21 +3412,21 @@
         }
 
         // Update heartbeat timestamp
-        var el = $('#mesh-last-hb');
+        const el = $('#mesh-last-hb');
         if (el && d.lastHeartbeat) {
-          var sAgo = Math.round((Date.now() - d.lastHeartbeat) / 1000);
+          const sAgo = Math.round((Date.now() - d.lastHeartbeat) / 1000);
           el.textContent = sAgo < 60 ? t('mesh.secondsAgo', { seconds: sAgo }) : t('mesh.minutesAgo', { minutes: Math.round(sAgo / 60) });
         }
-        var retryEl = $('#mesh-next-retry');
+        const retryEl = $('#mesh-next-retry');
         if (retryEl) {
           if (d.nextReconnectAt) {
-            var retryIn = Math.max(0, Math.ceil((d.nextReconnectAt - Date.now()) / 1000));
+            const retryIn = Math.max(0, Math.ceil((d.nextReconnectAt - Date.now()) / 1000));
             retryEl.textContent = retryIn + 's';
           } else {
             retryEl.textContent = '\u2014';
           }
         }
-        var attemptEl = $('#mesh-reconnect-attempt');
+        const attemptEl = $('#mesh-reconnect-attempt');
         if (attemptEl) {
           attemptEl.textContent = String(d.reconnectAttempt || 0);
         }
@@ -3445,28 +3443,28 @@
   }
 
   function renderBearerTokensTable() {
-    var container = $('#bearer-tokens-section');
+    const container = $('#bearer-tokens-section');
     if (!container) return;
 
     if (bearerTokens.length === 0) {
       container.innerHTML =
         '<p class="text-muted text-sm">' + esc(t('bearerToken.emptyState')) + '</p>' +
         '<button class="btn btn-primary btn-sm" id="create-token-btn">' + esc(t('bearerToken.createBtn')) + '</button>';
-      var createBtn = container.querySelector('#create-token-btn');
+      const createBtn = container.querySelector('#create-token-btn');
       if (createBtn) createBtn.addEventListener('click', showCreateTokenDialog);
       return;
     }
 
-    var rows = bearerTokens.map(function (tk) {
-      var isExpired = tk.expires_at && new Date(tk.expires_at) < new Date();
-      var statusBadge = isExpired
+    const rows = bearerTokens.map(function (tk) {
+      const isExpired = tk.expires_at && new Date(tk.expires_at) < new Date();
+      const statusBadge = isExpired
         ? '<span class="badge badge-error">' + esc(t('bearerToken.expired')) + '</span>'
         : '<span class="badge badge-success">' + esc(t('bearerToken.active')) + '</span>';
-      var permBadges = tk.permissions.map(function (p) {
+      const permBadges = tk.permissions.map(function (p) {
         return '<span class="badge badge-info">' + esc(p) + '</span>';
       }).join(' ');
-      var sparkline = renderUsageSparkline(tk.hourly_usage || {});
-      var lastUsed = tk.last_used ? new Date(tk.last_used).toLocaleString() : esc(t('bearerToken.never'));
+      const sparkline = renderUsageSparkline(tk.hourly_usage || {});
+      const lastUsed = tk.last_used ? new Date(tk.last_used).toLocaleString() : esc(t('bearerToken.never'));
 
       return '<tr>' +
         '<td>' + esc(tk.name) + '</td>' +
@@ -3507,7 +3505,7 @@
       '</table></div>';
 
     // Bind events
-    var createBtn = container.querySelector('#create-token-btn');
+    const createBtn = container.querySelector('#create-token-btn');
     if (createBtn) createBtn.addEventListener('click', showCreateTokenDialog);
 
     container.querySelectorAll('.token-revoke-btn').forEach(function (btn) {
@@ -3524,7 +3522,7 @@
   }
 
   function showCreateTokenDialog() {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog" style="max-width:480px">' +
@@ -3571,26 +3569,26 @@
 
     document.body.appendChild(overlay);
 
-    var cancelBtn = overlay.querySelector('#token-cancel');
-    var createBtn = overlay.querySelector('#token-create');
+    const cancelBtn = overlay.querySelector('#token-cancel');
+    const createBtn = overlay.querySelector('#token-create');
 
     cancelBtn.addEventListener('click', function () { overlay.remove(); });
     overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
 
     createBtn.addEventListener('click', function () {
-      var name = overlay.querySelector('#token-name').value.trim();
+      const name = overlay.querySelector('#token-name').value.trim();
       if (!name) return;
-      var perms = [];
+      let perms = [];
       overlay.querySelectorAll('.token-permissions input:checked').forEach(function (cb) {
         perms.push(cb.value);
       });
       if (perms.length === 0) perms = ['full'];
-      var rpm = parseInt(overlay.querySelector('#token-rpm').value) || 60;
-      var rph = parseInt(overlay.querySelector('#token-rph').value) || 1000;
-      var expiryDays = overlay.querySelector('#token-expiry').value;
-      var expiresAt = null;
+      const rpm = parseInt(overlay.querySelector('#token-rpm').value) || 60;
+      const rph = parseInt(overlay.querySelector('#token-rph').value) || 1000;
+      const expiryDays = overlay.querySelector('#token-expiry').value;
+      let expiresAt = null;
       if (expiryDays) {
-        var d = new Date();
+        const d = new Date();
         d.setDate(d.getDate() + parseInt(expiryDays));
         expiresAt = d.toISOString();
       }
@@ -3608,8 +3606,8 @@
     });
   }
 
-  function showNewBearerTokenDialog(rawToken, tokenName) {
-    var overlay = document.createElement('div');
+  function showNewBearerTokenDialog(rawToken, _tokenName) {
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog newkey-dialog">' +
@@ -3634,7 +3632,7 @@
   }
 
   function confirmRevokeToken(tokenId, tokenName) {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog">' +
@@ -3662,10 +3660,10 @@
   }
 
   function showEditTokenDialog(tokenId) {
-    var tk = bearerTokens.find(function (t2) { return t2.id === tokenId; });
+    const tk = bearerTokens.find(function (t2) { return t2.id === tokenId; });
     if (!tk) return;
 
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog" style="max-width:480px">' +
@@ -3707,14 +3705,14 @@
     overlay.addEventListener('click', function (e) { if (e.target === overlay) overlay.remove(); });
 
     overlay.querySelector('#edit-save').addEventListener('click', function () {
-      var name = overlay.querySelector('#edit-token-name').value.trim();
-      var perms = [];
+      const name = overlay.querySelector('#edit-token-name').value.trim();
+      let perms = [];
       overlay.querySelectorAll('.token-permissions input:checked').forEach(function (cb) {
         perms.push(cb.value);
       });
       if (perms.length === 0) perms = ['full'];
-      var rpm = parseInt(overlay.querySelector('#edit-token-rpm').value) || 60;
-      var rph = parseInt(overlay.querySelector('#edit-token-rph').value) || 1000;
+      const rpm = parseInt(overlay.querySelector('#edit-token-rpm').value) || 60;
+      const rph = parseInt(overlay.querySelector('#edit-token-rph').value) || 1000;
 
       overlay.remove();
       api('/tokens/' + tokenId, {
@@ -3731,19 +3729,9 @@
     });
   }
 
-  function configGroupRaw(title, items) {
-    var rows = items.map(function (item) {
-      return '<div class="config-item">' +
-        '<span class="key">' + esc(item[0]) + '</span>' +
-        '<span class="value">' + item[1] + '</span>' +
-      '</div>';
-    }).join('');
-    return '<div class="card config-group"><h3>' + esc(title) + '</h3>' + rows + '</div>';
-  }
-
   // ── Statistics Tab ────────────────────────────────────────────
 
-  var statsModelHourly = {};
+  let statsModelHourly = {};
 
   function numFmt(v) {
     if (v == null || Number.isNaN(Number(v))) return '\u2014';
@@ -3752,7 +3740,7 @@
 
   function tokenFmt(v) {
     if (v == null || Number.isNaN(Number(v))) return '\u2014';
-    var n = Number(v);
+    const n = Number(v);
     if (n >= 1000000) return (n / 1000000).toFixed(1) + 'M';
     if (n >= 1000) return (n / 1000).toFixed(1) + 'K';
     return Math.round(n).toString();
@@ -3760,7 +3748,7 @@
 
   function msFmt(v) {
     if (v == null || Number.isNaN(Number(v))) return '\u2014';
-    var n = Number(v);
+    const n = Number(v);
     if (n >= 1000) return (n / 1000).toFixed(2) + 's';
     return Math.round(n) + 'ms';
   }
@@ -3772,30 +3760,30 @@
 
   function renderStatsSparkline(data, options) {
     options = options || {};
-    var width = options.width || 120;
-    var height = options.height || 32;
-    var strokeColor = options.strokeColor || '#14b8a6';
-    var fillColor = options.fillColor || 'rgba(13, 148, 136, 0.15)';
-    var strokeWidth = options.strokeWidth || 1.5;
+    const width = options.width || 120;
+    const height = options.height || 32;
+    const strokeColor = options.strokeColor || '#14b8a6';
+    const fillColor = options.fillColor || 'rgba(13, 148, 136, 0.15)';
+    const strokeWidth = options.strokeWidth || 1.5;
 
     if (!data || data.length < 2) {
       return '<svg width="' + width + '" height="' + height + '" class="sparkline"></svg>';
     }
 
-    var min = Math.min.apply(null, data);
-    var max = Math.max.apply(null, data);
-    var range = (max - min) || 1;
-    var padding = 2;
+    const min = Math.min.apply(null, data);
+    const max = Math.max.apply(null, data);
+    const range = (max - min) || 1;
+    const padding = 2;
 
-    var points = data.map(function (val, i) {
-      var x = padding + (i / (data.length - 1)) * (width - padding * 2);
-      var y = padding + (1 - (val - min) / range) * (height - padding * 2);
+    const points = data.map(function (val, i) {
+      const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+      const y = padding + (1 - (val - min) / range) * (height - padding * 2);
       return x + ',' + y;
     }).join(' ');
 
-    var firstX = padding;
-    var lastX = width - padding;
-    var fillPoints = firstX + ',' + (height - padding) + ' ' + points + ' ' + lastX + ',' + (height - padding);
+    const firstX = padding;
+    const lastX = width - padding;
+    const fillPoints = firstX + ',' + (height - padding) + ' ' + points + ' ' + lastX + ',' + (height - padding);
 
     return '<svg width="' + width + '" height="' + height + '" class="sparkline">' +
       '<polygon points="' + fillPoints + '" fill="' + fillColor + '" />' +
@@ -3805,14 +3793,14 @@
   }
 
   function buildHourlyMap(hourly) {
-    var byBucket = {};
+    const byBucket = {};
     (hourly || []).forEach(function (h) {
       byBucket[String(h.hour_bucket)] = h;
     });
-    var now = Date.now();
-    var points = [];
-    for (var i = 23; i >= 0; i--) {
-      var bucket = Math.floor((now - i * 3600000) / 3600000) * 3600000;
+    const now = Date.now();
+    const points = [];
+    for (let i = 23; i >= 0; i--) {
+      const bucket = Math.floor((now - i * 3600000) / 3600000) * 3600000;
       points.push(byBucket[String(bucket)] || {
         hour_bucket: bucket, requests: 0, avg_tps: 0, avg_latency_ms: 0, avg_ttft_ms: 0, error_rate: 0, tool_call_errors: 0,
       });
@@ -3842,7 +3830,7 @@
         '<div id="stats-requests-wrap"><div class="empty-state"><span class="spinner"></span> ' + esc(t('status.loading')) + '</div></div>' +
       '</div>';
 
-    var resetAllBtn = $('#stats-reset-all');
+    const resetAllBtn = $('#stats-reset-all');
     if (resetAllBtn) {
       resetAllBtn.addEventListener('click', function () {
         showStatsResetConfirm(null);
@@ -3854,9 +3842,9 @@
   }
 
   function showStatsResetConfirm(model) {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
-    var msg = model
+    const msg = model
       ? 'Reset stats for ' + model + '?'
       : 'Reset all statistics? This cannot be undone.';
     overlay.innerHTML =
@@ -3893,12 +3881,12 @@
       apiJSON('/stats/requests?limit=50'),
       apiJSON('/stats/pricing').catch(function () { return { pricing: [] }; }),
     ]).then(function (result) {
-      var payload = result[0] || {};
-      var reqPayload = result[1] || {};
-      var pricingPayload = result[2] || {};
-      var global = payload.global || {};
-      var models = payload.models || [];
-      var pricingByModel = {};
+      const payload = result[0] || {};
+      const reqPayload = result[1] || {};
+      const pricingPayload = result[2] || {};
+      const global = payload.global || {};
+      const models = payload.models || [];
+      const pricingByModel = {};
       (pricingPayload.pricing || []).forEach(function (p) {
         pricingByModel[p.model] = p;
       });
@@ -3916,7 +3904,7 @@
   }
 
   function renderStatisticsModelCards(models, pricingByModel) {
-    var wrap = $('#stats-model-cards');
+    const wrap = $('#stats-model-cards');
     if (!wrap) return;
     if (!models || models.length === 0) {
       wrap.innerHTML = '<div class="card"><div class="empty-state">No model stats yet.</div></div>';
@@ -3935,15 +3923,15 @@
       });
 
       wrap.innerHTML = models.map(function (m) {
-        var hourly = statsModelHourly[m.model] || buildHourlyMap([]);
-        var throughputSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_tps || 0); }), { strokeColor: '#14b8a6', fillColor: 'rgba(20,184,166,0.16)' });
-        var latencySpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_latency_ms || 0); }), { strokeColor: '#f97316', fillColor: 'rgba(249,115,22,0.12)' });
-        var ttftSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_ttft_ms || 0); }), { strokeColor: '#f97316', fillColor: 'rgba(249,115,22,0.12)' });
-        var errorSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.error_rate || 0); }), { strokeColor: '#ef4444', fillColor: 'rgba(239,68,68,0.12)' });
+        const hourly = statsModelHourly[m.model] || buildHourlyMap([]);
+        const throughputSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_tps || 0); }), { strokeColor: '#14b8a6', fillColor: 'rgba(20,184,166,0.16)' });
+        const latencySpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_latency_ms || 0); }), { strokeColor: '#f97316', fillColor: 'rgba(249,115,22,0.12)' });
+        const ttftSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.avg_ttft_ms || 0); }), { strokeColor: '#f97316', fillColor: 'rgba(249,115,22,0.12)' });
+        const errorSpark = renderStatsSparkline(hourly.map(function (h) { return Number(h.error_rate || 0); }), { strokeColor: '#ef4444', fillColor: 'rgba(239,68,68,0.12)' });
 
-        var pricing = pricingByModel[m.model] || {};
-        var inputPrice = pricing.moonshine_input_per_1k != null ? pricing.moonshine_input_per_1k : m.moonshine_input_per_1k;
-        var outputPrice = pricing.moonshine_output_per_1k != null ? pricing.moonshine_output_per_1k : m.moonshine_output_per_1k;
+        const pricing = pricingByModel[m.model] || {};
+        const inputPrice = pricing.moonshine_input_per_1k != null ? pricing.moonshine_input_per_1k : m.moonshine_input_per_1k;
+        const outputPrice = pricing.moonshine_output_per_1k != null ? pricing.moonshine_output_per_1k : m.moonshine_output_per_1k;
 
         return '<div class="card stats-model-card">' +
           '<div class="card-header">' +
@@ -3985,14 +3973,14 @@
   }
 
   function renderStatisticsRequests(requests) {
-    var wrap = $('#stats-requests-wrap');
+    const wrap = $('#stats-requests-wrap');
     if (!wrap) return;
     if (!requests || requests.length === 0) {
       wrap.innerHTML = '<div class="empty-state">No tracked requests yet.</div>';
       return;
     }
-    var rows = requests.map(function (r) {
-      var status = r.status === 'complete' ? '✅ Complete' : (r.status === 'error' ? '❌ Error' : esc(r.status || '\u2014'));
+    const rows = requests.map(function (r) {
+      const status = r.status === 'complete' ? '✅ Complete' : (r.status === 'error' ? '❌ Error' : esc(r.status || '\u2014'));
       return '<tr>' +
         '<td class="mono">' + esc(formatTime(r.started_at)) + '</td>' +
         '<td class="mono">' + esc(r.model || '\u2014') + '</td>' +
@@ -4011,8 +3999,8 @@
 
   // ── Activity Tab ──────────────────────────────────────────────
 
-  var actPage = 0;
-  var actLimit = 50;
+  let actPage = 0;
+  const actLimit = 50;
 
   function initActivity(ct) {
     actPage = 0;
@@ -4031,10 +4019,10 @@
       '</div>' +
       '<p class="text-muted text-sm">' + esc(t('activity.autoRefresh')) + '</p>';
 
-    var refreshBtn = $('#act-refresh');
+    const refreshBtn = $('#act-refresh');
     if (refreshBtn) refreshBtn.addEventListener('click', refreshActivity);
 
-    var clearBtn = $('#act-clear');
+    const clearBtn = $('#act-clear');
     if (clearBtn) clearBtn.addEventListener('click', clearActivityLog);
 
     refreshActivity();
@@ -4043,12 +4031,12 @@
 
   function clearActivityLog() {
     // Get current count to show in confirmation
-    var countEl = $('#act-count');
-    var countText = countEl ? countEl.textContent : '';
-    var countMatch = countText.match(/(\d+)$/);
-    var count = countMatch ? countMatch[1] : '?';
+    const countEl = $('#act-count');
+    const countText = countEl ? countEl.textContent : '';
+    const countMatch = countText.match(/(\d+)$/);
+    const count = countMatch ? countMatch[1] : '?';
 
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog danger-dialog">' +
@@ -4062,7 +4050,7 @@
 
     document.body.appendChild(overlay);
 
-    var close = function () { overlay.remove(); };
+    const close = function () { overlay.remove(); };
 
     overlay.querySelector('#clear-cancel').addEventListener('click', close);
     overlay.addEventListener('click', function (e) {
@@ -4070,7 +4058,7 @@
     });
 
     overlay.querySelector('#clear-confirm').addEventListener('click', function () {
-      var btn = overlay.querySelector('#clear-confirm');
+      const btn = overlay.querySelector('#clear-confirm');
       btn.disabled = true;
       btn.textContent = t('activity.clearing');
 
@@ -4089,17 +4077,17 @@
   }
 
   function refreshActivity() {
-    var offset = actPage * actLimit;
+    const offset = actPage * actLimit;
     apiJSON('/activity?limit=' + actLimit + '&offset=' + offset).then(function (data) {
-      var requests = data.requests || [];
-      var total = data.total || requests.length;
-      var showing = offset + 1;
-      var showingEnd = Math.min(offset + requests.length, total);
+      const requests = data.requests || [];
+      const total = data.total || requests.length;
+      const showing = offset + 1;
+      const showingEnd = Math.min(offset + requests.length, total);
       setText('#act-count', total > 0
         ? t('activity.showing', { start: showing, end: showingEnd, total: total })
         : t('activity.noRequests'));
 
-      var body = $('#act-body');
+      const body = $('#act-body');
       if (!body) return;
 
       if (requests.length === 0 && actPage === 0) {
@@ -4107,7 +4095,7 @@
         return;
       }
 
-      var rows = requests.map(function (r) {
+      const rows = requests.map(function (r) {
         return '<tr>' +
           '<td class="mono">' + esc(formatTime(r.timestamp)) + '</td>' +
           '<td><span class="badge badge-info">' + esc(r.method) + '</span></td>' +
@@ -4131,21 +4119,21 @@
           '<tbody>' + rows + '</tbody>' +
         '</table></div>';
 
-      var pagEl = $('#act-pagination');
+      const pagEl = $('#act-pagination');
       if (pagEl) {
-        var totalPages = Math.ceil(total / actLimit);
+        const totalPages = Math.ceil(total / actLimit);
         if (totalPages <= 1) {
           pagEl.innerHTML = '';
           return;
         }
-        var prevDisabled = actPage === 0 ? ' disabled' : '';
-        var nextDisabled = actPage >= totalPages - 1 ? ' disabled' : '';
+        const prevDisabled = actPage === 0 ? ' disabled' : '';
+        const nextDisabled = actPage >= totalPages - 1 ? ' disabled' : '';
         pagEl.innerHTML =
           '<button class="btn btn-sm" id="act-prev"' + prevDisabled + '>' + esc(t('activity.previous')) + '</button>' +
           '<span class="text-muted text-sm" style="line-height:2">' + esc(t('activity.pageOf', { current: actPage + 1, total: totalPages })) + '</span>' +
           '<button class="btn btn-sm" id="act-next"' + nextDisabled + '>' + esc(t('activity.next')) + '</button>';
-        var prevBtn = $('#act-prev');
-        var nextBtn = $('#act-next');
+        const prevBtn = $('#act-prev');
+        const nextBtn = $('#act-next');
         if (prevBtn) prevBtn.addEventListener('click', function () {
           if (actPage > 0) { actPage--; refreshActivity(); }
         });
@@ -4158,11 +4146,10 @@
 
   // ── Documents Tab ───────────────────────────────────────────
 
-  var docMode = 'upload';
-  var docCollection = 'documents';
-  var docCollections = [];
-  var docList = [];
-  var askMessages = [];
+  let docMode = 'upload';
+  let docCollection = 'documents';
+  let docCollections = [];
+  let docList = [];
 
   function initDocuments(ct) {
     docMode = 'upload';
@@ -4184,7 +4171,7 @@
 
     // Sub-tab switching
     $('#doc-tabs').addEventListener('click', function (e) {
-      var btn = e.target.closest('[data-doc]');
+      const btn = e.target.closest('[data-doc]');
       if (!btn) return;
       docMode = btn.dataset.doc;
       $$('#doc-tabs .sub-tab').forEach(function (b) {
@@ -4194,7 +4181,7 @@
     });
 
     // Collection selector
-    var collSelect = $('#doc-collection-select');
+    const collSelect = $('#doc-collection-select');
     if (collSelect) {
       collSelect.addEventListener('change', function () {
         docCollection = collSelect.value;
@@ -4203,7 +4190,7 @@
     }
 
     // Create collection button
-    var createBtn = $('#doc-create-coll');
+    const createBtn = $('#doc-create-coll');
     if (createBtn) createBtn.addEventListener('click', showCreateCollectionDialog);
 
     loadDocCollections();
@@ -4212,7 +4199,7 @@
   }
 
   function renderDocMode() {
-    var ct = $('#doc-content');
+    const ct = $('#doc-content');
     if (!ct) return;
     switch (docMode) {
       case 'upload': renderUploadMode(ct); break;
@@ -4224,7 +4211,7 @@
   function loadDocCollections() {
     apiJSON('/collections').then(function (data) {
       docCollections = (data.collections || []).map(function (c) { return c.name; });
-      var select = $('#doc-collection-select');
+      const select = $('#doc-collection-select');
       if (!select) return;
       // Ensure 'documents' is always an option
       if (docCollections.indexOf('documents') === -1) docCollections.unshift('documents');
@@ -4233,20 +4220,20 @@
       }).join('');
     }).catch(function () {
       // Qdrant may not be available
-      var select = $('#doc-collection-select');
+      const select = $('#doc-collection-select');
       if (select) select.innerHTML = '<option value="documents">documents</option>';
     });
   }
 
   function checkDocPrerequisites() {
-    var warningEl = $('#doc-warning');
+    const warningEl = $('#doc-warning');
     if (!warningEl) return;
     warningEl.innerHTML = '';
 
     // Check for embedding models
     apiJSON('/models').then(function (data) {
-      var models = data.models || [];
-      var hasEmbed = models.some(function (m) {
+      const models = data.models || [];
+      const hasEmbed = models.some(function (m) {
         return isEmbeddingModel(m.name || '');
       });
       if (!hasEmbed && warningEl) {
@@ -4277,8 +4264,8 @@
         '<div id="upload-progress"></div>' +
       '</div>';
 
-    var zone = $('#upload-zone');
-    var fileInput = $('#doc-file-input');
+    const zone = $('#upload-zone');
+    const fileInput = $('#doc-file-input');
 
     zone.addEventListener('dragover', function (e) {
       e.preventDefault();
@@ -4301,17 +4288,17 @@
   }
 
   function handleDocFiles(files) {
-    for (var i = 0; i < files.length; i++) {
+    for (let i = 0; i < files.length; i++) {
       uploadDocFile(files[i]);
     }
   }
 
   function uploadDocFile(file) {
-    var progressContainer = $('#upload-progress');
+    const progressContainer = $('#upload-progress');
     if (!progressContainer) return;
 
-    var itemId = 'up-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
-    var itemHTML =
+    const itemId = 'up-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6);
+    const itemHTML =
       '<div class="upload-progress-item" id="' + itemId + '">' +
         '<div class="upload-progress-info">' +
           '<div class="upload-progress-name">' + esc(file.name) + '</div>' +
@@ -4321,7 +4308,7 @@
       '</div>';
     progressContainer.insertAdjacentHTML('beforeend', itemHTML);
 
-    var formData = new FormData();
+    const formData = new FormData();
     formData.append('file', file);
 
     fetch('/admin/api/documents/upload?collection=' + encodeURIComponent(docCollection), {
@@ -4329,37 +4316,37 @@
       headers: { 'X-API-Key': state.apiKey },
       body: formData,
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
 
       function pump() {
         return reader.read().then(function (result) {
           if (result.done) return;
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.startsWith('data: ')) return;
             try {
-              var data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6));
               updateDocProgress(itemId, data, file.name);
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
       }
       return pump();
     }).catch(function (err) {
-      var statusEl = $id(itemId + '-status');
+      const statusEl = $id(itemId + '-status');
       if (statusEl) statusEl.textContent = 'Error: ' + err.message;
       showToast(t('documents.uploadError', { error: err.message }), 'error');
     });
   }
 
   function updateDocProgress(itemId, data, fileName) {
-    var bar = $id(itemId + '-bar');
-    var status = $id(itemId + '-status');
+    const bar = $id(itemId + '-bar');
+    const status = $id(itemId + '-status');
 
     if (data.error) {
       if (data.error === 'duplicate') {
@@ -4408,13 +4395,13 @@
       docList = data.documents || [];
       renderDocTable();
     }).catch(function () {
-      var wrap = $('#doc-table-wrap');
+      const wrap = $('#doc-table-wrap');
       if (wrap) wrap.innerHTML = '<div class="empty-state">' + esc(t('status.error')) + '</div>';
     });
   }
 
   function renderDocTable() {
-    var wrap = $('#doc-table-wrap');
+    const wrap = $('#doc-table-wrap');
     if (!wrap) return;
 
     if (docList.length === 0) {
@@ -4422,13 +4409,13 @@
       return;
     }
 
-    var rows = docList.map(function (doc) {
-      var statusClass = 'doc-status-' + doc.status;
-      var statusText = t('documents.status' + doc.status.charAt(0).toUpperCase() + doc.status.slice(1));
-      var sizeStr = doc.file_size < 1048576
+    const rows = docList.map(function (doc) {
+      const statusClass = 'doc-status-' + doc.status;
+      const statusText = t('documents.status' + doc.status.charAt(0).toUpperCase() + doc.status.slice(1));
+      const sizeStr = doc.file_size < 1048576
         ? Math.round(doc.file_size / 1024) + ' KB'
         : (doc.file_size / 1048576).toFixed(1) + ' MB';
-      var dateStr = doc.created_at ? new Date(doc.created_at + 'Z').toLocaleDateString() : '';
+      const dateStr = doc.created_at ? new Date(doc.created_at + 'Z').toLocaleDateString() : '';
       return '<tr>' +
         '<td>' + esc(doc.original_name) + '</td>' +
         '<td class="mono">' + sizeStr + '</td>' +
@@ -4458,21 +4445,21 @@
 
     // Action handlers via delegation
     wrap.addEventListener('click', function (e) {
-      var chunksBtn = e.target.closest('[data-doc-chunks]');
+      const chunksBtn = e.target.closest('[data-doc-chunks]');
       if (chunksBtn) { showChunkPreview(chunksBtn.dataset.docChunks); return; }
 
-      var reindexBtn = e.target.closest('[data-doc-reindex]');
+      const reindexBtn = e.target.closest('[data-doc-reindex]');
       if (reindexBtn) { reindexDocument(reindexBtn.dataset.docReindex, reindexBtn); return; }
 
-      var deleteBtn = e.target.closest('[data-doc-delete]');
+      const deleteBtn = e.target.closest('[data-doc-delete]');
       if (deleteBtn) { confirmDeleteDocument(deleteBtn.dataset.docDelete, deleteBtn.dataset.docName); return; }
     });
   }
 
   function showChunkPreview(docId) {
     apiJSON('/documents/' + docId + '/chunks').then(function (data) {
-      var chunks = data.chunks || [];
-      var overlay = document.createElement('div');
+      const chunks = data.chunks || [];
+      const overlay = document.createElement('div');
       overlay.className = 'confirm-overlay';
       overlay.innerHTML =
         '<div class="confirm-dialog" style="max-width:700px;max-height:80vh;overflow:auto">' +
@@ -4498,7 +4485,7 @@
   }
 
   function confirmDeleteDocument(docId, docName) {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog danger-dialog">' +
@@ -4511,12 +4498,12 @@
       '</div>';
     document.body.appendChild(overlay);
 
-    var close = function () { overlay.remove(); };
+    const close = function () { overlay.remove(); };
     overlay.querySelector('#doc-del-cancel').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
 
     overlay.querySelector('#doc-del-confirm').addEventListener('click', function () {
-      var btn = overlay.querySelector('#doc-del-confirm');
+      const btn = overlay.querySelector('#doc-del-confirm');
       btn.disabled = true;
       btn.textContent = t('status.loading');
 
@@ -4534,7 +4521,7 @@
   }
 
   function reindexDocument(docId, btn) {
-    var origText = btn.textContent;
+    const origText = btn.textContent;
     btn.disabled = true;
     btn.textContent = t('documents.reindexing');
 
@@ -4542,19 +4529,19 @@
       method: 'POST',
       headers: { 'X-API-Key': state.apiKey },
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
       function pump() {
         return reader.read().then(function (result) {
           if (result.done) return;
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.startsWith('data: ')) return;
             try {
-              var data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6));
               if (data.done) {
                 showToast(t('documents.reindexSuccess', { name: '' }), 'success');
                 btn.disabled = false;
@@ -4566,7 +4553,7 @@
                 btn.disabled = false;
                 btn.textContent = origText;
               }
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
@@ -4582,7 +4569,6 @@
   // ── Ask Sub-Tab ───────────────────────────────────────────
 
   function renderAskMode(ct) {
-    askMessages = [];
     ct.innerHTML =
       '<div class="card" style="display:flex;flex-direction:column;height:calc(100vh - 240px);min-height:400px">' +
         '<div class="card-header">' +
@@ -4600,11 +4586,11 @@
 
     // Load chat models
     apiJSON('/models').then(function (data) {
-      var models = data.models || [];
-      var chatModels = models.map(function (m) { return m.name || m.model || ''; }).filter(isChatModel);
-      var select = $('#ask-model-select');
-      var sendBtn = $('#ask-send');
-      var input = $('#ask-input');
+      const models = data.models || [];
+      const chatModels = models.map(function (m) { return m.name || m.model || ''; }).filter(isChatModel);
+      const select = $('#ask-model-select');
+      const sendBtn = $('#ask-send');
+      const input = $('#ask-input');
       if (!select) return;
       if (chatModels.length === 0) {
         select.innerHTML = '<option value="">' + esc(t('playground.noChatModels')) + '</option>';
@@ -4628,23 +4614,23 @@
   }
 
   function sendAskQuery() {
-    var input = $('#ask-input');
-    var query = input ? input.value.trim() : '';
+    const input = $('#ask-input');
+    const query = input ? input.value.trim() : '';
     if (!query) return;
 
-    var modelSelect = $('#ask-model-select');
-    var model = modelSelect ? modelSelect.value : 'llama3.1:8b';
+    const modelSelect = $('#ask-model-select');
+    const model = modelSelect ? modelSelect.value : 'llama3.1:8b';
     if (!model) {
       showToast(t('playground.noChatModels'), 'error');
       return;
     }
     input.value = '';
 
-    var messagesEl = $('#ask-messages');
+    const messagesEl = $('#ask-messages');
     if (!messagesEl) return;
 
     // Remove empty state
-    var empty = messagesEl.querySelector('.empty-state');
+    const empty = messagesEl.querySelector('.empty-state');
     if (empty) empty.remove();
 
     // Add user message
@@ -4655,7 +4641,7 @@
       '</div>');
 
     // Add placeholder for assistant
-    var assistantId = 'ask-resp-' + Date.now();
+    const assistantId = 'ask-resp-' + Date.now();
     messagesEl.insertAdjacentHTML('beforeend',
       '<div style="margin-bottom:1rem" id="' + assistantId + '">' +
         '<div class="text-muted text-sm" style="margin-bottom:0.25rem">' + esc(t('playground.assistantLabel')) + '</div>' +
@@ -4670,27 +4656,27 @@
       headers: { 'X-API-Key': state.apiKey, 'Content-Type': 'application/json' },
       body: JSON.stringify({ query: query, collection: docCollection, model: model }),
     }).then(function (res) {
-      var reader = res.body.getReader();
-      var decoder = new TextDecoder();
-      var buffer = '';
-      var answer = '';
-      var sourcesRendered = false;
+      const reader = res.body.getReader();
+      const decoder = new TextDecoder();
+      let buffer = '';
+      let answer = '';
+      let sourcesRendered = false;
 
       function pump() {
         return reader.read().then(function (result) {
           if (result.done) return;
           buffer += decoder.decode(result.value, { stream: true });
-          var lines = buffer.split('\n');
+          const lines = buffer.split('\n');
           buffer = lines.pop();
           lines.forEach(function (line) {
             if (!line.startsWith('data: ')) return;
             try {
-              var data = JSON.parse(line.slice(6));
+              const data = JSON.parse(line.slice(6));
 
               // Sources phase
               if (data.phase === 'sources' && !sourcesRendered) {
                 sourcesRendered = true;
-                var sourcesEl = $id(assistantId + '-sources');
+                const sourcesEl = $id(assistantId + '-sources');
                 if (sourcesEl && data.hits && data.hits.length > 0) {
                   sourcesEl.innerHTML = '<div class="rag-sources"><strong>' + esc(t('documents.sources')) + ':</strong> ' +
                     data.hits.map(function (h) {
@@ -4704,24 +4690,24 @@
               // Answer streaming phase
               if (data.phase === 'answer' && data.message && data.message.content) {
                 answer += data.message.content;
-                var textEl = $id(assistantId + '-text');
+                const textEl = $id(assistantId + '-text');
                 if (textEl) textEl.textContent = answer;
                 messagesEl.scrollTop = messagesEl.scrollHeight;
               }
 
               // Error
               if (data.error) {
-                var textEl2 = $id(assistantId + '-text');
+                const textEl2 = $id(assistantId + '-text');
                 if (textEl2) textEl2.innerHTML = '<span style="color:var(--error)">' + esc(data.error) + '</span>';
               }
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           });
           return pump();
         });
       }
       return pump();
     }).catch(function (err) {
-      var textEl = $id(assistantId + '-text');
+      const textEl = $id(assistantId + '-text');
       if (textEl) textEl.innerHTML = '<span style="color:var(--error)">' + esc(err.message) + '</span>';
     });
   }
@@ -4729,7 +4715,7 @@
   // ── Collection Management ─────────────────────────────────
 
   function showCreateCollectionDialog() {
-    var overlay = document.createElement('div');
+    const overlay = document.createElement('div');
     overlay.className = 'confirm-overlay';
     overlay.innerHTML =
       '<div class="confirm-dialog">' +
@@ -4745,13 +4731,13 @@
       '</div>';
     document.body.appendChild(overlay);
 
-    var close = function () { overlay.remove(); };
+    const close = function () { overlay.remove(); };
     overlay.querySelector('#coll-cancel').addEventListener('click', close);
     overlay.addEventListener('click', function (e) { if (e.target === overlay) close(); });
 
     overlay.querySelector('#coll-create').addEventListener('click', function () {
-      var nameInput = overlay.querySelector('#new-coll-name');
-      var name = nameInput ? nameInput.value.trim() : '';
+      const nameInput = overlay.querySelector('#new-coll-name');
+      const name = nameInput ? nameInput.value.trim() : '';
       if (!name) return;
 
       api('/collections', {
@@ -4772,7 +4758,7 @@
   // ── Feedback Tab ─────────────────────────────────────────────
 
   function initFeedback(ct) {
-    var GITHUB_REPO = 'IngressTechnology/jimbomesh-holler-server';
+    const GITHUB_REPO = 'IngressTechnology/jimbomesh-holler-server';
 
     ct.innerHTML =
       '<div class="card">' +
@@ -4811,11 +4797,11 @@
       '</div>';
 
     // Attach event handlers
-    var bugBtn = $('#btn-bug');
+    const bugBtn = $('#btn-bug');
     if (bugBtn) {
       bugBtn.addEventListener('click', function() {
-        var systemInfo = '**Platform:** ' + navigator.platform + '\\n**Browser:** ' + navigator.userAgent;
-        var body = encodeURIComponent(
+        const systemInfo = '**Platform:** ' + navigator.platform + '\\n**Browser:** ' + navigator.userAgent;
+        const body = encodeURIComponent(
           '## System Info\n' + systemInfo.replace(/\\n/g, '\n') + '\n\n' +
           '## Description\n\n' +
           '## Steps to Reproduce\n1. \n2. \n3. \n\n' +
@@ -4828,7 +4814,7 @@
       bugBtn.addEventListener('mouseleave', function() { this.style.filter = ''; });
     }
 
-    var featureBtn = $('#btn-feature');
+    const featureBtn = $('#btn-feature');
     if (featureBtn) {
       featureBtn.addEventListener('click', function() {
         window.open('https://github.com/' + GITHUB_REPO + '/issues/new?template=feature_request.yml', '_blank');
@@ -4837,7 +4823,7 @@
       featureBtn.addEventListener('mouseleave', function() { this.style.filter = ''; });
     }
 
-    var starBtn = $('#btn-star');
+    const starBtn = $('#btn-star');
     if (starBtn) {
       starBtn.addEventListener('click', function() {
         window.open('https://github.com/' + GITHUB_REPO, '_blank');
@@ -4850,7 +4836,7 @@
     fetch('https://api.github.com/repos/' + GITHUB_REPO)
       .then(function(r) { return r.json(); })
       .then(function(d) {
-        var badge = $('#star-count');
+        const badge = $('#star-count');
         if (badge && d.stargazers_count !== undefined) {
           badge.textContent = '★ ' + d.stargazers_count;
           badge.style.display = 'inline';
@@ -4861,7 +4847,7 @@
 
   // ── Boot ──────────────────────────────────────────────────────
 
-  var i18nReady = window.i18n ? window.i18n.loadAll() : Promise.resolve();
+  const i18nReady = window.i18n ? window.i18n.loadAll() : Promise.resolve();
 
   i18nReady.catch(function () {}).then(function () {
     if (window.i18n) {

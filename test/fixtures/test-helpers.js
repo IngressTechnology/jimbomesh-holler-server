@@ -33,7 +33,8 @@ async function requireServer() {
     if (!res.ok) throw new Error(`Health check returned ${res.status}`);
   } catch (err) {
     throw new Error(
-      `Holler server not running at ${BASE_URL}. Start it with "npm start" before running E2E tests.\n${err.message}`
+      `Holler server not running at ${BASE_URL}. Start it with "npm start" before running E2E tests.\n${err.message}`,
+      { cause: err }
     );
   }
 }

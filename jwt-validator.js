@@ -11,14 +11,14 @@ const path = require('path');
 
 // ── State ──────────────────────────────────────────────────────
 
-var configured = false;
-var auth0Config = null;  // { domain, audience, issuer }
-var jwksClient = null;
+let configured = false;
+let auth0Config = null;  // { domain, audience, issuer }
+let jwksClient = null;
 
 const CONFIG_PATH = path.join(__dirname, 'data', 'auth0-config.json');
 
 // Per-buyer rate limiting: Map<buyerId, { rpm: { windowStart, count }, rph: { windowStart, count } }>
-var buyerRateLimits = new Map();
+const buyerRateLimits = new Map();
 const RATE_WINDOW_MS = 60000;
 const HOUR_MS = 3600000;
 const BUYER_LIMIT_MAX_AGE_MS = 2 * HOUR_MS;
@@ -41,7 +41,7 @@ function init() {
   }
 
   try {
-    var raw = fs.readFileSync(CONFIG_PATH, 'utf8');
+    const raw = fs.readFileSync(CONFIG_PATH, 'utf8');
     auth0Config = JSON.parse(raw);
     if (!auth0Config.domain || !auth0Config.audience) {
       console.error('[jwt-validator] auth0-config.json missing domain or audience');
@@ -59,7 +59,7 @@ function init() {
 
   // Lazy-require JWKS and JWT libs
   try {
-    var jwksRsa = require('jwks-rsa');
+    const jwksRsa = require('jwks-rsa');
     jwksClient = jwksRsa({
       jwksUri: 'https://' + auth0Config.domain + '/.well-known/jwks.json',
       cache: true,
@@ -92,15 +92,15 @@ async function validateJwt(token) {
     throw new Error('JWT validation not configured');
   }
 
-  var jwt = require('jsonwebtoken');
+  const jwt = require('jsonwebtoken');
 
   // Decode header to get kid for JWKS lookup
-  var decoded = jwt.decode(token, { complete: true });
+  const decoded = jwt.decode(token, { complete: true });
   if (!decoded || !decoded.header) {
     throw new Error('Invalid JWT format');
   }
 
-  var signingKey = await getSigningKey(decoded.header);
+  const signingKey = await getSigningKey(decoded.header);
 
   return new Promise(function (resolve, reject) {
     jwt.verify(token, signingKey, {
@@ -111,7 +111,7 @@ async function validateJwt(token) {
       if (err) return reject(err);
 
       // Extract claims
-      var result = {
+      const result = {
         buyerId: payload.sub || null,
         permissions: payload.permissions || [],
         rateLimits: payload['https://jimbomesh.ai/rate_limits'] || { rpm: 60, rph: 1000 },
@@ -126,11 +126,11 @@ async function validateJwt(token) {
 // ── Per-Buyer Rate Limiting ────────────────────────────────────
 
 function checkBuyerRateLimit(buyerId, rpm, rph) {
-  var ts = Date.now();
-  var minuteWindow = ts - (ts % RATE_WINDOW_MS);
-  var hourWindow = ts - (ts % HOUR_MS);
+  const ts = Date.now();
+  const minuteWindow = ts - (ts % RATE_WINDOW_MS);
+  const hourWindow = ts - (ts % HOUR_MS);
 
-  var entry = buyerRateLimits.get(buyerId);
+  let entry = buyerRateLimits.get(buyerId);
   if (!entry) {
     entry = {
       rpm: { windowStart: minuteWindow, count: 0 },
@@ -147,11 +147,11 @@ function checkBuyerRateLimit(buyerId, rpm, rph) {
   }
 
   if (entry.rpm.count >= rpm) {
-    var retryAfterSec = Math.ceil((minuteWindow + RATE_WINDOW_MS - ts) / 1000);
+    const retryAfterSec = Math.ceil((minuteWindow + RATE_WINDOW_MS - ts) / 1000);
     return { allowed: false, reason: 'rpm', retryAfterSec: retryAfterSec };
   }
   if (entry.rph.count >= rph) {
-    var retryAfterSec2 = Math.ceil((hourWindow + HOUR_MS - ts) / 1000);
+    const retryAfterSec2 = Math.ceil((hourWindow + HOUR_MS - ts) / 1000);
     return { allowed: false, reason: 'rph', retryAfterSec: retryAfterSec2 };
   }
 
@@ -177,15 +177,15 @@ function getConfig() {
 }
 
 // Periodically prune stale buyer rate limit entries to prevent unbounded growth
-var _pruneInterval = null;
+let _pruneInterval = null;
 function _startPruneTimer() {
   if (_pruneInterval) return;
   _pruneInterval = setInterval(function () {
-    var now = Date.now();
-    var cutoff = now - BUYER_LIMIT_MAX_AGE_MS;
-    for (var entry of buyerRateLimits) {
-      var buyerId = entry[0];
-      var limits = entry[1];
+    const now = Date.now();
+    const cutoff = now - BUYER_LIMIT_MAX_AGE_MS;
+    for (const entry of buyerRateLimits) {
+      const buyerId = entry[0];
+      const limits = entry[1];
       if (limits.rpm.windowStart < cutoff && limits.rph.windowStart < cutoff) {
         buyerRateLimits.delete(buyerId);
       }

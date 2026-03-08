@@ -16,7 +16,7 @@ const os = require('os');
 const { execSync } = require('child_process');
 const stats = require('./stats-collector');
 const db = require('./db');
-const { inferMeshRequestPath, maskKey: _maskKeyShared } = require('./mesh-utils');
+const { inferMeshRequestPath } = require('./mesh-utils');
 
 // ── Helpers ───────────────────────────────────────────────────────
 
@@ -195,7 +195,7 @@ class MeshConnector {
     this._clearTimers();
     this._clearMgmtTimers();
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(); } catch (e) { /* ignore */ }
+      try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
       this._mgmtWs = null;
     }
     this._mgmtReconnectAttempt = 0;
@@ -228,7 +228,7 @@ class MeshConnector {
 
     // Close management WebSocket gracefully
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(1000, 'Disconnecting'); } catch (e) { /* ignore */ }
+      try { this._mgmtWs.close(1000, 'Disconnecting'); } catch (_e) { /* intentionally empty */ }
       this._mgmtWs = null;
     }
     this._mgmtReconnectAttempt = 0;
@@ -237,7 +237,7 @@ class MeshConnector {
 
     // Close all WebRTC peer connections
     if (this.peerHandler) {
-      try { await this.peerHandler.closeAll(); } catch (_) {}
+      try { await this.peerHandler.closeAll(); } catch (_) { /* intentionally empty */ }
     }
 
     // Best-effort offline heartbeat
@@ -257,14 +257,14 @@ class MeshConnector {
    * Return current mesh status for admin UI.
    */
   getStatus() {
-    var modeMap = {
+    const modeMap = {
       connected: 'mesh-contributor',
       connecting: 'connecting',
       reconnecting: 'connecting',
       error: 'off-grid',
       disconnected: 'off-grid',
     };
-    var status = {
+    const status = {
       state: this._state,
       connected: this._state === 'connected',
       connecting: this._state === 'connecting' || this._state === 'reconnecting',
@@ -306,10 +306,10 @@ class MeshConnector {
   _initPeerHandler() {
     if (this.peerHandler) return;
     try {
-      var HollerPeerHandler = require('./mesh-webrtc').HollerPeerHandler;
+      const HollerPeerHandler = require('./mesh-webrtc').HollerPeerHandler;
       this.peerHandler = new HollerPeerHandler(this);
       this._addLog('info', 'WebRTC peer handler initialized');
-    } catch (err) {
+    } catch (_err) {
       this._addLog('warning', 'WebRTC not available (wrtc not installed)');
     }
   }
@@ -326,7 +326,7 @@ class MeshConnector {
     if (this._stopped || this._aborted) return;
     this._mgmtNextRetryAt = null;
     if (this._mgmtWs) {
-      try { this._mgmtWs.close(); } catch (e) { /* ignore */ }
+      try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
     }
     this._clearMgmtTimers();
 
@@ -364,10 +364,10 @@ class MeshConnector {
 
       ws.addEventListener('message', (event) => {
         try {
-          var data = typeof event.data === 'string' ? event.data : event.data.toString();
+          const data = typeof event.data === 'string' ? event.data : event.data.toString();
           this._handleMgmtMessage(data).catch((err) => {
             console.error('[mesh-connector] Management WS message handler error:', err);
-            try { this._addLog('error', 'Message handler error: ' + (err && err.message || String(err))); } catch (_) {}
+            try { this._addLog('error', 'Message handler error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
           });
         } catch (err) {
           console.error('[mesh-connector] Management WS message handler sync error:', err);
@@ -437,13 +437,18 @@ class MeshConnector {
     this._mgmtPingInterval = setInterval(() => {
       if (this._mgmtWs && this._mgmtWs.readyState === 1 /* OPEN */) {
         this._mgmtWsPongReceived = false;
-        try { this._mgmtWs.send(JSON.stringify({ type: 'ping' })); } catch (e) { try { this._mgmtWs.close(); } catch (_) {} return; }
+        try {
+          this._mgmtWs.send(JSON.stringify({ type: 'ping' }));
+        } catch (_e) {
+          try { this._mgmtWs.close(); } catch (_) { /* intentionally empty */ }
+          return;
+        }
 
         if (this._mgmtPongTimeout) { clearTimeout(this._mgmtPongTimeout); this._mgmtPongTimeout = null; }
         this._mgmtPongTimeout = setTimeout(() => {
           if (!this._mgmtWsPongReceived && this._mgmtWs) {
             this._addLog('warning', 'Pong timeout — reconnecting management WebSocket');
-            try { this._mgmtWs.close(); } catch (e) { /* ignore */ }
+            try { this._mgmtWs.close(); } catch (_e) { /* intentionally empty */ }
           }
         }, 10000);
       }
@@ -495,12 +500,12 @@ class MeshConnector {
 
       } else if (msg.type === 'fallback_inference') {
         this._handleFallbackInference(msg).catch((err) => {
-          try { this._addLog('error', 'Fallback inference error: ' + (err && err.message || String(err))); } catch (_) {}
+          try { this._addLog('error', 'Fallback inference error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
         });
 
       } else if (msg.type === 'embedding_request') {
         this._handleEmbeddingRequest(msg).catch((err) => {
-          try { this._addLog('error', 'Embedding request error: ' + (err && err.message || String(err))); } catch (_) {}
+          try { this._addLog('error', 'Embedding request error: ' + (err && err.message || String(err))); } catch (_) { /* intentionally empty */ }
         });
 
       } else if (msg.type === 'pong') {
@@ -543,7 +548,7 @@ class MeshConnector {
           error: errorMessage || null,
           auth_type: 'mesh-fallback',
         });
-      } catch (_) {}
+      } catch (_) { /* intentionally empty */ }
     };
 
     try {
@@ -602,7 +607,7 @@ class MeshConnector {
       if (response.statusCode >= 400) {
         let errData = '';
         await new Promise((resolve) => {
-          response.on('data', (chunk) => { try { errData += chunk.toString(); } catch (_) {} });
+          response.on('data', (chunk) => { try { errData += chunk.toString(); } catch (_) { /* intentionally empty */ } });
           response.on('end', resolve);
           response.on('error', resolve);
         });
@@ -623,7 +628,6 @@ class MeshConnector {
         let promptTokens = 0;
         let completionTokens = 0;
         let sawToolCalls = false;
-        let sawDone = false;
 
         const processLine = (line) => {
           if (!line || !line.trim()) return;
@@ -641,7 +645,6 @@ class MeshConnector {
             }
 
             if (parsed.done) {
-              sawDone = true;
               promptTokens = parsed.prompt_eval_count || 0;
               completionTokens = parsed.eval_count || 0;
             }
@@ -657,7 +660,7 @@ class MeshConnector {
             for (const line of lines) {
               processLine(line);
             }
-          } catch (chunkErr) {
+          } catch (_chunkErr) {
             /* don't crash on individual chunks */
           }
         });
@@ -752,7 +755,7 @@ class MeshConnector {
             if (res.statusCode >= 400) {
               reject(new Error('Ollama returned ' + res.statusCode + ': ' + chunks.slice(0, 200)));
             } else {
-              try { resolve(JSON.parse(chunks)); } catch (e) { reject(new Error('Invalid JSON from Ollama')); }
+              try { resolve(JSON.parse(chunks)); } catch (_e) { reject(new Error('Invalid JSON from Ollama')); }
             }
           });
         });
@@ -958,7 +961,7 @@ class MeshConnector {
       // Connect management WebSocket for real-time job push
       this._connectManagementWebSocket();
     } else {
-      var errMsg = 'Authentication failed (' + result.status + ')';
+      let errMsg = 'Authentication failed (' + result.status + ')';
       if (result.status === 401) errMsg += '. Check your API key.';
       this._addLog('error', errMsg);
       throw new Error('Registration returned HTTP ' + result.status + ': ' + JSON.stringify(result.data));
@@ -987,7 +990,7 @@ class MeshConnector {
         this._connectManagementWebSocket();
       } else if (this._mgmtLastHeartbeatAck && (Date.now() - this._mgmtLastHeartbeatAck > MGMT_WS_HEARTBEAT_STALE_MS)) {
         this._addLog('warning', 'Heartbeat stale, forcing reconnect');
-        try { this._mgmtWs.close(); } catch (_) {}
+        try { this._mgmtWs.close(); } catch (_) { /* intentionally empty */ }
       }
     } catch (err) {
       this.heartbeatFailures++;
@@ -1110,7 +1113,7 @@ class MeshConnector {
           model: model || null,
           auth_type: 'mesh-http',
         });
-      } catch (_) {}
+      } catch (_) { /* intentionally empty */ }
 
       log('Job ' + jobId + ' completed in ' + (processingTime / 1000).toFixed(1) + 's (' + tokensUsed + ' tokens)');
     } catch (err) {
@@ -1130,7 +1133,7 @@ class MeshConnector {
           error: err.message,
           auth_type: 'mesh-http',
         });
-      } catch (_) {}
+      } catch (_) { /* intentionally empty */ }
 
       // Report failure to SaaS (don't silently drop)
       try {

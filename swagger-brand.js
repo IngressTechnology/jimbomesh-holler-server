@@ -4,13 +4,13 @@
 
 (function () {
   function injectFooter() {
-    var swagger = document.querySelector('.swagger-ui');
+    const swagger = document.querySelector('.swagger-ui');
     if (!swagger) return false;
-    var wrapper = swagger.querySelector('.wrapper');
+    const wrapper = swagger.querySelector('.wrapper');
     if (!wrapper) return false;
     if (document.querySelector('.jimbomesh-footer')) return true;
 
-    var footer = document.createElement('div');
+    const footer = document.createElement('div');
     footer.className = 'jimbomesh-footer';
     footer.innerHTML =
       'Made with \uD83E\uDD43 by <a href="https://jimbomesh.ai" target="_blank" rel="noopener">Ingress Technology</a>' +
@@ -20,8 +20,8 @@
   }
 
   /* Swagger UI renders async — poll until the wrapper appears, then inject. */
-  var attempts = 0;
-  var timer = setInterval(function () {
+  let attempts = 0;
+  const timer = setInterval(function () {
     if (injectFooter() || ++attempts > 50) clearInterval(timer);
   }, 100);
 })();

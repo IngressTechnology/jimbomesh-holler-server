@@ -20,7 +20,7 @@ const pkg = require('./package.json');
 
 // ── Global Safety Nets ───────────────────────────────────────
 // Prevent stray errors (e.g. from mesh WebSocket handlers) from killing the process.
-process.on('unhandledRejection', (reason, promise) => {
+process.on('unhandledRejection', (reason, _promise) => {
   console.error('[FATAL] Unhandled Promise Rejection:', reason);
 });
 
@@ -115,7 +115,9 @@ async function detectGpuCount() {
         console.log('[api-gateway] nvidia-smi not available, defaulting GPU count from Ollama');
         return 1;
       }
-    } catch {}
+    } catch {
+      // intentionally empty: fallback to CPU-only mode
+    }
     console.log('[api-gateway] No GPU detected, defaulting to CPU-only mode');
     return 0;
   }
@@ -126,7 +128,7 @@ function clearCfgCache() {
 }
 
 function estimateInputTokens(input) {
-  var text = '';
+  let text = '';
   if (Array.isArray(input)) {
     text = input.map(function (v) { return typeof v === 'string' ? v : JSON.stringify(v); }).join(' ');
   } else if (typeof input === 'string') {
@@ -134,7 +136,7 @@ function estimateInputTokens(input) {
   } else if (input != null) {
     text = JSON.stringify(input);
   }
-  var words = text.trim() ? text.trim().split(/\s+/).length : 0;
+  const words = text.trim() ? text.trim().split(/\s+/).length : 0;
   return Math.ceil(words * 1.3);
 }
 
@@ -517,7 +519,7 @@ function tokenHasPermission(token, scope) {
 }
 
 // Lazy-load document pipeline for public document routes
-var _pipeline = null;
+let _pipeline = null;
 function getPipeline() {
   if (!_pipeline) {
     try { _pipeline = require('./document-pipeline'); } catch (_) { _pipeline = null; }
@@ -569,24 +571,6 @@ function fetchModelList() {
     });
 
     req.end();
-  });
-}
-
-function readRequestBody(req, maxBytes) {
-  return new Promise(function (resolve, reject) {
-    let body = '';
-    let bytesRead = 0;
-    req.on('data', function (chunk) {
-      bytesRead += chunk.length;
-      if (maxBytes && bytesRead > maxBytes) {
-        req.destroy();
-        reject(Object.assign(new Error('Body exceeds size limit'), { code: 'BODY_TOO_LARGE', bytesRead: bytesRead }));
-        return;
-      }
-      body += chunk;
-    });
-    req.on('end', function () { resolve(body); });
-    req.on('error', reject);
   });
 }
 
@@ -1187,7 +1171,7 @@ function createRequestHandler() {
                       }).catch(function () {});
                     }
                   }
-                } catch (parseErr) {
+                } catch (_parseErr) {
                   // Partial JSON line, skip
                 }
               }
@@ -1378,10 +1362,10 @@ function createRequestHandler() {
           headers: { 'Content-Type': 'application/json', 'Content-Length': Buffer.byteLength(ollamaBody) },
         }, (chatRes) => {
           chatRes.on('data', (chunk) => {
-            var lines = chunk.toString().split('\n').filter(Boolean);
-            for (var i = 0; i < lines.length; i++) {
+            const lines = chunk.toString().split('\n').filter(Boolean);
+            for (let i = 0; i < lines.length; i++) {
               try {
-                var obj = JSON.parse(lines[i]);
+                const obj = JSON.parse(lines[i]);
                 if (obj.message && obj.message.content) {
                   res.write('data: ' + JSON.stringify({ type: 'token', content: obj.message.content }) + '\n\n');
                 }
@@ -1617,20 +1601,14 @@ setInterval(() => {
   });
 }, 60 * 60 * 1000);
 
-// Graceful shutdown
-function shutdown(signal) {
-  console.log(`[api-gateway] Received ${signal}, shutting down gracefully`);
-  server.close(() => {
-    try { db.close(); } catch (e) { /* ignore */ }
-    console.log('[api-gateway] Server closed');
-    process.exit(0);
-  });
-}
-
 // Graceful shutdown with connection draining
 function killChildProcesses() {
-  if (OLLAMA_PID) try { process.kill(OLLAMA_PID, 'SIGTERM'); } catch {}
-  if (HEALTH_PID) try { process.kill(HEALTH_PID, 'SIGTERM'); } catch {}
+  if (OLLAMA_PID) {
+    try { process.kill(OLLAMA_PID, 'SIGTERM'); } catch (_e) { /* intentionally empty */ }
+  }
+  if (HEALTH_PID) {
+    try { process.kill(HEALTH_PID, 'SIGTERM'); } catch (_e) { /* intentionally empty */ }
+  }
 }
 
 function gracefulShutdown(signal) {

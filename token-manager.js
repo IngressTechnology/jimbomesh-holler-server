@@ -21,16 +21,16 @@ const HOUR_MS = 3600000;        // 1-hour window for RPH
 
 // ── State ──────────────────────────────────────────────────────
 
-var tokens = [];            // Array of token objects (without raw key)
-var hashMap = new Map();    // Map<sha256-hash, token> for O(1) lookup
-var dirty = false;          // Needs save
-var saveTimer = null;       // Background save interval
+let tokens = [];            // Array of token objects (without raw key)
+const hashMap = new Map();    // Map<sha256-hash, token> for O(1) lookup
+let dirty = false;          // Needs save
+let saveTimer = null;       // Background save interval
 
 // Per-token rate limiting: Map<tokenId, { rpm: { windowStart, count }, rph: { windowStart, count } }>
-var rateLimits = new Map();
+const rateLimits = new Map();
 
 // Reference to db module (set via init)
-var db = null;
+let db = null;
 
 // ── Helpers ────────────────────────────────────────────────────
 
@@ -48,7 +48,7 @@ function prefixFromRaw(raw) {
 
 function rebuildHashMap() {
   hashMap.clear();
-  for (var i = 0; i < tokens.length; i++) {
+  for (let i = 0; i < tokens.length; i++) {
     hashMap.set(tokens[i].hash, tokens[i]);
   }
 }
@@ -70,8 +70,8 @@ function loadTokens() {
     return;
   }
   try {
-    var raw = fs.readFileSync(KEYS_FILE, 'utf8');
-    var data = JSON.parse(raw);
+    const raw = fs.readFileSync(KEYS_FILE, 'utf8');
+    const data = JSON.parse(raw);
     tokens = data.tokens || [];
     rebuildHashMap();
     console.log('[token-manager] Loaded ' + tokens.length + ' bearer token(s) from keys.json');
@@ -86,8 +86,8 @@ function saveTokens() {
   if (!fs.existsSync(DATA_DIR)) {
     fs.mkdirSync(DATA_DIR, { recursive: true });
   }
-  var data = JSON.stringify({ version: 1, tokens: tokens }, null, 2);
-  var tmpPath = KEYS_FILE + '.tmp.' + process.pid;
+  const data = JSON.stringify({ version: 1, tokens: tokens }, null, 2);
+  const tmpPath = KEYS_FILE + '.tmp.' + process.pid;
   try {
     fs.writeFileSync(tmpPath, data, 'utf8');
     fs.renameSync(tmpPath, KEYS_FILE);
@@ -111,7 +111,7 @@ function saveIfDirty() {
 function isEnabled() {
   if (!db) return false;
   try {
-    var val = db.getSetting('enhanced_security_enabled');
+    const val = db.getSetting('enhanced_security_enabled');
     return val === 'true';
   } catch (_) {
     return false;
@@ -121,9 +121,9 @@ function isEnabled() {
 // ── CRUD Operations ────────────────────────────────────────────
 
 function createToken(opts) {
-  var raw = generateRawToken();
-  var hash = hashToken(raw);
-  var token = {
+  const raw = generateRawToken();
+  const hash = hashToken(raw);
+  const token = {
     id: crypto.randomUUID(),
     name: opts.name || 'Unnamed Token',
     hash: hash,
@@ -146,13 +146,13 @@ function createToken(opts) {
 
 function validateToken(raw) {
   if (!raw || typeof raw !== 'string') return null;
-  var hash = hashToken(raw);
-  var token = hashMap.get(hash);
+  const hash = hashToken(raw);
+  const token = hashMap.get(hash);
   if (!token) return null;
 
   // Check expiry
   if (token.expires_at) {
-    var expiryMs = new Date(token.expires_at).getTime();
+    const expiryMs = new Date(token.expires_at).getTime();
     if (now() > expiryMs) return null;
   }
 
@@ -160,9 +160,9 @@ function validateToken(raw) {
 }
 
 function revokeToken(id) {
-  var idx = tokens.findIndex(function (t) { return t.id === id; });
+  const idx = tokens.findIndex(function (t) { return t.id === id; });
   if (idx === -1) return false;
-  var token = tokens[idx];
+  const token = tokens[idx];
   hashMap.delete(token.hash);
   rateLimits.delete(id);
   tokens.splice(idx, 1);
@@ -190,7 +190,7 @@ function listTokens() {
 }
 
 function getToken(id) {
-  var token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) { return t.id === id; });
   if (!token) return null;
   return {
     id: token.id,
@@ -208,7 +208,7 @@ function getToken(id) {
 }
 
 function updateToken(id, changes) {
-  var token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) { return t.id === id; });
   if (!token) return null;
   if (changes.name !== undefined) token.name = changes.name;
   if (changes.permissions !== undefined) token.permissions = changes.permissions;
@@ -223,11 +223,11 @@ function updateToken(id, changes) {
 // ── Per-Token Rate Limiting ────────────────────────────────────
 
 function checkTokenRateLimit(id, rpm, rph) {
-  var ts = now();
-  var minuteWindow = ts - (ts % RATE_WINDOW_MS);
-  var hourWindow = ts - (ts % HOUR_MS);
+  const ts = now();
+  const minuteWindow = ts - (ts % RATE_WINDOW_MS);
+  const hourWindow = ts - (ts % HOUR_MS);
 
-  var entry = rateLimits.get(id);
+  let entry = rateLimits.get(id);
   if (!entry) {
     entry = {
       rpm: { windowStart: minuteWindow, count: 0 },
@@ -246,11 +246,11 @@ function checkTokenRateLimit(id, rpm, rph) {
 
   // Check limits
   if (entry.rpm.count >= rpm) {
-    var retryAfterSec = Math.ceil((minuteWindow + RATE_WINDOW_MS - ts) / 1000);
+    const retryAfterSec = Math.ceil((minuteWindow + RATE_WINDOW_MS - ts) / 1000);
     return { allowed: false, reason: 'rpm', retryAfterSec: retryAfterSec };
   }
   if (entry.rph.count >= rph) {
-    var retryAfterSec2 = Math.ceil((hourWindow + HOUR_MS - ts) / 1000);
+    const retryAfterSec2 = Math.ceil((hourWindow + HOUR_MS - ts) / 1000);
     return { allowed: false, reason: 'rph', retryAfterSec: retryAfterSec2 };
   }
 
@@ -264,19 +264,19 @@ function checkTokenRateLimit(id, rpm, rph) {
 // ── Usage Tracking ─────────────────────────────────────────────
 
 function recordTokenUsage(id) {
-  var token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) { return t.id === id; });
   if (!token) return;
 
   token.request_count++;
   token.last_used = isoNow();
 
   // Hourly bucket (ISO hour key: "2026-02-27T14")
-  var hourKey = new Date().toISOString().slice(0, 13);
+  const hourKey = new Date().toISOString().slice(0, 13);
   if (!token.hourly_usage) token.hourly_usage = {};
   token.hourly_usage[hourKey] = (token.hourly_usage[hourKey] || 0) + 1;
 
   // Prune to last 24 entries
-  var keys = Object.keys(token.hourly_usage).sort();
+  const keys = Object.keys(token.hourly_usage).sort();
   while (keys.length > 24) {
     delete token.hourly_usage[keys.shift()];
   }
@@ -285,7 +285,7 @@ function recordTokenUsage(id) {
 }
 
 function getTokenUsageHistory(id) {
-  var token = tokens.find(function (t) { return t.id === id; });
+  const token = tokens.find(function (t) { return t.id === id; });
   if (!token) return null;
   return token.hourly_usage || {};
 }

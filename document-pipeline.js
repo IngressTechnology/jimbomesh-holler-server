@@ -36,8 +36,8 @@ function ensureDocumentsDir() {
 
 function computeFileHash(filePath) {
   return new Promise(function (resolve, reject) {
-    var hash = crypto.createHash('sha256');
-    var stream = fs.createReadStream(filePath);
+    const hash = crypto.createHash('sha256');
+    const stream = fs.createReadStream(filePath);
     stream.on('data', function (chunk) { hash.update(chunk); });
     stream.on('end', function () { resolve(hash.digest('hex')); });
     stream.on('error', reject);
@@ -45,8 +45,8 @@ function computeFileHash(filePath) {
 }
 
 function guessMime(filename) {
-  var ext = path.extname(filename).toLowerCase();
-  var map = {
+  const ext = path.extname(filename).toLowerCase();
+  const map = {
     '.pdf': 'application/pdf',
     '.md': 'text/markdown',
     '.txt': 'text/plain',
@@ -61,25 +61,25 @@ function guessMime(filename) {
 async function extractText(filePath, mimeType) {
   switch (mimeType) {
     case 'application/pdf': {
-      var pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
-      var data = new Uint8Array(fs.readFileSync(filePath));
-      var doc = await pdfjsLib.getDocument({ data, useSystemFonts: true }).promise;
-      var pages = doc.numPages;
-      var textParts = [];
-      for (var i = 1; i <= pages; i++) {
-        var page = await doc.getPage(i);
-        var content = await page.getTextContent();
+      const pdfjsLib = require('pdfjs-dist/legacy/build/pdf.mjs');
+      const data = new Uint8Array(fs.readFileSync(filePath));
+      const doc = await pdfjsLib.getDocument({ data, useSystemFonts: true }).promise;
+      const pages = doc.numPages;
+      const textParts = [];
+      for (let i = 1; i <= pages; i++) {
+        const page = await doc.getPage(i);
+        const content = await page.getTextContent();
         textParts.push(content.items.map(function (item) { return item.str; }).join(' '));
       }
       return { text: textParts.join('\n'), pages: pages };
     }
     case 'application/vnd.openxmlformats-officedocument.wordprocessingml.document': {
-      var mammoth = require('mammoth');
-      var result2 = await mammoth.extractRawText({ path: filePath });
+      const mammoth = require('mammoth');
+      const result2 = await mammoth.extractRawText({ path: filePath });
       return { text: result2.value };
     }
     case 'text/csv': {
-      var raw = fs.readFileSync(filePath, 'utf-8');
+      const raw = fs.readFileSync(filePath, 'utf-8');
       return { text: csvToText(raw) };
     }
     case 'text/plain':
@@ -92,10 +92,10 @@ async function extractText(filePath, mimeType) {
 }
 
 function csvToText(raw) {
-  var lines = raw.split('\n').filter(function (l) { return l.trim(); });
+  const lines = raw.split('\n').filter(function (l) { return l.trim(); });
   if (lines.length < 2) return raw;
-  var header = lines[0];
-  var rows = lines.slice(1).map(function (row) {
+  const header = lines[0];
+  const rows = lines.slice(1).map(function (row) {
     return header + '\n' + row;
   });
   return rows.join('\n\n');
@@ -104,27 +104,27 @@ function csvToText(raw) {
 // ── Chunking ──────────────────────────────────────────────────
 
 function chunkText(text, options) {
-  var targetTokens = (options && options.chunkSize) || CHUNK_SIZE;
-  var overlapTokens = (options && options.overlap) || CHUNK_OVERLAP;
-  var targetChars = targetTokens * CHARS_PER_TOKEN;
-  var overlapChars = overlapTokens * CHARS_PER_TOKEN;
+  const targetTokens = (options && options.chunkSize) || CHUNK_SIZE;
+  const overlapTokens = (options && options.overlap) || CHUNK_OVERLAP;
+  const targetChars = targetTokens * CHARS_PER_TOKEN;
+  const overlapChars = overlapTokens * CHARS_PER_TOKEN;
 
   // Split on paragraph boundaries (double newline) or markdown headers
-  var paragraphs = text.split(/\n{2,}|\n(?=#{1,6}\s)/);
+  const paragraphs = text.split(/\n{2,}|\n(?=#{1,6}\s)/);
 
-  var chunks = [];
-  var current = '';
-  var charOffset = 0;
+  let chunks = [];
+  let current = '';
+  let charOffset = 0;
 
-  for (var i = 0; i < paragraphs.length; i++) {
-    var trimmed = paragraphs[i].trim();
+  for (let i = 0; i < paragraphs.length; i++) {
+    const trimmed = paragraphs[i].trim();
     if (!trimmed) continue;
 
     // If adding this paragraph would exceed target and we already have content, flush
     if (current.length + trimmed.length > targetChars && current.length > 0) {
       chunks.push({ text: current.trim(), charOffset: charOffset });
       // Apply overlap
-      var overlapText = current.slice(-overlapChars);
+      const overlapText = current.slice(-overlapChars);
       charOffset += current.length - overlapText.length;
       current = overlapText + '\n\n' + trimmed;
     } else {
@@ -143,9 +143,9 @@ function chunkText(text, options) {
     chunks.push({ text: text.trim(), charOffset: 0 });
   } else if (chunks.length === 1 && chunks[0].text.length > targetChars * 2) {
     // Force-split oversized single chunk
-    var bigText = chunks[0].text;
+    const bigText = chunks[0].text;
     chunks = [];
-    for (var j = 0; j < bigText.length; j += targetChars - overlapChars) {
+    for (let j = 0; j < bigText.length; j += targetChars - overlapChars) {
       chunks.push({
         text: bigText.slice(j, j + targetChars).trim(),
         charOffset: j,
@@ -168,9 +168,9 @@ function chunkText(text, options) {
 
 function ollamaEmbed(texts) {
   return new Promise(function (resolve, reject) {
-    var parsed = new URL(OLLAMA_URL);
-    var body = JSON.stringify({ model: EMBED_MODEL, input: texts });
-    var req = http.request({
+    const parsed = new URL(OLLAMA_URL);
+    const body = JSON.stringify({ model: EMBED_MODEL, input: texts });
+    const req = http.request({
       hostname: parsed.hostname,
       port: parseInt(parsed.port) || 11435,
       path: '/api/embed',
@@ -181,17 +181,17 @@ function ollamaEmbed(texts) {
       },
       timeout: 120000,
     }, function (res) {
-      var data = '';
+      let data = '';
       res.on('data', function (chunk) { data += chunk; });
       res.on('end', function () {
         try {
-          var parsed2 = JSON.parse(data);
+          const parsed2 = JSON.parse(data);
           if (res.statusCode !== 200) {
             reject(new Error(parsed2.error || 'Ollama embed failed: HTTP ' + res.statusCode));
             return;
           }
           resolve(parsed2);
-        } catch (e) {
+        } catch (_e) {
           reject(new Error('Failed to parse Ollama embed response'));
         }
       });
@@ -204,14 +204,14 @@ function ollamaEmbed(texts) {
 }
 
 async function embedBatch(texts, onProgress) {
-  var BATCH_SIZE = EMBED_BATCH_SIZE;
-  var allEmbeddings = [];
+  const BATCH_SIZE = EMBED_BATCH_SIZE;
+  const allEmbeddings = [];
 
-  for (var i = 0; i < texts.length; i += BATCH_SIZE) {
-    var batch = texts.slice(i, i + BATCH_SIZE);
-    var result = await ollamaEmbed(batch);
-    var embeddings = result.embeddings || [];
-    for (var j = 0; j < embeddings.length; j++) {
+  for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+    const batch = texts.slice(i, i + BATCH_SIZE);
+    const result = await ollamaEmbed(batch);
+    const embeddings = result.embeddings || [];
+    for (let j = 0; j < embeddings.length; j++) {
       allEmbeddings.push(embeddings[j]);
     }
 
@@ -232,17 +232,17 @@ async function embedBatch(texts, onProgress) {
 
 async function processDocument(docId, filePath, mimeType, collection, onProgress) {
   // Pre-check: reject files exceeding the configured size limit
-  var fileStat = fs.statSync(filePath);
-  var maxBytes = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+  const fileStat = fs.statSync(filePath);
+  const maxBytes = MAX_UPLOAD_SIZE_MB * 1024 * 1024;
   if (fileStat.size > maxBytes) {
     throw new Error('File exceeds maximum upload size of ' + MAX_UPLOAD_SIZE_MB + ' MB');
   }
 
   // Phase 1: Extract text
   onProgress({ phase: 'extract', status: 'Extracting text...' });
-  var extracted = await extractText(filePath, mimeType);
-  var text = extracted.text;
-  var pages = extracted.pages || null;
+  const extracted = await extractText(filePath, mimeType);
+  const text = extracted.text;
+  const pages = extracted.pages || null;
 
   if (!text || !text.trim()) {
     throw new Error('No text content extracted from file');
@@ -250,7 +250,7 @@ async function processDocument(docId, filePath, mimeType, collection, onProgress
 
   // Phase 2: Chunk
   onProgress({ phase: 'chunk', status: 'Chunking text...' });
-  var chunks = chunkText(text);
+  const chunks = chunkText(text);
   onProgress({ phase: 'chunk', status: 'Created ' + chunks.length + ' chunks', count: chunks.length });
 
   if (chunks.length === 0) {
@@ -259,24 +259,24 @@ async function processDocument(docId, filePath, mimeType, collection, onProgress
 
   // Phase 3: Embed
   onProgress({ phase: 'embedding', status: 'Generating embeddings...', completed: 0, total: chunks.length });
-  var chunkTexts = chunks.map(function (c) { return c.text; });
-  var embeddings = await embedBatch(chunkTexts, onProgress);
+  const chunkTexts = chunks.map(function (c) { return c.text; });
+  const embeddings = await embedBatch(chunkTexts, onProgress);
 
   // Phase 4: Ensure collection exists
   onProgress({ phase: 'store', status: 'Preparing collection...' });
   try {
-    var existing = await qdrant.getCollection(collection);
+    const existing = await qdrant.getCollection(collection);
     if (!existing) {
       await qdrant.createCollection(collection);
     }
-  } catch (e) {
+  } catch (_e) {
     // Collection may already exist, continue
   }
 
   // Phase 5: Upsert to Qdrant
   onProgress({ phase: 'store', status: 'Storing vectors...', completed: 0, total: chunks.length });
-  var filename = path.basename(filePath);
-  var points = chunks.map(function (chunk, idx) {
+  const filename = path.basename(filePath);
+  const points = chunks.map(function (chunk, idx) {
     return {
       id: crypto.randomUUID(),
       vector: embeddings[idx],
@@ -295,8 +295,8 @@ async function processDocument(docId, filePath, mimeType, collection, onProgress
   });
 
   // Upsert in batches of 100
-  for (var k = 0; k < points.length; k += 100) {
-    var batch = points.slice(k, k + 100);
+  for (let k = 0; k < points.length; k += 100) {
+    const batch = points.slice(k, k + 100);
     await qdrant.upsertPoints(collection, batch);
     onProgress({
       phase: 'store',
@@ -312,29 +312,29 @@ async function processDocument(docId, filePath, mimeType, collection, onProgress
 // ── Query & Search ────────────────────────────────────────────
 
 async function searchDocuments(query, collection, limit) {
-  var result = await ollamaEmbed([query]);
-  var vector = result.embeddings[0];
-  var hits = await qdrant.searchPoints(collection, vector, null, limit || 5);
+  const result = await ollamaEmbed([query]);
+  const vector = result.embeddings[0];
+  const hits = await qdrant.searchPoints(collection, vector, null, limit || 5);
   return hits;
 }
 
 async function askDocuments(query, collection, chatModel, limit) {
   // 1. Semantic search
-  var hits = await searchDocuments(query, collection, limit || 5);
+  const hits = await searchDocuments(query, collection, limit || 5);
 
   if (hits.length === 0) {
     return { messages: null, hits: [] };
   }
 
   // 2. Build context with trust boundary wrappers (matching embed.sh pattern)
-  var context = hits.map(function (h) {
+  const context = hits.map(function (h) {
     return '<retrieved_context source="' + (h.payload.filename || 'unknown') +
       '" chunk="' + (h.payload.chunk_index || 0) + '">\n' +
       h.payload.text + '\n</retrieved_context>';
   }).join('\n\n');
 
   // 3. Create chat messages
-  var messages = [
+  const messages = [
     {
       role: 'system',
       content: 'Answer the user\'s question based on the following document context. ' +

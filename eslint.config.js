@@ -38,6 +38,24 @@ module.exports = [
     },
   },
   {
+    files: ['admin/*.js', 'swagger-brand.js', 'i18n.js', 'test/ui/*.spec.js'],
+    languageOptions: {
+      globals: {
+        window: 'readonly',
+        document: 'readonly',
+        navigator: 'readonly',
+        localStorage: 'readonly',
+        sessionStorage: 'readonly',
+        history: 'readonly',
+        location: 'readonly',
+        confirm: 'readonly',
+        performance: 'readonly',
+        FormData: 'readonly',
+        getComputedStyle: 'readonly',
+      },
+    },
+  },
+  {
     ignores: [
       'node_modules/',
       'admin/assets/',

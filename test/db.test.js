@@ -18,9 +18,9 @@ describe('db', function () {
 
   after(function () {
     db.close();
-    try { fs.unlinkSync(TEST_DB_PATH); } catch (_) {}
-    try { fs.unlinkSync(TEST_DB_PATH + '-wal'); } catch (_) {}
-    try { fs.unlinkSync(TEST_DB_PATH + '-shm'); } catch (_) {}
+    try { fs.unlinkSync(TEST_DB_PATH); } catch (_) { /* intentionally empty */ }
+    try { fs.unlinkSync(TEST_DB_PATH + '-wal'); } catch (_) { /* intentionally empty */ }
+    try { fs.unlinkSync(TEST_DB_PATH + '-shm'); } catch (_) { /* intentionally empty */ }
   });
 
   describe('settings', function () {

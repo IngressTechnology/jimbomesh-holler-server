@@ -95,8 +95,8 @@ class HollerPeerHandler {
       activeConnections: this.activeConnections.size,
       maxConnections: MAX_PEER_CONNECTIONS,
       jobs: Array.from(this.activeConnections.entries()).map(function (entry) {
-        var id = entry[0];
-        var s = entry[1];
+        const id = entry[0];
+        const s = entry[1];
         return {
           jobId: id,
           model: s.model,
@@ -118,7 +118,7 @@ class HollerPeerHandler {
    * Close all active peer connections (for graceful shutdown).
    */
   async closeAll() {
-    for (var entry of this.activeConnections) {
+    for (const entry of this.activeConnections) {
       entry[1].cleanup();
     }
     this.activeConnections.clear();
@@ -139,10 +139,10 @@ class PeerSession {
     this.dataChannel = null;
     this._wrtc = wrtc;
 
-    var RTCPeerConnection = wrtc.RTCPeerConnection;
+    const RTCPeerConnection = wrtc.RTCPeerConnection;
 
     // Normalize ICE server config
-    var normalizedIce = (iceServers || []).map(function (s) {
+    const normalizedIce = (iceServers || []).map(function (s) {
       return {
         urls: s.urls || s.Urls,
         username: s.username || s.Username,
@@ -152,7 +152,7 @@ class PeerSession {
 
     this.pc = new RTCPeerConnection({ iceServers: normalizedIce });
 
-    var self = this;
+    const self = this;
 
     // Send ICE candidates to buyer via signaling
     this.pc.onicecandidate = function (event) {
@@ -188,7 +188,7 @@ class PeerSession {
     };
 
     this.pc.onconnectionstatechange = function () {
-      var connState = self.pc.connectionState;
+      const connState = self.pc.connectionState;
       if (connState === 'failed' || connState === 'disconnected') {
         log('Job ' + self.jobId + ': connection ' + connState);
         self.cleanup();
@@ -201,14 +201,14 @@ class PeerSession {
    * Uses Node.js 22 native WebSocket (W3C API).
    */
   connectSignaling(signalingUrl) {
-    var self = this;
+    const self = this;
     return new Promise(function (resolve, reject) {
-      var url = signalingUrl + '?token=' + encodeURIComponent(self.meshConnector.apiKey) + '&role=holler';
+      const url = signalingUrl + '?token=' + encodeURIComponent(self.meshConnector.apiKey) + '&role=holler';
       log('Job ' + self.jobId + ': connecting to signaling ' + signalingUrl.split('?')[0]);
 
       self.signalingWs = new WebSocket(url);
 
-      var timeout = setTimeout(function () {
+      const timeout = setTimeout(function () {
         reject(new Error('Signaling connection timeout'));
         self.signalingWs.close();
       }, SIGNALING_TIMEOUT_MS);
@@ -221,7 +221,7 @@ class PeerSession {
 
       self.signalingWs.addEventListener('message', function (event) {
         try {
-          var msg = JSON.parse(event.data);
+          const msg = JSON.parse(event.data);
           self.handleSignalingMessage(msg);
         } catch (err) {
           log('Job ' + self.jobId + ': invalid signaling message — ' + err.message);
@@ -243,19 +243,20 @@ class PeerSession {
    * Handle messages from the signaling server.
    */
   async handleSignalingMessage(msg) {
-    var RTCSessionDescription = this._wrtc.RTCSessionDescription;
+    const RTCSessionDescription = this._wrtc.RTCSessionDescription;
 
     switch (msg.type) {
-      case 'offer':
+      case 'offer': {
         // Buyer sent SDP offer — set remote description and create answer
         await this.pc.setRemoteDescription(new RTCSessionDescription(msg));
-        var answer = await this.pc.createAnswer();
+        const answer = await this.pc.createAnswer();
         await this.pc.setLocalDescription(answer);
         this.signalingWs.send(JSON.stringify({
           type: 'answer',
           sdp: answer.sdp,
         }));
         break;
+      }
 
       case 'ice_candidate':
         if (msg.candidate) {
@@ -269,13 +270,13 @@ class PeerSession {
    * Wait for the data channel to open (buyer creates it, we receive via ondatachannel).
    */
   negotiate() {
-    var self = this;
+    const self = this;
     return new Promise(function (resolve, reject) {
-      var timeout = setTimeout(function () {
+      const timeout = setTimeout(function () {
         reject(new Error('WebRTC negotiation timeout'));
       }, NEGOTIATION_TIMEOUT_MS);
 
-      var checkInterval = setInterval(function () {
+      const checkInterval = setInterval(function () {
         if (self.state === 'connected') {
           clearTimeout(timeout);
           clearInterval(checkInterval);
@@ -303,28 +304,29 @@ class PeerSession {
    */
   async processInference(request) {
     this.state = 'streaming';
-    var startTime = Date.now();
-    var inputTokens = 0;
-    var outputTokens = 0;
-    var statsFinalized = false;
-    var self = this;
-    var statsCollector = this.meshConnector._stats;
-    var tracking = statsCollector
+    const startTime = Date.now();
+    let inputTokens = 0;
+    let outputTokens = 0;
+    let statsFinalized = false;
+    const self = this;
+    const statsCollector = this.meshConnector._stats;
+    const tracking = statsCollector
       ? statsCollector.startRequest(this.jobId || crypto.randomUUID(), request.model || this.model || 'unknown')
       : null;
     if (tracking) tracking.connectionType = 'webrtc';
+    let fetchTimeout;
 
     log('Job ' + this.jobId + ': processing ' + request.model + ' (' + (request.messages ? request.messages.length : 0) + ' messages)');
 
     try {
-      var ollamaUrl = process.env.OLLAMA_EXTERNAL_URL
+      const ollamaUrl = process.env.OLLAMA_EXTERNAL_URL
         || process.env.OLLAMA_INTERNAL_URL
         || 'http://127.0.0.1:11435';
 
-      var abortController = new AbortController();
-      var fetchTimeout = setTimeout(function () { abortController.abort(); }, OLLAMA_TIMEOUT_MS);
+      const abortController = new AbortController();
+      fetchTimeout = setTimeout(function () { abortController.abort(); }, OLLAMA_TIMEOUT_MS);
 
-      var response = await fetch(ollamaUrl + '/api/chat', {
+      const response = await fetch(ollamaUrl + '/api/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -340,20 +342,20 @@ class PeerSession {
         throw new Error('Ollama error: ' + response.status + ' ' + response.statusText);
       }
 
-      var reader = response.body.getReader();
-      var decoder = new TextDecoder();
-      var tokenIndex = 0;
-      var firstTokenSent = false;
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let tokenIndex = 0;
+      let firstTokenSent = false;
 
       while (true) {
-        var result = await reader.read();
+        const result = await reader.read();
         if (result.done) break;
         if (self.state === 'cancelled') break;
 
-        var lines = decoder.decode(result.value).split('\n').filter(Boolean);
-        for (var i = 0; i < lines.length; i++) {
+        const lines = decoder.decode(result.value).split('\n').filter(Boolean);
+        for (let i = 0; i < lines.length; i++) {
           try {
-            var chunk = JSON.parse(lines[i]);
+            const chunk = JSON.parse(lines[i]);
 
             if (chunk.message && chunk.message.content && self.dataChannel && self.dataChannel.readyState === 'open') {
               self.dataChannel.send(JSON.stringify({
@@ -402,7 +404,7 @@ class PeerSession {
 
       clearTimeout(fetchTimeout);
       self.state = 'complete';
-      var processingMs = Date.now() - startTime;
+      const processingMs = Date.now() - startTime;
       if (tracking && !statsFinalized) {
         statsFinalized = true;
         statsCollector.completeRequest(tracking, {
@@ -412,7 +414,7 @@ class PeerSession {
           source: 'mesh-webrtc',
         }).catch(function () {});
       }
-      var tokPerSec = processingMs > 0 ? (outputTokens / (processingMs / 1000)).toFixed(1) : '0';
+      const tokPerSec = processingMs > 0 ? (outputTokens / (processingMs / 1000)).toFixed(1) : '0';
       log('Job ' + self.jobId + ': complete (' + outputTokens + ' tokens, ' + processingMs + 'ms, ' + tokPerSec + ' tok/s)');
 
       // Report usage to SaaS for billing (ONLY metadata, not content)
@@ -450,7 +452,7 @@ class PeerSession {
    */
   async reportUsage(model, inputTokens, outputTokens, processingMs) {
     try {
-      var response = await fetch(this.meshConnector.meshUrl + '/api/usage/report', {
+      const response = await fetch(this.meshConnector.meshUrl + '/api/usage/report', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -466,7 +468,7 @@ class PeerSession {
       });
 
       if (response.ok) {
-        var result = await response.json();
+        const result = await response.json();
         if (result.moonshine_earned != null) {
           this.meshConnector.moonshineEarned += result.moonshine_earned;
           log('Job ' + this.jobId + ': earned ' + result.moonshine_earned + ' Moonshine');
@@ -483,7 +485,7 @@ class PeerSession {
    */
   recordLocalRequestLog(model, processingMs, err, request) {
     try {
-      var requestPath = inferMeshRequestPath(request, '/api/chat');
+      const requestPath = inferMeshRequestPath(request, '/api/chat');
       db.logRequest({
         method: 'POST',
         path: requestPath,

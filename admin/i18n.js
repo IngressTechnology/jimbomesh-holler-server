@@ -1,18 +1,18 @@
 (function () {
   'use strict';
 
-  var AVAILABLE = ['en', 'hillbilly', 'es'];
-  var DEFAULT_LANG = 'en';
-  var STORAGE_KEY = 'holler-lang';
+  const AVAILABLE = ['en', 'hillbilly', 'es'];
+  const DEFAULT_LANG = 'en';
+  const STORAGE_KEY = 'holler-lang';
 
-  var locales = {};
-  var currentLang = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
-  var changeCallbacks = [];
+  const locales = {};
+  let currentLang = localStorage.getItem(STORAGE_KEY) || DEFAULT_LANG;
+  const changeCallbacks = [];
 
   function resolve(obj, key) {
-    var parts = key.split('.');
-    var val = obj;
-    for (var i = 0; i < parts.length; i++) {
+    const parts = key.split('.');
+    let val = obj;
+    for (let i = 0; i < parts.length; i++) {
       if (val == null) return undefined;
       val = val[parts[i]];
     }
@@ -20,7 +20,7 @@
   }
 
   function t(key, params) {
-    var val = resolve(locales[currentLang], key);
+    let val = resolve(locales[currentLang], key);
     if (val == null) val = resolve(locales[DEFAULT_LANG], key);
     if (val == null) return key;
     if (params) {
@@ -42,7 +42,7 @@
 
   function getAvailable() {
     return AVAILABLE.map(function (code) {
-      var meta = locales[code] && locales[code].meta;
+      const meta = locales[code] && locales[code].meta;
       return meta || { code: code, name: code, flag: '' };
     });
   }

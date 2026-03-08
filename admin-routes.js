@@ -178,15 +178,19 @@ function serveStatic(pathname, res, bootstrapData) {
   try {
     const ext = path.extname(full);
     let content = fs.readFileSync(full);
+    let scriptSrc = "script-src 'self'";
     if (ext === '.html' && path.basename(full) === 'index.html' && bootstrapData) {
       const html = content.toString('utf8');
-      const script = `<script>window.__HOLLER_ADMIN_BOOTSTRAP__=${escapeInlineScriptJson(bootstrapData)};</script>`;
+      const bootstrapScript = `window.__HOLLER_ADMIN_BOOTSTRAP__=${escapeInlineScriptJson(bootstrapData)};`;
+      const scriptHash = crypto.createHash('sha256').update(bootstrapScript, 'utf8').digest('base64');
+      const script = `<script>${bootstrapScript}</script>`;
+      scriptSrc += ` 'sha256-${scriptHash}'`;
       content = Buffer.from(html.replace('<!--__ADMIN_BOOTSTRAP__-->', script), 'utf8');
     }
     res.writeHead(200, {
       'Content-Type': MIME_TYPES[ext] || 'application/octet-stream',
       'Content-Security-Policy':
-        "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'",
+        `default-src 'self'; ${scriptSrc}; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'`,
       'X-Content-Type-Options': 'nosniff',
       'X-Frame-Options': 'DENY',
     });
@@ -567,14 +571,6 @@ const GPU_CACHE_TTL_MS = 30 * 1000; // 30 seconds (gpu-info depends on running m
 const SYSTEM_CACHE_TTL_MS = 60 * 1000; // 60 seconds (system info can be expensive)
 const _cache = {};
 
-function cached(key, fn) {
-  const entry = _cache[key];
-  if (entry && Date.now() - entry.ts < CACHE_TTL_MS) return entry.data;
-  const data = fn();
-  _cache[key] = { data, ts: Date.now() };
-  return data;
-}
-
 async function cachedAsync(key, fn, ttl) {
   const entry = _cache[key];
   if (entry && Date.now() - entry.ts < (ttl || CACHE_TTL_MS)) return entry.data;
@@ -900,8 +896,8 @@ async function getDirectorySizeGb(targetPath) {
     let stat;
     try { stat = fs.statSync(current); } catch { continue; }
     if (stat.isDirectory()) {
-      let entries = [];
-      try { entries = fs.readdirSync(current); } catch { entries = []; }
+      let entries;
+      try { entries = fs.readdirSync(current); } catch { continue; }
       for (const e of entries) stack.push(path.join(current, e));
     } else if (stat.isFile()) {
       total += stat.size;
@@ -960,7 +956,7 @@ function parseComposeInfo() {
   let composeProject = process.env.COMPOSE_PROJECT_NAME || null;
 
   for (const composeFile of files) {
-    let content = '';
+    let content;
     try { content = fs.readFileSync(composeFile, 'utf8'); } catch { continue; }
     const lines = content.split(/\r?\n/);
     let inServices = false;
@@ -982,7 +978,7 @@ function parseComposeInfo() {
       }
 
       if (!inServices) continue;
-      const svcMatch = line.match(/^  ([a-zA-Z0-9_-]+):\s*$/);
+      const svcMatch = line.match(/^ {2}([a-zA-Z0-9_-]+):\s*$/);
       if (svcMatch) {
         currentService = svcMatch[1];
         inPorts = false;
@@ -990,16 +986,16 @@ function parseComposeInfo() {
       }
 
       if (!currentService) continue;
-      if (/^    ports:\s*$/.test(line)) {
+      if (/^ {4}ports:\s*$/.test(line)) {
         inPorts = true;
         continue;
       }
-      if (inPorts && /^    [a-zA-Z0-9_-]+:/.test(line)) {
+      if (inPorts && /^ {4}[a-zA-Z0-9_-]+:/.test(line)) {
         inPorts = false;
       }
       if (!inPorts) continue;
 
-      const portMatch = line.match(/^      -\s*(.+)\s*$/);
+      const portMatch = line.match(/^ {6}-\s*(.+)\s*$/);
       if (!portMatch) continue;
       const parsed = parsePortMapping(portMatch[1]);
       if (!parsed) continue;
@@ -1397,7 +1393,7 @@ async function handleMarketplaceHuggingFace(req, res, sendError, db) {
       return await hfFetch(url);
     });
 
-    let importedRepos = {};
+    const importedRepos = {};
     if (db && db.getAllHfImports) {
       try {
         const imports = db.getAllHfImports();
@@ -1457,7 +1453,7 @@ async function handleHfModelFiles(req, res, sendError, db) {
         .map(f => ({ filename: f.path, size: f.size || (f.lfs && f.lfs.size) || 0 }));
     });
 
-    let importedFiles = {};
+    const importedFiles = {};
     if (db && db.getHfImportsByRepo) {
       try {
         const imports = db.getHfImportsByRepo(repoId);
@@ -1868,7 +1864,9 @@ function handleDocumentUpload(req, res, db, sendError) {
   const ALLOWED_EXTENSIONS = ['.txt', '.md', '.pdf', '.csv', '.json', '.xml', '.html', '.doc', '.docx'];
 
   busboy.on('file', (fieldname, file, info) => {
-    originalName = path.basename(info.filename).replace(/[\x00-\x1f]/g, '');
+    originalName = path.basename(info.filename).split('').filter(function (ch) {
+      return ch.charCodeAt(0) >= 0x20;
+    }).join('');
     mimeType = info.mimeType || pipeline.guessMime(originalName);
     // Correct MIME for extensions busboy might not detect
     if (mimeType === 'application/octet-stream') {
@@ -1889,7 +1887,7 @@ function handleDocumentUpload(req, res, db, sendError) {
     file.on('limit', () => {
       fileLimitHit = true;
       writeStream.destroy();
-      try { fs.unlinkSync(savedPath); } catch (e) { /* ignore */ }
+      try { fs.unlinkSync(savedPath); } catch (_e) { /* intentionally empty */ }
       sse.end({ error: 'File exceeds maximum size (' + Math.round(MAX_SIZE / 1048576) + 'MB)' });
     });
   });
@@ -1939,7 +1937,7 @@ function handleDocumentUpload(req, res, db, sendError) {
       sse.end({ done: true, document_id: docId, chunks: result.chunkCount });
     } catch (err) {
       console.error('[documents] Processing error:', err.message);
-      try { db.updateDocumentStatus(docId, 'error', err.message, 0); } catch (e) { /* ignore */ }
+      try { db.updateDocumentStatus(docId, 'error', err.message, 0); } catch (_e) { /* intentionally empty */ }
       sse.end({ error: err.message });
     }
   });
@@ -1954,15 +1952,15 @@ function handleDocumentUpload(req, res, db, sendError) {
 
 async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
   try {
-    var body = await readBody(req);
+    const body = await readBody(req);
     if (!body || !body.query) {
       sendError(res, 400, 'invalid_request', 'Missing query');
       return;
     }
 
-    var collection = body.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
-    var limit = body.limit || 5;
-    var chatModel = body.model || 'llama3.1:8b';
+    const collection = body.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
+    const limit = body.limit || 5;
+    const chatModel = body.model || 'llama3.1:8b';
 
     res.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -1972,7 +1970,7 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     const sse = createSseSession(req, res);
 
     // Semantic search for relevant chunks
-    var result = await pipeline.askDocuments(body.query, collection, chatModel, limit);
+    const result = await pipeline.askDocuments(body.query, collection, chatModel, limit);
     if (sse.isClosed()) return;
 
     if (!result.messages) {
@@ -1983,7 +1981,7 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     }
 
     // Send sources
-    var sourceSummary = result.hits.map(function (h) {
+    const sourceSummary = result.hits.map(function (h) {
       return {
         filename: h.payload.filename || 'unknown',
         document_id: h.payload.document_id,
@@ -1995,9 +1993,9 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
     sse.send({ phase: 'sources', hits: sourceSummary });
 
     // Stream chat response from Ollama
-    var parsed = new URL(ollamaUrl);
-    var chatBody = JSON.stringify({ model: chatModel, messages: result.messages, stream: true });
-    var chatReq = http.request({
+    const parsed = new URL(ollamaUrl);
+    const chatBody = JSON.stringify({ model: chatModel, messages: result.messages, stream: true });
+    const chatReq = http.request({
       hostname: parsed.hostname,
       port: parseInt(parsed.port) || 11435,
       path: '/api/chat',
@@ -2005,18 +2003,18 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
       headers: { 'Content-Type': 'application/json' },
       timeout: 120000,
     }, function (chatRes) {
-      var buffer = '';
+      let buffer = '';
       chatRes.on('data', function (chunk) {
         if (sse.isClosed()) return;
         buffer += chunk.toString();
-        var lines = buffer.split('\n');
+        const lines = buffer.split('\n');
         buffer = lines.pop();
-        for (var i = 0; i < lines.length; i++) {
+        for (let i = 0; i < lines.length; i++) {
           if (lines[i].trim()) {
             try {
-              var obj = JSON.parse(lines[i]);
+              const obj = JSON.parse(lines[i]);
               sse.send({ phase: 'answer', message: obj.message, done: obj.done });
-            } catch (e) { /* skip */ }
+            } catch (_e) { /* intentionally empty */ }
           }
         }
       });
@@ -2024,9 +2022,9 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
         if (sse.isClosed()) return;
         if (buffer.trim()) {
           try {
-            var obj = JSON.parse(buffer);
+            const obj = JSON.parse(buffer);
             sse.send({ phase: 'answer', message: obj.message, done: obj.done });
-          } catch (e) { /* skip */ }
+          } catch (_e) { /* intentionally empty */ }
         }
         sse.end({ done: true });
       });
@@ -2059,12 +2057,12 @@ async function handleDocumentAsk(req, res, ollamaUrl, sendError) {
 const { MeshConnector } = require('./mesh-connector');
 
 function handleMeshStatus(meshConnector, res, config) {
-  var hasStoredMeshKey = !!(config && config.db && config.db.getSetting('mesh_api_key'));
+  const hasStoredMeshKey = !!(config && config.db && config.db.getSetting('mesh_api_key'));
 
   if (!meshConnector) {
-    var meshUrl = 'https://api.jimbomesh.ai';
-    var hollerName = '';
-    var autoConnect = false;
+    let meshUrl = 'https://api.jimbomesh.ai';
+    let hollerName = '';
+    let autoConnect = false;
     if (config && config.db) {
       meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || meshUrl;
       hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
@@ -2077,7 +2075,7 @@ function handleMeshStatus(meshConnector, res, config) {
     });
     return;
   }
-  var status = meshConnector.getStatus();
+  const status = meshConnector.getStatus();
   if (config && config.db) {
     status.autoConnect = config.db.getSetting('mesh_auto_connect') === 'true';
   }
@@ -2087,16 +2085,16 @@ function handleMeshStatus(meshConnector, res, config) {
 
 function meshVersionFetch(url, headers, timeoutMs) {
   return new Promise(function (resolve, reject) {
-    var target = new URL(url);
-    var client = target.protocol === 'https:' ? https : http;
-    var req = client.request({
+    const target = new URL(url);
+    const client = target.protocol === 'https:' ? https : http;
+    const req = client.request({
       hostname: target.hostname,
       port: target.port ? parseInt(target.port) : (target.protocol === 'https:' ? 443 : 80),
       path: target.pathname + (target.search || ''),
       method: 'GET',
       headers: headers || {},
     }, function (res) {
-      var raw = '';
+      let raw = '';
       res.on('data', function (chunk) { raw += chunk.toString(); });
       res.on('end', function () {
         if (res.statusCode >= 400) {
@@ -2127,24 +2125,24 @@ function extractMeshPublishedVersion(payload) {
 }
 
 async function fetchLatestPublishedMeshVersion(meshConnector) {
-  var base = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
+  const base = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
   if (!base) throw new Error('Missing mesh URL');
-  var token = meshConnector.apiKey || '';
-  var headers = { 'User-Agent': 'JimboMesh-Holler/1.0' };
+  const token = meshConnector.apiKey || '';
+  const headers = { 'User-Agent': 'JimboMesh-Holler/1.0' };
   if (token) {
     headers.Authorization = 'Bearer ' + token;
     headers['X-API-Key'] = token;
   }
-  var endpoints = [
+  const endpoints = [
     base + '/api/holler/version',
     base + '/api/version',
     base + '/version',
   ];
-  var lastErr = null;
-  for (var i = 0; i < endpoints.length; i++) {
+  let lastErr = null;
+  for (let i = 0; i < endpoints.length; i++) {
     try {
-      var payload = await meshVersionFetch(endpoints[i], headers, 10000);
-      var latestVersion = extractMeshPublishedVersion(payload);
+      const payload = await meshVersionFetch(endpoints[i], headers, 10000);
+      const latestVersion = extractMeshPublishedVersion(payload);
       if (latestVersion) {
         return { latestVersion: latestVersion, source: endpoints[i] };
       }
@@ -2156,8 +2154,8 @@ async function fetchLatestPublishedMeshVersion(meshConnector) {
 }
 
 async function handleMeshLatestVersion(meshConnector, res, config) {
-  var currentVersion = (config && config.hollerVersion) || pkg.version;
-  var connected = !!(meshConnector && (meshConnector.connected || meshConnector._state === 'connected' || meshConnector._state === 'reconnecting'));
+  const currentVersion = (config && config.hollerVersion) || pkg.version;
+  const connected = !!(meshConnector && (meshConnector.connected || meshConnector._state === 'connected' || meshConnector._state === 'reconnecting'));
   if (!connected) {
     json(res, 200, {
       connected: false,
@@ -2168,8 +2166,8 @@ async function handleMeshLatestVersion(meshConnector, res, config) {
     return;
   }
   try {
-    var meshUrl = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
-    var data = await cachedAsync(
+    const meshUrl = String(meshConnector.meshUrl || '').replace(/\/+$/, '');
+    const data = await cachedAsync(
       'mesh-latest-version:' + meshUrl,
       async function () { return await fetchLatestPublishedMeshVersion(meshConnector); },
       10 * 60 * 1000
@@ -2192,12 +2190,12 @@ async function handleMeshLatestVersion(meshConnector, res, config) {
 }
 
 function _createAndStartConnector(config, apiKey, meshUrl, hollerName) {
-  var existing = config.getMeshConnector();
+  const existing = config.getMeshConnector();
   if (existing) {
     existing.stop().catch(function () {});
   }
 
-  var connector = new MeshConnector({
+  const connector = new MeshConnector({
     meshUrl: meshUrl,
     apiKey: apiKey,
     ollamaUrl: config.ollamaUrl,
@@ -2219,10 +2217,10 @@ function handleMeshConnect(req, res, config) {
       return;
     }
 
-    var meshUrl = body.meshUrl || config.meshUrl || 'https://api.jimbomesh.ai';
-    var apiKey = body.apiKey;
-    var hollerName = body.hollerName || '';
-    var autoConnect = body.autoConnect !== undefined ? body.autoConnect : true;
+    const meshUrl = body.meshUrl || config.meshUrl || 'https://api.jimbomesh.ai';
+    const apiKey = body.apiKey;
+    const hollerName = body.hollerName || '';
+    const autoConnect = body.autoConnect !== undefined ? body.autoConnect : true;
 
     // SaaS API keys start with 'jmsh_' — reject anything that looks like a local key
     if (apiKey && !apiKey.startsWith('jmsh_')) {
@@ -2232,7 +2230,7 @@ function handleMeshConnect(req, res, config) {
     }
 
     // Snapshot local key before mesh operations
-    var originalLocalKey = config.getApiKey();
+    const originalLocalKey = config.getApiKey();
 
     // Persist to SQLite so reconnect survives within the same container lifecycle
     if (config.db) {
@@ -2245,7 +2243,7 @@ function handleMeshConnect(req, res, config) {
     _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
     // Defense-in-depth: verify local inference key was not modified
-    var localKeyAfter = config.getApiKey();
+    const localKeyAfter = config.getApiKey();
     if (localKeyAfter !== originalLocalKey) {
       console.error('[mesh] CRITICAL: Local API key was modified during mesh connect! Rolling back.');
       config.setApiKey(originalLocalKey);
@@ -2256,7 +2254,7 @@ function handleMeshConnect(req, res, config) {
 }
 
 function handleMeshDisconnect(res, config) {
-  var connector = config.getMeshConnector();
+  const connector = config.getMeshConnector();
   if (connector) {
     connector.stop().catch(function () {});
   }
@@ -2306,20 +2304,20 @@ function handleMeshConnectStored(res, config) {
     config.sendError(res, 501, 'not_available', 'SQLite not available');
     return;
   }
-  var apiKey = config.db.getSetting('mesh_api_key');
+  const apiKey = config.db.getSetting('mesh_api_key');
   if (!apiKey) {
     config.sendError(res, 400, 'no_key', 'No stored mesh API key. Enter one first.');
     return;
   }
 
-  var meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
-  var hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
+  const meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
+  const hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
 
-  var originalLocalKey = config.getApiKey();
+  const originalLocalKey = config.getApiKey();
 
   _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
-  var localKeyAfter = config.getApiKey();
+  const localKeyAfter = config.getApiKey();
   if (localKeyAfter !== originalLocalKey) {
     console.error('[mesh] CRITICAL: Local API key was modified during mesh connect! Rolling back.');
     config.setApiKey(originalLocalKey);
@@ -2336,7 +2334,7 @@ function handleMeshForgetKey(res, config) {
 }
 
 function handleMeshReconnect(res, config) {
-  var existing = config.getMeshConnector();
+  const existing = config.getMeshConnector();
   if (!existing && !config.db) {
     config.sendError(res, 400, 'not_connected', 'No active mesh connection and no stored key');
     return;
@@ -2348,20 +2346,20 @@ function handleMeshReconnect(res, config) {
     config.setMeshConnector(null);
   }
 
-  var apiKey = config.db ? config.db.getSetting('mesh_api_key') : null;
+  const apiKey = config.db ? config.db.getSetting('mesh_api_key') : null;
   if (!apiKey) {
     config.sendError(res, 400, 'no_key', 'No stored mesh API key');
     return;
   }
 
-  var meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
-  var hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
+  const meshUrl = config.db.getSetting('mesh_url') || process.env.JIMBOMESH_COORDINATOR_URL || process.env.JIMBOMESH_MESH_URL || 'https://api.jimbomesh.ai';
+  const hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
 
-  var originalLocalKey = config.getApiKey();
+  const originalLocalKey = config.getApiKey();
 
   _createAndStartConnector(config, apiKey, meshUrl, hollerName);
 
-  var localKeyAfter = config.getApiKey();
+  const localKeyAfter = config.getApiKey();
   if (localKeyAfter !== originalLocalKey) {
     console.error('[mesh] CRITICAL: Local API key modified during reconnect! Rolling back.');
     config.setApiKey(originalLocalKey);
@@ -2372,10 +2370,9 @@ function handleMeshReconnect(res, config) {
 
 // ── Restart Handler ─────────────────────────────────────────────
 
-function handleRestart(req, res, config) {
+function handleRestart(req, res, _config) {
   readBody(req).then(function (body) {
-    var target = (body && body.target) || 'holler';
-    var inDocker = isDockerEnv();
+    const target = (body && body.target) || 'holler';
 
     json(res, 200, { success: true, message: 'Restarting ' + target + '...' });
 
@@ -2385,7 +2382,7 @@ function handleRestart(req, res, config) {
           try {
             execSync('pkill -f "ollama serve"', { timeout: 5000, stdio: 'ignore' });
             console.log('[admin] Ollama process killed — it should auto-restart via launchctl/brew');
-          } catch (err) {
+          } catch (_err) {
             console.log('[admin] Ollama restart: pkill failed — may not be running or already restarted');
           }
         } else {
@@ -2546,8 +2543,8 @@ function createAdminRoutes(config) {
 
     // ── Auth Status & Bearer Token Routes ────────────────────────
     } else if (req.method === 'GET' && route === '/auth/status') {
-      var tier2Tokens = tokenManager ? tokenManager.listTokens() : [];
-      var tier3Config = jwtValidator ? jwtValidator.getConfig() : null;
+      const tier2Tokens = tokenManager ? tokenManager.listTokens() : [];
+      const tier3Config = jwtValidator ? jwtValidator.getConfig() : null;
       json(res, 200, {
         tier1: { enabled: true },
         tier2: {
@@ -2569,14 +2566,14 @@ function createAdminRoutes(config) {
       if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
       readBody(req).then(function (body) {
         if (!body || !body.name) { sendError(res, 400, 'invalid_request', 'Missing token name'); return; }
-        var opts = {
+        const opts = {
           name: body.name,
           permissions: body.permissions || ['full'],
           rpm: body.rpm || 60,
           rph: body.rph || 1000,
           expires_at: body.expires_at || null,
         };
-        var result = tokenManager.createToken(opts);
+        const result = tokenManager.createToken(opts);
         json(res, 201, {
           id: result.token.id,
           name: result.token.name,
@@ -2592,25 +2589,25 @@ function createAdminRoutes(config) {
 
     } else if (req.method === 'DELETE' && route.match(/^\/tokens\/[^/]+$/)) {
       if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
-      var tokenId = route.slice('/tokens/'.length);
-      var revoked = tokenManager.revokeToken(tokenId);
+      const tokenId = route.slice('/tokens/'.length);
+      const revoked = tokenManager.revokeToken(tokenId);
       if (!revoked) { sendError(res, 404, 'not_found', 'Token not found'); return true; }
       json(res, 200, { revoked: true, id: tokenId });
 
     } else if (req.method === 'PATCH' && route.match(/^\/tokens\/[^/]+$/)) {
       if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
-      var tokenIdPatch = route.slice('/tokens/'.length);
+      const tokenIdPatch = route.slice('/tokens/'.length);
       readBody(req).then(function (body) {
         if (!body) { sendError(res, 400, 'invalid_request', 'Missing body'); return; }
-        var updated = tokenManager.updateToken(tokenIdPatch, body);
+        const updated = tokenManager.updateToken(tokenIdPatch, body);
         if (!updated) { sendError(res, 404, 'not_found', 'Token not found'); return; }
         json(res, 200, updated);
       });
 
     } else if (req.method === 'GET' && route.match(/^\/tokens\/[^/]+\/usage$/)) {
       if (!tokenManager) { sendError(res, 501, 'not_available', 'Token manager not available'); return true; }
-      var tokenIdUsage = route.split('/')[2];
-      var usage = tokenManager.getTokenUsageHistory(tokenIdUsage);
+      const tokenIdUsage = route.split('/')[2];
+      const usage = tokenManager.getTokenUsageHistory(tokenIdUsage);
       if (usage === null) { sendError(res, 404, 'not_found', 'Token not found'); return true; }
       json(res, 200, { hourly_usage: usage });
 
@@ -2627,7 +2624,7 @@ function createAdminRoutes(config) {
       const doc = db.getDocument(docId);
       if (!doc) { sendError(res, 404, 'not_found', 'Document not found'); return; }
       qdrant.scrollPoints(doc.collection, { must: [{ key: 'document_id', match: { value: docId } }] }, 1000).then(function (result) {
-        var chunks = (result.points || []).sort(function (a, b) { return (a.payload.chunk_index || 0) - (b.payload.chunk_index || 0); });
+        const chunks = (result.points || []).sort(function (a, b) { return (a.payload.chunk_index || 0) - (b.payload.chunk_index || 0); });
         json(res, 200, { document: doc, chunks: chunks.map(function (p) { return { id: p.id, text: p.payload.text, chunk_index: p.payload.chunk_index, total_chunks: p.payload.total_chunks }; }) });
       }).catch(function (err) { sendError(res, 500, 'qdrant_error', err.message); });
     } else if (req.method === 'GET' && route.match(/^\/documents\/[^/]+$/) && !route.includes('/chunks')) {
@@ -2643,13 +2640,13 @@ function createAdminRoutes(config) {
       pipeline.deleteDocumentVectors(docId, doc.collection).then(function () {
         // Delete file from disk
         const filePath = path.join(pipeline.DOCUMENTS_DIR, doc.filename);
-        try { fs.unlinkSync(filePath); } catch (e) { /* file may not exist */ }
+        try { fs.unlinkSync(filePath); } catch (_e) { /* file may not exist */ }
         // Delete from SQLite
         db.deleteDocument(docId);
         json(res, 200, { deleted: true, id: docId });
       }).catch(function (err) {
         // Still delete from SQLite even if Qdrant fails
-        try { fs.unlinkSync(path.join(pipeline.DOCUMENTS_DIR, doc.filename)); } catch (e) { /* ignore */ }
+        try { fs.unlinkSync(path.join(pipeline.DOCUMENTS_DIR, doc.filename)); } catch (_e) { /* intentionally empty */ }
         db.deleteDocument(docId);
         json(res, 200, { deleted: true, id: docId, qdrant_warning: err.message });
       });
@@ -2682,8 +2679,8 @@ function createAdminRoutes(config) {
       readBody(req).then(async function (body) {
         if (!body || !body.query) { sendError(res, 400, 'invalid_request', 'Missing query'); return; }
         try {
-          var collection = body.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
-          var hits = await pipeline.searchDocuments(body.query, collection, body.limit || 5);
+          const collection = body.collection || process.env.DOCUMENTS_COLLECTION || 'documents';
+          const hits = await pipeline.searchDocuments(body.query, collection, body.limit || 5);
           json(res, 200, { results: hits.map(function (h) { return { score: h.score, payload: h.payload }; }) });
         } catch (err) { sendError(res, 500, 'search_error', err.message); }
       });
@@ -2704,7 +2701,7 @@ function createAdminRoutes(config) {
         } catch (err) { sendError(res, 500, 'qdrant_error', err.message); }
       });
     } else if (req.method === 'DELETE' && route.match(/^\/collections\/[^/]+$/)) {
-      var collName = decodeURIComponent(route.slice('/collections/'.length));
+      const collName = decodeURIComponent(route.slice('/collections/'.length));
       qdrant.deleteCollection(collName).then(function () {
         json(res, 200, { deleted: true, name: collName });
       }).catch(function (err) { sendError(res, 500, 'qdrant_error', err.message); });
@@ -2719,8 +2716,8 @@ function createAdminRoutes(config) {
     } else if (req.method === 'POST' && route === '/mesh/disconnect') {
       handleMeshDisconnect(res, config);
     } else if (req.method === 'POST' && route === '/mesh/cancel') {
-      var mc = config.getMeshConnector();
-      if (mc) mc.cancel();
+      const meshConnector = config.getMeshConnector();
+      if (meshConnector) meshConnector.cancel();
       json(res, 200, { success: true });
     } else if (req.method === 'POST' && route === '/mesh/settings') {
       handleMeshSettings(req, res, config);
@@ -2735,11 +2732,11 @@ function createAdminRoutes(config) {
     } else if (req.method === 'POST' && route === '/restart') {
       handleRestart(req, res, config);
     } else if (req.method === 'GET' && route === '/mesh/peers') {
-      var mc = config.getMeshConnector();
-      if (!mc || !mc.peerHandler) {
+      const meshConnector = config.getMeshConnector();
+      if (!meshConnector || !meshConnector.peerHandler) {
         json(res, 200, { activeConnections: 0, maxConnections: 0, jobs: [] });
       } else {
-        json(res, 200, mc.peerHandler.getStatus());
+        json(res, 200, meshConnector.peerHandler.getStatus());
       }
 
     } else {

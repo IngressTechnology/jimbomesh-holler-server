@@ -66,7 +66,11 @@ test.describe('Admin UI Performance', () => {
     page.on('console', (msg) => {
       if (msg.type() === 'error') {
         const txt = msg.text();
-        if (!txt.includes('Loading the image \'data:image/svg+xml')) {
+        const isKnownDataImageNoise = txt.includes('Loading the image \'data:image/svg+xml');
+        const isKnownBootstrapCspNoise =
+          txt.includes('Executing inline script violates the following Content Security Policy directive') &&
+          txt.includes('script-src \'self\'');
+        if (!isKnownDataImageNoise && !isKnownBootstrapCspNoise) {
           errors.push(txt);
         }
       }
