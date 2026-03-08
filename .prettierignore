@@ -3,3 +3,4 @@ admin/assets/
 docs/
 *.md
 package-lock.json
+*.ps1

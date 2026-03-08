@@ -171,21 +171,21 @@ function Invoke-NuclearReset {
     )
 
     Write-Host ""
-    Write-Host "☢️  NUCLEAR OPTION" -ForegroundColor Red
-    Write-Host "━━━━━━━━━━━━━━━━━" -ForegroundColor Red
+    Write-Host "[NUCLEAR OPTION]" -ForegroundColor Red
+    Write-Host "-----------------" -ForegroundColor Red
     Write-Host "This will DESTROY:"
-    Write-Host "  • All Docker containers and images"
-    Write-Host "  • All volumes and cached data"
-    Write-Host "  • All configuration files (.env, config)"
-    Write-Host "  • SQLite databases"
-    Write-Host "  • node_modules/"
-    Write-Host "  • All Holler registration data"
+    Write-Host "  - All Docker containers and images"
+    Write-Host "  - All volumes and cached data"
+    Write-Host "  - All configuration files (.env, config)"
+    Write-Host "  - SQLite databases"
+    Write-Host "  - node_modules/"
+    Write-Host "  - All Holler registration data"
     Write-Host ""
     Write-Host "This will KEEP:"
-    Write-Host "  • Downloaded Ollama models (expensive to re-download)"
-    Write-Host "  • The source code / repo itself"
+    Write-Host "  - Downloaded Ollama models (expensive to re-download)"
+    Write-Host "  - The source code / repo itself"
     Write-Host ""
-    Write-Host "⚠️  This action cannot be undone." -ForegroundColor Yellow
+    Write-Host "WARNING: This action cannot be undone." -ForegroundColor Yellow
     Write-Host ""
 
     $confirm = Read-Host "Type NUCLEAR to confirm"
@@ -198,7 +198,7 @@ function Invoke-NuclearReset {
 
     # Phase 1
     Write-Host ""
-    Write-Host "[☢️] Stopping all containers..."
+    Write-Host "[NUCLEAR] Stopping all containers..."
     Push-Location $ScriptDir
     try {
         Invoke-Compose @("down", "--remove-orphans")
@@ -217,7 +217,7 @@ function Invoke-NuclearReset {
         }
 
     # Phase 2
-    Write-Host "[☢️] Removing Docker images and volumes..."
+    Write-Host "[NUCLEAR] Removing Docker images and volumes..."
     $projectNetwork = "jimbomesh-holler_default"
     $networkContainers = docker ps -a --filter "network=$projectNetwork" --format "{{.ID}} {{.Names}} {{.Image}}" 2>$null
     foreach ($row in $networkContainers) {
@@ -259,7 +259,7 @@ function Invoke-NuclearReset {
     }
 
     # Phase 3
-    Write-Host "[☢️] Wiping data and configuration..."
+    Write-Host "[NUCLEAR] Wiping data and configuration..."
     $pathsToRemove = @(
         (Join-Path $ScriptDir "data"),
         (Join-Path $ScriptDir "node_modules"),
@@ -381,7 +381,7 @@ if ($ExistingInstall -and -not $PullOnly) {
     Write-Host "  4) Stop        - Shut down all services" -ForegroundColor Cyan
     Write-Host "  5) Quick Start - Continue with guided setup" -ForegroundColor Cyan
     Write-Host "  6) Uninstall   - Remove containers, images, volumes, and config" -ForegroundColor Red
-    Write-Host "  7) ☢️  Nuclear   - Wipe EVERYTHING and start fresh (keeps Ollama models)" -ForegroundColor Red
+    Write-Host "  7) Nuclear    - Wipe EVERYTHING and start fresh (keeps Ollama models)" -ForegroundColor Red
     Write-Host "  8) Cancel      - Exit without changes" -ForegroundColor Cyan
     Write-Host ""
     $installChoice = Read-Host "  Choose [1-8] (default: 1)"
@@ -967,20 +967,20 @@ if ($summaryMeshKey) {
 $summaryAdmin = if ($summaryAdminEnabled.ToLower() -eq "true") { "Enabled" } else { "Disabled" }
 
 Write-Host ""
-Write-Host "  ╔═══════════════════════════════════════════════════════════╗"
-Write-Host "  ║  Configuration saved to .env                             ║"
-Write-Host "  ╠═══════════════════════════════════════════════════════════╣"
-Write-Host ("  ║  Server Name:    {0,-41}║" -f $summaryServerName)
-Write-Host ("  ║  GPU Mode:       {0,-41}║" -f $summaryGpuMode)
-Write-Host ("  ║  Gateway Port:   {0,-41}║" -f $summaryGatewayPort)
-Write-Host ("  ║  Ollama Port:    {0,-41}║" -f $summaryOllamaPort)
-Write-Host ("  ║  Models:         {0,-41}║" -f $summaryModels)
-Write-Host ("  ║  Mesh:           {0,-41}║" -f $summaryMesh)
-Write-Host ("  ║  Admin:          {0,-41}║" -f $summaryAdmin)
-Write-Host "  ║                                                           ║"
-Write-Host "  ║  All settings persist across reinstalls.                 ║"
-Write-Host "  ║  Edit .env directly or use Admin UI to change settings.  ║"
-Write-Host "  ╚═══════════════════════════════════════════════════════════╝"
+Write-Host "  +-----------------------------------------------------------+"
+Write-Host "  |  Configuration saved to .env                             |"
+Write-Host "  +-----------------------------------------------------------+"
+Write-Host ("  |  Server Name:    {0,-41}|" -f $summaryServerName)
+Write-Host ("  |  GPU Mode:       {0,-41}|" -f $summaryGpuMode)
+Write-Host ("  |  Gateway Port:   {0,-41}|" -f $summaryGatewayPort)
+Write-Host ("  |  Ollama Port:    {0,-41}|" -f $summaryOllamaPort)
+Write-Host ("  |  Models:         {0,-41}|" -f $summaryModels)
+Write-Host ("  |  Mesh:           {0,-41}|" -f $summaryMesh)
+Write-Host ("  |  Admin:          {0,-41}|" -f $summaryAdmin)
+Write-Host "  |                                                           |"
+Write-Host "  |  All settings persist across reinstalls.                 |"
+Write-Host "  |  Edit .env directly or use Admin UI to change settings.  |"
+Write-Host "  +-----------------------------------------------------------+"
 Write-Host "================================================================" -ForegroundColor Green
 
 if ($connectKey) {
