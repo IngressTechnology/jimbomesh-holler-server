@@ -1,6 +1,6 @@
 {
   "name": "jimbomesh-holler-server",
-  "version": "1.1.0",
+  "version": "0.2.10",
   "private": true,
   "license": "MIT",
   "description": "On-prem AI inference node — Ollama API gateway with auth, rate limiting, and admin UI",
