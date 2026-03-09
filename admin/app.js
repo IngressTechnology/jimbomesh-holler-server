@@ -260,9 +260,11 @@
     let saved = sessionStorage.getItem('admin_api_key');
     if (!saved) saved = localStorage.getItem('admin_api_key');
     if (typeof console !== 'undefined' && console.log) {
-      console.log('[holler-admin] tryRestore: sessionStorage=%s localStorage=%s',
+      console.log(
+        '[holler-admin] tryRestore: sessionStorage=%s localStorage=%s',
         sessionStorage.getItem('admin_api_key') ? 'set' : 'empty',
-        localStorage.getItem('admin_api_key') ? 'set' : 'empty');
+        localStorage.getItem('admin_api_key') ? 'set' : 'empty'
+      );
     }
     if (saved) {
       login(saved);

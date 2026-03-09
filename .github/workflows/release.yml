@@ -51,10 +51,10 @@ jobs:
             args: --target universal-apple-darwin
           - platform: ubuntu-22.04
             label: Linux
-            args: ""
+            args: ''
           - platform: windows-latest
             label: Windows
-            args: ""
+            args: ''
     runs-on: ${{ matrix.platform }}
     steps:
       - uses: actions/checkout@v4
@@ -85,8 +85,8 @@ jobs:
         with:
           projectPath: desktop
           tagName: v__VERSION__
-          releaseName: "JimboMesh Holler v__VERSION__"
-          releaseBody: "See [CHANGELOG.md](https://github.com/IngressTechnology/jimbomesh-holler-server/blob/main/CHANGELOG.md) for details."
+          releaseName: 'JimboMesh Holler v__VERSION__'
+          releaseBody: 'See [CHANGELOG.md](https://github.com/IngressTechnology/jimbomesh-holler-server/blob/main/CHANGELOG.md) for details.'
           releaseDraft: true
           prerelease: false
           args: ${{ matrix.args }}

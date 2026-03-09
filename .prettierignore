@@ -9,3 +9,4 @@ package-lock.json
 *.cmd
 *.bat
 setup.*
+desktop/src-tauri/gen/
