@@ -37,10 +37,7 @@ fn main() {
             port: Mutex::new(1920),
             managed: Mutex::new(false),
         })
-        .invoke_handler(tauri::generate_handler![
-            cmd_server_status,
-            cmd_get_port,
-        ])
+        .invoke_handler(tauri::generate_handler![cmd_server_status, cmd_get_port,])
         .setup(|app| {
             build_tray(app.handle())?;
             let handle = app.handle().clone();
@@ -122,13 +119,43 @@ fn make_tray_menu(
     let hide = MenuItem::with_id(app, "hide", "\u{2014}  Hide Window", true, None::<&str>)?;
     let sep2 = PredefinedMenuItem::separator(app)?;
 
-    let start = MenuItem::with_id(app, "start_server", "\u{25b6}  Start Server", managed, None::<&str>)?;
-    let stop = MenuItem::with_id(app, "stop_server", "\u{25a0}  Stop Server", managed, None::<&str>)?;
-    let restart = MenuItem::with_id(app, "restart_server", "\u{21bb}  Restart Server", managed, None::<&str>)?;
+    let start = MenuItem::with_id(
+        app,
+        "start_server",
+        "\u{25b6}  Start Server",
+        managed,
+        None::<&str>,
+    )?;
+    let stop = MenuItem::with_id(
+        app,
+        "stop_server",
+        "\u{25a0}  Stop Server",
+        managed,
+        None::<&str>,
+    )?;
+    let restart = MenuItem::with_id(
+        app,
+        "restart_server",
+        "\u{21bb}  Restart Server",
+        managed,
+        None::<&str>,
+    )?;
 
     let sep3 = PredefinedMenuItem::separator(app)?;
-    let portal = MenuItem::with_id(app, "open_portal", "\u{2295}  Open JimboMesh Portal", true, None::<&str>)?;
-    let switch = MenuItem::with_id(app, "switch_mode", "\u{2699}  Switch Mode\u{2026}", true, None::<&str>)?;
+    let portal = MenuItem::with_id(
+        app,
+        "open_portal",
+        "\u{2295}  Open JimboMesh Portal",
+        true,
+        None::<&str>,
+    )?;
+    let switch = MenuItem::with_id(
+        app,
+        "switch_mode",
+        "\u{2699}  Switch Mode\u{2026}",
+        true,
+        None::<&str>,
+    )?;
     let sep4 = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "\u{2715}  Quit JimboMesh", true, None::<&str>)?;
 
