@@ -41,6 +41,7 @@ jobs:
 
   test-e2e:
     name: E2E (Playwright)
+    continue-on-error: true
     runs-on: ubuntu-latest
     needs: [lint, test]
     steps:

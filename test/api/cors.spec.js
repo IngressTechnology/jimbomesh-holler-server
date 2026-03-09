@@ -2,7 +2,7 @@ const { test, expect } = require('@playwright/test');
 const { requireServer, BASE_URL, ADMIN_KEY, buildAuthHeaders } = require('../fixtures/test-helpers');
 
 test.describe('CORS / Preflight Behavior', () => {
-  test.beforeAll(async () => {
+  test.beforeEach(async () => {
     await requireServer();
   });
 
