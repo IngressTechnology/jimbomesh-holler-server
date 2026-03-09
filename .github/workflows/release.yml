@@ -33,8 +33,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/${{ github.repository_owner }}/jimbomesh-still:${{ steps.version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/jimbomesh-still:latest
+            ghcr.io/ingresstechnology/jimbomesh-still:${{ steps.version.outputs.version }}
+            ghcr.io/ingresstechnology/jimbomesh-still:latest
 
   tauri-build:
     name: Desktop (${{ matrix.label }})
@@ -115,7 +115,9 @@ jobs:
           sudo apt-get install -y build-essential python3 make g++ pkg-config
 
       - name: Install production dependencies
-        run: npm ci --omit=dev
+        run: |
+          npm ci --omit=dev --ignore-scripts
+          npm rebuild better-sqlite3
 
       - name: Package server bundle
         shell: bash
