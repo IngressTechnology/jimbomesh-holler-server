@@ -264,6 +264,34 @@ Pre-1.0 release rhythm in this repo has been:
 - Minor versions for feature releases
 - Patch versions for fixes and docs/maintenance work
 
+### Automated Release Scripts
+
+Use the release helpers from the repo root when cutting a version:
+
+```bash
+./scripts/release.sh 0.3.2
+```
+
+```powershell
+.\scripts\release.ps1 0.3.2
+```
+
+The release scripts:
+
+- Require a version argument
+- Refuse to continue until the working tree is clean
+- Run `npm run lint` and `npm test`
+- Sync the version in `package.json`, `desktop/src-tauri/tauri.conf.json`, and `desktop/src-tauri/Cargo.toml`
+- Create the release commit as `release: vX.Y.Z`
+- Create the git tag as `vX.Y.Z`
+- Push `main` and all tags to `origin`
+
+If a release fails after version files were updated but before the commit is created, reset the working tree with:
+
+```bash
+git checkout .
+```
+
 ## Documentation Rules
 
 If you change behavior, update the docs in the same PR. Common touch points:
