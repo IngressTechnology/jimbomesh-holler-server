@@ -10,6 +10,7 @@ const HOLLER_SERVER_INSTALL_URL: &str =
     "https://github.com/IngressTechnology/jimbomesh-holler-server";
 const HOLLER_SERVER_NOT_FOUND_MESSAGE: &str =
     "JimboMesh Holler server not found. Please install from https://github.com/IngressTechnology/jimbomesh-holler-server or use Docker.";
+const SETUP_COMPLETE_MESSAGE: &str = "Setup complete. Opening your local Holler admin now.";
 const WIZARD_WAITING: &str = "Waiting";
 
 #[derive(Clone)]
@@ -473,15 +474,12 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     render_setup_wizard(app, &wizard);
     process::start_holler(app, port).await?;
     wizard.server = StepDisplay::done("Holler Server", "Running");
-    wizard.detail = "Setup complete. Opening your local Holler admin now.".into();
+    wizard.detail = SETUP_COMPLETE_MESSAGE.into();
     render_setup_wizard(app, &wizard);
     {
         let state = app.state::<crate::AppState>();
         *state.managed.lock().unwrap() = true;
     }
-
-    let env = read_env_file(app).unwrap_or_default();
-    schedule_setup_redirect(app, port, &env);
 
     Ok(())
 }
@@ -695,9 +693,23 @@ async fn show_setup_error(app: &tauri::AppHandle, title: &str, message: &str) {
 
 fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
     let progress = wizard.progress_percent();
+    let should_redirect = wizard.detail == SETUP_COMPLETE_MESSAGE;
     let progress_markup = format!(
         "<div class=\"bar\"><div class=\"fill\" style=\"width:{progress}%\"></div></div><div class=\"percent\">{progress}%</div>"
     );
+    let redirect_script = if should_redirect {
+        r#"<script>
+  setTimeout(() => {
+    try {
+      window.location.href = '/admin';
+    } catch (error) {
+      console.error('First-run setup redirect failed', error);
+    }
+  }, 2000);
+</script>"#
+    } else {
+        ""
+    };
 
     let html = format!(
         r#"<!doctype html>
@@ -802,12 +814,14 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
     <section class="steps">{steps}</section>
     {progress_markup}
   </main>
+  {redirect_script}
 </body>
 </html>"#,
         headline = html_escape(&wizard.headline),
         detail = html_escape(&wizard.detail),
         steps = render_setup_steps(wizard),
-        progress_markup = progress_markup
+        progress_markup = progress_markup,
+        redirect_script = redirect_script
     );
 
     if let Some(window) = app.get_webview_window("main") {
@@ -855,38 +869,6 @@ fn admin_url_from_env(port: u16, env: &HashMap<String, String>) -> String {
         format!("http://localhost:{port}/admin")
     } else {
         format!("http://localhost:{port}/admin#key={key}")
-    }
-}
-
-fn schedule_setup_redirect(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
-    let url = admin_url_from_env(port, env);
-
-    if let Some(w) = app.get_webview_window("main") {
-        if let Ok(encoded) = serde_json::to_string(&url) {
-            let _ = w.eval(&format!(
-                r#"
-                (() => {{
-                    const targetUrl = {encoded};
-                    const go = () => {{
-                        try {{
-                            window.location.href = targetUrl;
-                        }} catch (_) {{
-                            try {{ window.location.assign(targetUrl); }} catch (_) {{}}
-                        }}
-                    }};
-                    setTimeout(go, 1200);
-                    setTimeout(go, 2200);
-                }})();
-                "#
-            ));
-        }
-
-        let app = app.clone();
-        let url_for_log = url.clone();
-        tauri::async_runtime::spawn(async move {
-            tokio::time::sleep(std::time::Duration::from_millis(2800)).await;
-            navigate_with_url(&app, &url_for_log);
-        });
     }
 }
 
