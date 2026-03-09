@@ -1,4 +1,12 @@
 #!/usr/bin/env node
+process.on('uncaughtException', (err) => {
+  console.error('[FATAL] Uncaught exception:', err);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('[FATAL] Unhandled rejection:', reason);
+});
+
 /**
  * Ollama API Gateway
  * Validates API keys before proxying requests to Ollama
@@ -17,20 +25,6 @@ const tokenManager = require('./token-manager');
 const jwtValidator = require('./jwt-validator');
 const { MeshConnector } = require('./mesh-connector');
 const pkg = require('./package.json');
-
-// ── Global Safety Nets ───────────────────────────────────────
-// Prevent stray errors (e.g. from mesh WebSocket handlers) from killing the process.
-process.on('unhandledRejection', (reason, _promise) => {
-  console.error('[FATAL] Unhandled Promise Rejection:', reason);
-});
-
-process.on('uncaughtException', (err) => {
-  console.error('[FATAL] Uncaught Exception:', err);
-  // Only exit for truly fatal errors that leave the process in a broken state
-  if (err.code === 'EADDRINUSE' || err.code === 'EACCES') {
-    process.exit(1);
-  }
-});
 
 // Boot-time configuration (ports/TLS cannot change at runtime)
 const PORT = parseInt(process.env.GATEWAY_PORT || '1920');

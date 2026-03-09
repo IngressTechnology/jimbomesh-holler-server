@@ -378,8 +378,10 @@ pub async fn start_holler(app: &tauri::AppHandle, port: u16) -> Result<(), Strin
     let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start Holler server: {e}"))?;
+    let child_id = child.id();
 
     let state = app.state::<AppState>();
+    *state.keep_holler_running.lock().unwrap() = true;
     *state.holler_process.lock().unwrap() = Some(child);
     eprintln!("[holler-desktop] Started Holler gateway on port {port}");
 
@@ -387,8 +389,78 @@ pub async fn start_holler(app: &tauri::AppHandle, port: u16) -> Result<(), Strin
     wait_for_url(&health_url, 30).await?;
 
     *state.server_ready.lock().unwrap() = true;
+    monitor_holler_exit(app.clone(), port, child_id);
 
     Ok(())
+}
+
+fn monitor_holler_exit(app: tauri::AppHandle, port: u16, expected_child_id: Option<u32>) {
+    tauri::async_runtime::spawn(async move {
+        loop {
+            tokio::time::sleep(Duration::from_secs(1)).await;
+
+            let exit_status = {
+                let state = app.state::<AppState>();
+                let mut guard = state.holler_process.lock().unwrap();
+
+                match guard.as_mut() {
+                    Some(child) if child.id() == expected_child_id => match child.try_wait() {
+                        Ok(Some(status)) => {
+                            let _ = guard.take();
+                            Some(status)
+                        }
+                        Ok(None) => None,
+                        Err(err) => {
+                            eprintln!(
+                                "[holler-desktop] Failed to inspect Holler process state: {err}"
+                            );
+                            None
+                        }
+                    },
+                    _ => return,
+                }
+            };
+
+            let Some(status) = exit_status else {
+                continue;
+            };
+
+            {
+                let state = app.state::<AppState>();
+                *state.server_ready.lock().unwrap() = false;
+            }
+            crate::update_tray_menu(&app);
+
+            let should_restart = {
+                let state = app.state::<AppState>();
+                let keep_running = *state.keep_holler_running.lock().unwrap();
+                keep_running
+            };
+            if !should_restart {
+                return;
+            }
+
+            eprintln!(
+                "[holler-desktop] Server crashed, restarting... (exit status: {status})"
+            );
+            tokio::time::sleep(Duration::from_secs(2)).await;
+
+            let should_restart = {
+                let state = app.state::<AppState>();
+                let keep_running = *state.keep_holler_running.lock().unwrap();
+                keep_running
+            };
+            if !should_restart {
+                return;
+            }
+
+            if let Err(err) = start_holler(&app, port).await {
+                eprintln!("[holler-desktop] Failed to restart Holler server: {err}");
+            }
+            crate::update_tray_menu(&app);
+            return;
+        }
+    });
 }
 
 /// Rebuild native Node modules in the extracted Holler server bundle so they
@@ -466,6 +538,7 @@ pub async fn wait_for_url(url: &str, timeout_secs: u64) -> Result<(), String> {
 /// Stop only the Holler server child process.
 pub fn stop_holler(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
+    *state.keep_holler_running.lock().unwrap() = false;
 
     let mut guard = state.holler_process.lock().unwrap();
     if let Some(mut child) = guard.take() {
@@ -480,6 +553,7 @@ pub fn stop_holler(app: &tauri::AppHandle) {
 /// Kill all managed child processes on app exit.
 pub fn kill_children(app: &tauri::AppHandle) {
     let state = app.state::<AppState>();
+    *state.keep_holler_running.lock().unwrap() = false;
 
     let mut guard = state.holler_process.lock().unwrap();
     if let Some(mut child) = guard.take() {

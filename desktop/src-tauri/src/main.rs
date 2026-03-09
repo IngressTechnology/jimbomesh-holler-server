@@ -27,6 +27,7 @@ pub struct AppState {
     pub ollama_process: Mutex<Option<tokio::process::Child>>,
     pub server_ready: Mutex<bool>,
     pub port: Mutex<u16>,
+    pub keep_holler_running: Mutex<bool>,
     /// true when Tauri started the server itself (standalone mode);
     /// false when it attached to an existing server (attach mode).
     pub managed: Mutex<bool>,
@@ -46,6 +47,7 @@ fn main() {
             ollama_process: Mutex::new(None),
             server_ready: Mutex::new(false),
             port: Mutex::new(1920),
+            keep_holler_running: Mutex::new(false),
             managed: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![cmd_server_status, cmd_get_port,])
