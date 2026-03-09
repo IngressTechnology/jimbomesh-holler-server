@@ -1,0 +1,608 @@
+use flate2::read::GzDecoder;
+use std::fs::{self, File, OpenOptions};
+use std::net::TcpListener;
+use std::path::{Path, PathBuf};
+use std::process::Stdio;
+use std::time::Duration;
+use tar::Archive;
+use tauri::Manager;
+use tokio::process::Command;
+
+use crate::AppState;
+
+const NODEJS_MAJOR: &str = "22";
+const NODEJS_INDEX_URL: &str = "https://nodejs.org/dist/index.json";
+const OLLAMA_WINDOWS_URL: &str = "https://ollama.com/download/OllamaSetup.exe";
+const SERVER_BUNDLE_BASE_URL: &str =
+    "https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest/download";
+
+#[derive(Debug, Clone)]
+pub struct RuntimePaths {
+    pub root_dir: PathBuf,
+    pub server_dir: PathBuf,
+    pub data_dir: PathBuf,
+    pub logs_dir: PathBuf,
+    pub installers_dir: PathBuf,
+    pub env_file: PathBuf,
+    pub db_file: PathBuf,
+    pub holler_log_file: PathBuf,
+}
+
+#[derive(Debug, serde::Deserialize)]
+struct NodeRelease {
+    version: String,
+}
+
+/// Check whether a port is already bound on localhost.
+pub fn is_port_in_use(port: u16) -> bool {
+    TcpListener::bind(("127.0.0.1", port)).is_err()
+}
+
+/// Check whether Ollama is already listening on port 11434.
+pub async fn is_ollama_running() -> bool {
+    let client = match reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+    {
+        Ok(c) => c,
+        Err(_) => return false,
+    };
+    client
+        .get("http://127.0.0.1:11434/api/version")
+        .send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
+}
+
+pub async fn node_version() -> Result<String, String> {
+    let node = find_node()?;
+    command_version(&node, "--version", "Node.js").await
+}
+
+pub async fn ollama_version() -> Result<String, String> {
+    let ollama = which_ollama().ok_or_else(|| "Ollama not found".to_string())?;
+    command_version(&ollama, "--version", "Ollama").await
+}
+
+/// Resolve and verify a working Node.js runtime by running `node --version`.
+pub async fn ensure_node_available() -> Result<PathBuf, String> {
+    let node = find_node()?;
+    let version = command_version(&node, "--version", "Node.js").await?;
+    eprintln!("[holler-desktop] Using Node.js {version}");
+    Ok(node)
+}
+
+pub async fn install_node(app: &tauri::AppHandle) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let paths = runtime_paths(app)?;
+        let (version, url) = latest_node_windows_msi().await?;
+        let installer_path = paths.installers_dir.join(format!("node-{version}.msi"));
+        download_to_file(&url, &installer_path).await?;
+        run_installer(
+            "msiexec",
+            &[
+                "/i",
+                installer_path.to_string_lossy().as_ref(),
+                "/qn",
+                "/norestart",
+            ],
+            "Node.js installer",
+        )
+        .await?;
+
+        // MSI returns before PATH propagation; probe until the binary appears.
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            if let Ok(version) = node_version().await {
+                return Ok(version);
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(
+                    "Node.js installation completed but `node --version` is still unavailable."
+                        .to_string(),
+                );
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Err("Automatic Node.js installation is currently only implemented on Windows. Download Node.js from https://nodejs.org".to_string())
+    }
+}
+
+pub async fn install_ollama(app: &tauri::AppHandle) -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let paths = runtime_paths(app)?;
+        let installer_path = paths.installers_dir.join("OllamaSetup.exe");
+        download_to_file(OLLAMA_WINDOWS_URL, &installer_path).await?;
+        run_installer(
+            installer_path.to_string_lossy().as_ref(),
+            &["/S"],
+            "Ollama installer",
+        )
+        .await?;
+
+        let deadline = tokio::time::Instant::now() + Duration::from_secs(30);
+        loop {
+            if let Ok(version) = ollama_version().await {
+                return Ok(version);
+            }
+            if tokio::time::Instant::now() >= deadline {
+                return Err(
+                    "Ollama installation completed but `ollama --version` is still unavailable."
+                        .to_string(),
+                );
+            }
+            tokio::time::sleep(Duration::from_secs(1)).await;
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = app;
+        Err("Automatic Ollama installation is currently only implemented on Windows. Download Ollama from https://ollama.com/download".to_string())
+    }
+}
+
+pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, String> {
+    if let Some(existing) = find_holler_server_dir(app) {
+        return Ok(existing);
+    }
+
+    let paths = runtime_paths(app)?;
+    let asset_name = server_bundle_asset_name()?;
+    let bundle_url = format!("{SERVER_BUNDLE_BASE_URL}/{asset_name}");
+    let archive_path = paths.installers_dir.join(&asset_name);
+
+    download_to_file(&bundle_url, &archive_path).await?;
+
+    if paths.server_dir.exists() {
+        fs::remove_dir_all(&paths.server_dir)
+            .map_err(|e| format!("Cannot replace existing server bundle: {e}"))?;
+    }
+    fs::create_dir_all(&paths.server_dir)
+        .map_err(|e| format!("Cannot create server dir: {e}"))?;
+    extract_tar_gz(&archive_path, &paths.server_dir)?;
+
+    if !paths.server_dir.join("api-gateway.js").is_file() {
+        return Err("Downloaded Holler server bundle did not contain `api-gateway.js`.".into());
+    }
+
+    Ok(paths.server_dir)
+}
+
+pub fn runtime_paths(app: &tauri::AppHandle) -> Result<RuntimePaths, String> {
+    let root_dir = app
+        .path()
+        .app_local_data_dir()
+        .map_err(|e| format!("Cannot resolve local app data dir: {e}"))?;
+
+    let paths = RuntimePaths {
+        server_dir: root_dir.join("server"),
+        data_dir: root_dir.join("data"),
+        logs_dir: root_dir.join("logs"),
+        installers_dir: root_dir.join("installers"),
+        env_file: root_dir.join("server").join(".env"),
+        db_file: root_dir.join("data").join("holler.db"),
+        holler_log_file: root_dir.join("logs").join("holler.log"),
+        root_dir,
+    };
+
+    fs::create_dir_all(&paths.root_dir).map_err(|e| format!("Cannot create app root dir: {e}"))?;
+    fs::create_dir_all(&paths.data_dir).map_err(|e| format!("Cannot create data dir: {e}"))?;
+    fs::create_dir_all(&paths.logs_dir).map_err(|e| format!("Cannot create logs dir: {e}"))?;
+    fs::create_dir_all(&paths.installers_dir)
+        .map_err(|e| format!("Cannot create installers dir: {e}"))?;
+
+    Ok(paths)
+}
+
+/// Locate a nearby Holler server checkout/bundle containing `api-gateway.js`.
+pub fn find_holler_server_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
+    for candidate in holler_server_candidates(app) {
+        if candidate.join("api-gateway.js").is_file() {
+            eprintln!(
+                "[holler-desktop] Found Holler server at {}",
+                candidate.display()
+            );
+            return Some(candidate);
+        }
+    }
+
+    None
+}
+
+fn which_ollama() -> Option<std::path::PathBuf> {
+    #[cfg(target_os = "windows")]
+    {
+        let candidates = [
+            dirs::home_dir().map(|h| h.join("AppData").join("Local").join("Programs").join("Ollama").join("ollama.exe")),
+            Some(std::path::PathBuf::from(r"C:\Program Files\Ollama\ollama.exe")),
+        ];
+        for c in candidates.into_iter().flatten() {
+            if c.exists() {
+                return Some(c);
+            }
+        }
+    }
+    #[cfg(target_os = "macos")]
+    {
+        let candidates = [
+            std::path::PathBuf::from("/usr/local/bin/ollama"),
+            std::path::PathBuf::from("/opt/homebrew/bin/ollama"),
+        ];
+        for c in candidates {
+            if c.exists() {
+                return Some(c);
+            }
+        }
+    }
+    #[cfg(target_os = "linux")]
+    {
+        let p = std::path::PathBuf::from("/usr/local/bin/ollama");
+        if p.exists() {
+            return Some(p);
+        }
+    }
+
+    // Fallback: try PATH
+    which::which("ollama").ok()
+}
+
+/// Start `ollama serve` as a child process.
+pub async fn start_ollama(app: &tauri::AppHandle) -> Result<(), String> {
+    if is_ollama_running().await {
+        eprintln!("[holler-desktop] Ollama already running on :11434");
+        return Ok(());
+    }
+
+    let bin = which_ollama().ok_or_else(|| "Ollama not found".to_string())?;
+
+    let child = Command::new(bin)
+        .arg("serve")
+        .stdin(std::process::Stdio::null())
+        .stdout(std::process::Stdio::null())
+        .stderr(std::process::Stdio::null())
+        .kill_on_drop(true)
+        .spawn()
+        .map_err(|e| format!("Failed to start Ollama: {e}"))?;
+
+    let state = app.state::<AppState>();
+    *state.ollama_process.lock().unwrap() = Some(child);
+    eprintln!("[holler-desktop] Started ollama serve");
+
+    // Wait for Ollama to become responsive
+    wait_for_url("http://127.0.0.1:11434/api/version", 30).await?;
+    Ok(())
+}
+
+/// Start the Holler Node.js gateway as a child process.
+pub async fn start_holler(app: &tauri::AppHandle, port: u16) -> Result<(), String> {
+    let paths = runtime_paths(app)?;
+    let server_dir = app_server_dir(app)?;
+    let node = ensure_node_available().await?;
+    let log_file = OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&paths.holler_log_file)
+        .map_err(|e| format!("Cannot open Holler log file: {e}"))?;
+    let log_file_err = log_file
+        .try_clone()
+        .map_err(|e| format!("Cannot clone Holler log handle: {e}"))?;
+
+    let mut cmd = Command::new(&node);
+    cmd.arg(server_dir.join("api-gateway.js"))
+        .current_dir(&server_dir)
+        .env("GATEWAY_PORT", port.to_string())
+        .env("ADMIN_ENABLED", "true")
+        .env("DOTENV_PATH", &paths.env_file)
+        .env("OLLAMA_INTERNAL_URL", "http://127.0.0.1:11434")
+        .stdin(Stdio::null())
+        .stdout(Stdio::from(log_file))
+        .stderr(Stdio::from(log_file_err))
+        .kill_on_drop(true);
+
+    // Pass through generated API key and runtime config from the server-local env file.
+    if paths.env_file.exists() {
+        if let Ok(contents) = std::fs::read_to_string(&paths.env_file) {
+            for line in contents.lines() {
+                let line = line.trim();
+                if line.is_empty() || line.starts_with('#') {
+                    continue;
+                }
+                if let Some((k, v)) = line.split_once('=') {
+                    cmd.env(k.trim(), v.trim());
+                }
+            }
+        }
+    }
+
+    // Point SQLITE_DB_PATH into the app data dir
+    cmd.env(
+        "SQLITE_DB_PATH",
+        paths.db_file.to_string_lossy().to_string(),
+    );
+
+    let child = cmd
+        .spawn()
+        .map_err(|e| format!("Failed to start Holler server: {e}"))?;
+
+    let state = app.state::<AppState>();
+    *state.holler_process.lock().unwrap() = Some(child);
+    eprintln!("[holler-desktop] Started Holler gateway on port {port}");
+
+    let health_url = format!("http://127.0.0.1:{port}/health");
+    wait_for_url(&health_url, 30).await?;
+
+    *state.server_ready.lock().unwrap() = true;
+
+    Ok(())
+}
+
+/// Poll a URL until it returns 2xx, with a timeout in seconds.
+pub async fn wait_for_url(url: &str, timeout_secs: u64) -> Result<(), String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(2))
+        .build()
+        .map_err(|e| e.to_string())?;
+
+    let deadline = tokio::time::Instant::now() + Duration::from_secs(timeout_secs);
+
+    loop {
+        if tokio::time::Instant::now() > deadline {
+            return Err(format!("{url} did not become ready within {timeout_secs}s"));
+        }
+        match client.get(url).send().await {
+            Ok(resp) if resp.status().is_success() => return Ok(()),
+            _ => tokio::time::sleep(Duration::from_millis(500)).await,
+        }
+    }
+}
+
+/// Stop only the Holler server child process.
+pub fn stop_holler(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+
+    let mut guard = state.holler_process.lock().unwrap();
+    if let Some(mut child) = guard.take() {
+        eprintln!("[holler-desktop] Stopping Holler server");
+        let _ = child.start_kill();
+    }
+    drop(guard);
+
+    *state.server_ready.lock().unwrap() = false;
+}
+
+/// Kill all managed child processes on app exit.
+pub fn kill_children(app: &tauri::AppHandle) {
+    let state = app.state::<AppState>();
+
+    let mut guard = state.holler_process.lock().unwrap();
+    if let Some(mut child) = guard.take() {
+        eprintln!("[holler-desktop] Stopping Holler server");
+        let _ = child.start_kill();
+    }
+    drop(guard);
+
+    let mut guard = state.ollama_process.lock().unwrap();
+    if let Some(mut child) = guard.take() {
+        eprintln!("[holler-desktop] Stopping Ollama");
+        let _ = child.start_kill();
+    }
+    drop(guard);
+}
+
+/// Resolve the bundled server code directory.
+/// Searches the managed local install first, then development/resource fallbacks.
+fn app_server_dir(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
+    find_holler_server_dir(app).ok_or_else(|| {
+        "JimboMesh Holler server not found. Install the server or use Docker.".to_string()
+    })
+}
+
+/// Find a Node.js binary. Checks common locations then PATH.
+fn find_node() -> Result<std::path::PathBuf, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let candidates = [
+            dirs::data_local_dir()
+                .map(|d| d.join("Programs").join("nodejs").join("node.exe")),
+            Some(std::path::PathBuf::from(r"C:\Program Files\nodejs\node.exe")),
+            Some(std::path::PathBuf::from(
+                r"C:\Program Files (x86)\nodejs\node.exe",
+            )),
+        ];
+        for c in candidates.into_iter().flatten() {
+            if c.exists() {
+                return Ok(c);
+            }
+        }
+    }
+    #[cfg(not(target_os = "windows"))]
+    {
+        let candidates = [
+            std::path::PathBuf::from("/usr/local/bin/node"),
+            std::path::PathBuf::from("/usr/bin/node"),
+            std::path::PathBuf::from("/opt/homebrew/bin/node"),
+        ];
+        for c in candidates {
+            if c.exists() {
+                return Ok(c);
+            }
+        }
+    }
+
+    which::which("node").map_err(|_| {
+        "Node.js not found. Install Node.js 22+ from https://nodejs.org".to_string()
+    })
+}
+
+fn holler_server_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
+    let mut candidates = Vec::new();
+
+    if let Ok(paths) = runtime_paths(app) {
+        push_candidate(&mut candidates, paths.server_dir);
+    }
+
+    if cfg!(debug_assertions) {
+        let manifest = PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+        if let Some(repo_root) = manifest.parent().and_then(|p| p.parent()) {
+            push_candidate(&mut candidates, repo_root.to_path_buf());
+        }
+    }
+
+    if let Ok(exe_path) = std::env::current_exe() {
+        if let Some(parent) = exe_path.parent() {
+            push_candidate(&mut candidates, parent.to_path_buf());
+            push_candidate(&mut candidates, parent.join("server"));
+
+            if let Some(grandparent) = parent.parent() {
+                push_candidate(&mut candidates, grandparent.to_path_buf());
+                push_candidate(&mut candidates, grandparent.join("server"));
+            }
+        }
+    }
+
+    if let Some(local_data) = dirs::data_local_dir() {
+        push_candidate(
+            &mut candidates,
+            local_data.join("JimboMesh Holler").join("server"),
+        );
+    }
+
+    if let Ok(resource_dir) = app.path().resource_dir() {
+        push_candidate(&mut candidates, resource_dir.clone());
+        push_candidate(&mut candidates, resource_dir.join("server"));
+    }
+
+    if let Ok(cwd) = std::env::current_dir() {
+        push_candidate(&mut candidates, cwd.clone());
+        push_candidate(&mut candidates, cwd.join("server"));
+    }
+
+    candidates
+}
+
+fn push_candidate(candidates: &mut Vec<PathBuf>, path: PathBuf) {
+    if !candidates.contains(&path) {
+        candidates.push(path);
+    }
+}
+
+async fn command_version(binary: &Path, flag: &str, label: &str) -> Result<String, String> {
+    let output = Command::new(binary)
+        .arg(flag)
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run `{}` {flag}: {e}", binary.display()))?;
+
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let details = stderr.trim();
+        return Err(if details.is_empty() {
+            format!("{label} check failed: `{}` {flag} exited unsuccessfully", binary.display())
+        } else {
+            format!("{label} check failed: {details}")
+        });
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if stdout.is_empty() {
+        Err(format!("{label} check returned an empty version string"))
+    } else {
+        Ok(stdout)
+    }
+}
+
+async fn latest_node_windows_msi() -> Result<(String, String), String> {
+    let releases: Vec<NodeRelease> = reqwest::get(NODEJS_INDEX_URL)
+        .await
+        .map_err(|e| format!("Failed to query Node.js releases: {e}"))?
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse Node.js release index: {e}"))?;
+
+    let release = releases
+        .into_iter()
+        .find(|r| r.version.starts_with(&format!("v{NODEJS_MAJOR}.")))
+        .ok_or_else(|| format!("No Node.js {NODEJS_MAJOR}.x release found"))?;
+
+    let url = format!(
+        "https://nodejs.org/dist/{version}/node-{version}-x64.msi",
+        version = release.version
+    );
+    Ok((release.version, url))
+}
+
+async fn run_installer(command: &str, args: &[&str], label: &str) -> Result<(), String> {
+    let status = Command::new(command)
+        .args(args)
+        .stdin(Stdio::null())
+        .stdout(Stdio::null())
+        .stderr(Stdio::null())
+        .status()
+        .await
+        .map_err(|e| format!("Failed to launch {label}: {e}"))?;
+
+    if status.success() {
+        Ok(())
+    } else {
+        Err(format!("{label} exited with status {status}"))
+    }
+}
+
+async fn download_to_file(url: &str, destination: &Path) -> Result<(), String> {
+    if let Some(parent) = destination.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Cannot create download dir: {e}"))?;
+    }
+
+    let response = reqwest::get(url)
+        .await
+        .map_err(|e| format!("Failed to download {url}: {e}"))?;
+    let response = response
+        .error_for_status()
+        .map_err(|e| format!("Download failed for {url}: {e}"))?;
+    let bytes = response
+        .bytes()
+        .await
+        .map_err(|e| format!("Failed reading download body from {url}: {e}"))?;
+
+    fs::write(destination, &bytes)
+        .map_err(|e| format!("Cannot write {}: {e}", destination.display()))
+}
+
+fn extract_tar_gz(archive_path: &Path, destination: &Path) -> Result<(), String> {
+    let file = File::open(archive_path)
+        .map_err(|e| format!("Cannot open {}: {e}", archive_path.display()))?;
+    let decoder = GzDecoder::new(file);
+    let mut archive = Archive::new(decoder);
+    archive
+        .unpack(destination)
+        .map_err(|e| format!("Cannot extract {}: {e}", archive_path.display()))
+}
+
+fn server_bundle_asset_name() -> Result<String, String> {
+    #[cfg(target_os = "windows")]
+    {
+        Ok("holler-server-bundle-windows-x64.tar.gz".to_string())
+    }
+
+    #[cfg(target_os = "macos")]
+    {
+        Ok("holler-server-bundle-macos-universal.tar.gz".to_string())
+    }
+
+    #[cfg(target_os = "linux")]
+    {
+        Ok("holler-server-bundle-linux-x64.tar.gz".to_string())
+    }
+}

@@ -6,7 +6,7 @@ on:
       - 'v*'
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -35,3 +35,108 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository_owner }}/jimbomesh-still:${{ steps.version.outputs.version }}
             ghcr.io/${{ github.repository_owner }}/jimbomesh-still:latest
+
+  tauri-build:
+    name: Desktop (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            label: macOS
+            args: --target universal-apple-darwin
+          - platform: ubuntu-22.04
+            label: Linux
+            args: ""
+          - platform: windows-latest
+            label: Windows
+            args: ""
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
+
+      - name: Install Linux dependencies
+        if: matrix.platform == 'ubuntu-22.04'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libwebkit2gtk-4.1-dev libappindicator3-dev librsvg2-dev patchelf
+
+      - name: Install desktop dependencies
+        working-directory: desktop
+        run: npm ci
+
+      - uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          projectPath: desktop
+          tagName: v__VERSION__
+          releaseName: "JimboMesh Holler v__VERSION__"
+          releaseBody: "See [CHANGELOG.md](https://github.com/IngressTechnology/jimbomesh-holler-server/blob/main/CHANGELOG.md) for details."
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
+
+  server-bundle:
+    name: Server Bundle (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: ubuntu-latest
+            label: Linux
+            archive: holler-server-bundle-linux-x64.tar.gz
+          - platform: windows-latest
+            label: Windows
+            archive: holler-server-bundle-windows-x64.tar.gz
+          - platform: macos-latest
+            label: macOS
+            archive: holler-server-bundle-macos-universal.tar.gz
+    runs-on: ${{ matrix.platform }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install native build prerequisites
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential python3 make g++ pkg-config
+
+      - name: Install production dependencies
+        run: npm ci --omit=dev
+
+      - name: Package server bundle
+        shell: bash
+        run: |
+          tar czf "${{ matrix.archive }}" \
+            --exclude='test' \
+            --exclude='desktop' \
+            --exclude='.git' \
+            --exclude='.github' \
+            --exclude='node_modules/.cache' \
+            --exclude='*.log' \
+            *.js \
+            admin \
+            scripts \
+            node_modules \
+            package.json \
+            package-lock.json \
+            .env.example \
+            openapi.yaml
+
+      - name: Upload server bundle
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.archive }}
