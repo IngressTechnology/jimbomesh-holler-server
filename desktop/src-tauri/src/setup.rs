@@ -10,6 +10,8 @@ const HOLLER_SERVER_INSTALL_URL: &str =
     "https://github.com/IngressTechnology/jimbomesh-holler-server";
 const HOLLER_SERVER_NOT_FOUND_MESSAGE: &str =
     "JimboMesh Holler server not found. Please install from https://github.com/IngressTechnology/jimbomesh-holler-server or use Docker.";
+const NATIVE_MODULE_REBUILD_FAILED_MESSAGE: &str =
+    "Native module rebuild failed. Please install Node.js build tools: npm install -g node-gyp windows-build-tools";
 const SETUP_COMPLETE_MESSAGE: &str = "Setup complete. Opening your local Holler admin now.";
 const WIZARD_WAITING: &str = "Waiting";
 
@@ -51,12 +53,7 @@ impl SetupWizard {
     }
 
     fn progress_percent(&self) -> u8 {
-        let steps = [
-            &self.node,
-            &self.ollama,
-            &self.server,
-            &self.model,
-        ];
+        let steps = [&self.node, &self.ollama, &self.server, &self.model];
 
         let completed: u16 = steps
             .iter()
@@ -242,10 +239,7 @@ async fn handle_existing_detected(
 
 /// User chose standalone but port is occupied. Guide them through
 /// stopping the existing server with a retry loop.
-async fn handle_standalone_transition(
-    app: &tauri::AppHandle,
-    port: u16,
-) -> Result<(), String> {
+async fn handle_standalone_transition(app: &tauri::AppHandle, port: u16) -> Result<(), String> {
     let warning_msg = format!(
         "To run as a standalone desktop app, the existing\n\
          server on port {port} needs to be stopped first.\n\n\
@@ -402,6 +396,26 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     };
 
     ensure_env(app)?;
+    wizard.server = StepDisplay::working("Holler Server", "Rebuilding native modules...");
+    wizard.detail =
+        "Recompiling better-sqlite3 for your installed Node.js version. This usually takes 10-30 seconds."
+            .into();
+    render_setup_wizard(app, &wizard);
+    if let Err(err) = process::rebuild_better_sqlite3(&server_dir).await {
+        wizard.server = StepDisplay::failed("Holler Server", "Native rebuild failed");
+        wizard.detail = err.clone();
+        render_setup_wizard(app, &wizard);
+        show_setup_error(
+            app,
+            "Native Module Rebuild Failed",
+            &format!("{NATIVE_MODULE_REBUILD_FAILED_MESSAGE}\n\n{err}"),
+        )
+        .await;
+        return Err(err);
+    }
+    wizard.server = StepDisplay::done("Holler Server", "Bundle ready");
+    wizard.detail = "Checking local dependencies and downloading anything missing.".into();
+    render_setup_wizard(app, &wizard);
 
     wizard.ollama = StepDisplay::working("Ollama", "Checking...");
     render_setup_wizard(app, &wizard);
@@ -426,7 +440,10 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     wizard.ollama = if ollama_was_running {
         StepDisplay::done("Ollama", format!("Running ({ollama_version})"))
     } else {
-        StepDisplay::done("Ollama", format!("Installed ({ollama_version}) - Not running yet"))
+        StepDisplay::done(
+            "Ollama",
+            format!("Installed ({ollama_version}) - Not running yet"),
+        )
     };
     render_setup_wizard(app, &wizard);
 
@@ -691,7 +708,15 @@ async fn prompt_missing_holler_server(app: &tauri::AppHandle) {
 }
 
 async fn show_setup_error(app: &tauri::AppHandle, title: &str, message: &str) {
-    let _ = show_dialog(app, title, message, "Close", "Dismiss", MessageDialogKind::Error).await;
+    let _ = show_dialog(
+        app,
+        title,
+        message,
+        "Close",
+        "Dismiss",
+        MessageDialogKind::Error,
+    )
+    .await;
 }
 
 fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {

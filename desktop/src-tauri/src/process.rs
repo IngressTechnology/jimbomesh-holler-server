@@ -192,8 +192,7 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
         fs::remove_dir_all(&paths.server_dir)
             .map_err(|e| format!("Cannot replace existing server bundle: {e}"))?;
     }
-    fs::create_dir_all(&paths.server_dir)
-        .map_err(|e| format!("Cannot create server dir: {e}"))?;
+    fs::create_dir_all(&paths.server_dir).map_err(|e| format!("Cannot create server dir: {e}"))?;
     extract_tar_gz(&archive_path, &paths.server_dir)?;
 
     if !paths.server_dir.join("api-gateway.js").is_file() {
@@ -248,8 +247,16 @@ fn which_ollama() -> Option<std::path::PathBuf> {
     #[cfg(target_os = "windows")]
     {
         let candidates = [
-            dirs::home_dir().map(|h| h.join("AppData").join("Local").join("Programs").join("Ollama").join("ollama.exe")),
-            Some(std::path::PathBuf::from(r"C:\Program Files\Ollama\ollama.exe")),
+            dirs::home_dir().map(|h| {
+                h.join("AppData")
+                    .join("Local")
+                    .join("Programs")
+                    .join("Ollama")
+                    .join("ollama.exe")
+            }),
+            Some(std::path::PathBuf::from(
+                r"C:\Program Files\Ollama\ollama.exe",
+            )),
         ];
         for c in candidates.into_iter().flatten() {
             if c.exists() {
@@ -371,6 +378,58 @@ pub async fn start_holler(app: &tauri::AppHandle, port: u16) -> Result<(), Strin
     Ok(())
 }
 
+/// Rebuild native Node modules in the extracted Holler server bundle so they
+/// match the user's installed Node.js ABI.
+pub async fn rebuild_better_sqlite3(server_dir: &Path) -> Result<(), String> {
+    let npm = find_npm()?;
+    eprintln!(
+        "[holler-desktop] Rebuilding better-sqlite3 in {}",
+        server_dir.display()
+    );
+
+    let output = Command::new(&npm)
+        .args(["rebuild", "better-sqlite3"])
+        .current_dir(server_dir)
+        .env("npm_config_update_notifier", "false")
+        .env("npm_config_fund", "false")
+        .env("npm_config_audit", "false")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| {
+            format!(
+                "Failed to run `{}` rebuild better-sqlite3: {e}",
+                npm.display()
+            )
+        })?;
+
+    if output.status.success() {
+        return Ok(());
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
+    let details = [stdout, stderr]
+        .into_iter()
+        .filter(|part| !part.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n");
+
+    if details.is_empty() {
+        Err(format!(
+            "`npm rebuild better-sqlite3` exited with status {}",
+            output.status
+        ))
+    } else {
+        Err(format!(
+            "`npm rebuild better-sqlite3` failed with status {}:\n{}",
+            output.status, details
+        ))
+    }
+}
+
 /// Poll a URL until it returns 2xx, with a timeout in seconds.
 pub async fn wait_for_url(url: &str, timeout_secs: u64) -> Result<(), String> {
     let client = reqwest::Client::builder()
@@ -437,9 +496,10 @@ fn find_node() -> Result<std::path::PathBuf, String> {
     #[cfg(target_os = "windows")]
     {
         let candidates = [
-            dirs::data_local_dir()
-                .map(|d| d.join("Programs").join("nodejs").join("node.exe")),
-            Some(std::path::PathBuf::from(r"C:\Program Files\nodejs\node.exe")),
+            dirs::data_local_dir().map(|d| d.join("Programs").join("nodejs").join("node.exe")),
+            Some(std::path::PathBuf::from(
+                r"C:\Program Files\nodejs\node.exe",
+            )),
             Some(std::path::PathBuf::from(
                 r"C:\Program Files (x86)\nodejs\node.exe",
             )),
@@ -464,9 +524,48 @@ fn find_node() -> Result<std::path::PathBuf, String> {
         }
     }
 
-    which::which("node").map_err(|_| {
-        "Node.js not found. Install Node.js 22+ from https://nodejs.org".to_string()
-    })
+    which::which("node")
+        .map_err(|_| "Node.js not found. Install Node.js 22+ from https://nodejs.org".to_string())
+}
+
+fn find_npm() -> Result<std::path::PathBuf, String> {
+    let node = find_node()?;
+    let mut candidates = Vec::new();
+
+    if let Some(parent) = node.parent() {
+        #[cfg(target_os = "windows")]
+        {
+            candidates.push(parent.join("npm.cmd"));
+            candidates.push(parent.join("npm.exe"));
+        }
+
+        #[cfg(not(target_os = "windows"))]
+        {
+            candidates.push(parent.join("npm"));
+        }
+    }
+
+    #[cfg(target_os = "windows")]
+    {
+        if let Ok(path) = which::which("npm.cmd") {
+            candidates.push(path);
+        }
+        if let Ok(path) = which::which("npm") {
+            candidates.push(path);
+        }
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        if let Ok(path) = which::which("npm") {
+            candidates.push(path);
+        }
+    }
+
+    candidates
+        .into_iter()
+        .find(|candidate| candidate.exists())
+        .ok_or_else(|| "npm not found. Install Node.js from https://nodejs.org".to_string())
 }
 
 fn holler_server_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
@@ -535,7 +634,10 @@ async fn command_version(binary: &Path, flag: &str, label: &str) -> Result<Strin
         let stderr = String::from_utf8_lossy(&output.stderr);
         let details = stderr.trim();
         return Err(if details.is_empty() {
-            format!("{label} check failed: `{}` {flag} exited unsuccessfully", binary.display())
+            format!(
+                "{label} check failed: `{}` {flag} exited unsuccessfully",
+                binary.display()
+            )
         } else {
             format!("{label} check failed: {details}")
         });
@@ -551,13 +653,17 @@ async fn command_version(binary: &Path, flag: &str, label: &str) -> Result<Strin
 
 fn parse_ollama_version(text: &str) -> Option<String> {
     text.split_whitespace().find_map(|raw| {
-        let token = raw.trim_matches(|c: char| !(c.is_ascii_alphanumeric() || c == '.' || c == '-'));
+        let token =
+            raw.trim_matches(|c: char| !(c.is_ascii_alphanumeric() || c == '.' || c == '-'));
         let normalized = token.strip_prefix('v').unwrap_or(token);
         let has_three_parts = normalized.split('.').count() >= 3;
         let is_semverish = !normalized.is_empty()
             && normalized.chars().all(|c| c.is_ascii_digit() || c == '.')
             && has_three_parts
-            && normalized.chars().next().is_some_and(|c| c.is_ascii_digit());
+            && normalized
+                .chars()
+                .next()
+                .is_some_and(|c| c.is_ascii_digit());
 
         if is_semverish {
             Some(format!("v{normalized}"))
