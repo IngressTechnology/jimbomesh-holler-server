@@ -4,17 +4,20 @@ mod config;
 mod process;
 mod setup;
 
+use rusqlite::{params, Connection, OptionalExtension};
 use std::sync::Mutex;
 use std::time::Duration;
 use tauri::{
-    menu::{MenuBuilder, MenuItem, PredefinedMenuItem},
+    menu::{CheckMenuItem, MenuBuilder, MenuItem, PredefinedMenuItem},
     tray::TrayIconBuilder,
     Manager, RunEvent, WindowEvent,
 };
+use tauri_plugin_autostart::ManagerExt as AutostartExt;
 use tauri_plugin_notification::NotificationExt;
 
 const RELEASES_API_URL: &str =
     "https://api.github.com/repos/IngressTechnology/jimbomesh-holler-server/releases/latest";
+const RUN_ON_STARTUP_KEY: &str = "run_on_startup";
 
 #[derive(Debug, serde::Deserialize)]
 struct GitHubRelease {
@@ -28,6 +31,7 @@ pub struct AppState {
     pub server_ready: Mutex<bool>,
     pub port: Mutex<u16>,
     pub keep_holler_running: Mutex<bool>,
+    pub run_on_startup: Mutex<bool>,
     /// true when Tauri started the server itself (standalone mode);
     /// false when it attached to an existing server (attach mode).
     pub managed: Mutex<bool>,
@@ -48,11 +52,16 @@ fn main() {
             server_ready: Mutex::new(false),
             port: Mutex::new(1920),
             keep_holler_running: Mutex::new(false),
+            run_on_startup: Mutex::new(false),
             managed: Mutex::new(false),
         })
         .invoke_handler(tauri::generate_handler![cmd_server_status, cmd_get_port,])
         .setup(|app| {
             build_tray(app.handle())?;
+            if let Err(err) = sync_run_on_startup(app.handle()) {
+                eprintln!("[holler-desktop] Failed to sync Run on Startup state: {err}");
+            }
+            update_tray_menu(app.handle());
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 if let Err(e) = setup::launch_services(&handle).await {
@@ -96,7 +105,7 @@ fn main() {
 // ── Tray ──────────────────────────────────────────────────────────
 
 fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
-    let menu = make_tray_menu(app, "Starting\u{2026}", 1920, false)?;
+    let menu = make_tray_menu(app, "Starting\u{2026}", 1920, false, false)?;
 
     let mut builder = TrayIconBuilder::with_id("main-tray")
         .tooltip("JimboMesh Holler")
@@ -127,6 +136,7 @@ fn make_tray_menu(
     status_text: &str,
     port: u16,
     managed: bool,
+    run_on_startup: bool,
 ) -> tauri::Result<tauri::menu::Menu<tauri::Wry>> {
     let status_label = format!("\u{25cf} {status_text}");
     let port_label = format!("    Port: {port}");
@@ -183,6 +193,14 @@ fn make_tray_menu(
         None::<&str>,
     )?;
     let sep4 = PredefinedMenuItem::separator(app)?;
+    let startup = CheckMenuItem::with_id(
+        app,
+        "run_on_startup",
+        "Run on Startup",
+        true,
+        run_on_startup,
+        None::<&str>,
+    )?;
     let quit = MenuItem::with_id(app, "quit", "\u{2715}  Quit JimboMesh", true, None::<&str>)?;
 
     MenuBuilder::new(app)
@@ -200,6 +218,7 @@ fn make_tray_menu(
         .item(&switch)
         .item(&check_update)
         .item(&sep4)
+        .item(&startup)
         .item(&quit)
         .build()
 }
@@ -263,6 +282,22 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
                 }
             });
         }
+        "run_on_startup" => {
+            let enabled = {
+                let state = app.state::<AppState>();
+                let next_value = !*state.run_on_startup.lock().unwrap();
+                next_value
+            };
+            if let Err(err) = set_run_on_startup(app, enabled) {
+                eprintln!("[holler-desktop] Run on Startup toggle failed: {err}");
+                show_notification(
+                    app,
+                    "JimboMesh Holler",
+                    "Failed to update Run on Startup. See logs for details.",
+                );
+            }
+            update_tray_menu(app);
+        }
         "quit" => {
             process::kill_children(app);
             app.exit(0);
@@ -274,6 +309,109 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
 fn primary_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow<tauri::Wry>> {
     app.get_webview_window("admin")
         .or_else(|| app.get_webview_window("main"))
+}
+
+fn open_settings_db(app: &tauri::AppHandle) -> Result<Connection, String> {
+    let paths = process::runtime_paths(app)?;
+    let conn = Connection::open(&paths.db_file)
+        .map_err(|e| format!("Cannot open Holler settings DB at {}: {e}", paths.db_file.display()))?;
+    conn.busy_timeout(Duration::from_secs(5))
+        .map_err(|e| format!("Cannot configure SQLite busy timeout: {e}"))?;
+    conn.execute(
+        "CREATE TABLE IF NOT EXISTS settings (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT DEFAULT (datetime('now'))
+        )",
+        [],
+    )
+    .map_err(|e| format!("Cannot ensure Holler settings table: {e}"))?;
+    Ok(conn)
+}
+
+fn read_run_on_startup_setting(app: &tauri::AppHandle) -> Result<bool, String> {
+    let conn = open_settings_db(app)?;
+    let value: Option<String> = conn
+        .query_row(
+            "SELECT value FROM settings WHERE key = ?1",
+            [RUN_ON_STARTUP_KEY],
+            |row| row.get(0),
+        )
+        .optional()
+        .map_err(|e| format!("Cannot read `{RUN_ON_STARTUP_KEY}` setting: {e}"))?;
+    Ok(value
+        .as_deref()
+        .map(|raw| raw.eq_ignore_ascii_case("true"))
+        .unwrap_or(false))
+}
+
+fn write_run_on_startup_setting(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let conn = open_settings_db(app)?;
+    conn.execute(
+        "INSERT INTO settings (key, value, updated_at)
+         VALUES (?1, ?2, datetime('now'))
+         ON CONFLICT(key) DO UPDATE SET
+           value = excluded.value,
+           updated_at = datetime('now')",
+        params![RUN_ON_STARTUP_KEY, if enabled { "true" } else { "false" }],
+    )
+    .map_err(|e| format!("Cannot persist `{RUN_ON_STARTUP_KEY}` setting: {e}"))?;
+    Ok(())
+}
+
+fn sync_run_on_startup(app: &tauri::AppHandle) -> Result<(), String> {
+    let enabled = read_run_on_startup_setting(app)?;
+    let autolaunch = app.autolaunch();
+    let actual = autolaunch
+        .is_enabled()
+        .map_err(|e| format!("Cannot inspect startup entry state: {e}"))?;
+
+    if actual != enabled {
+        if enabled {
+            autolaunch
+                .enable()
+                .map_err(|e| format!("Cannot enable Run on Startup: {e}"))?;
+        } else {
+            autolaunch
+                .disable()
+                .map_err(|e| format!("Cannot disable Run on Startup: {e}"))?;
+        }
+    }
+
+    *app.state::<AppState>().run_on_startup.lock().unwrap() = enabled;
+    Ok(())
+}
+
+fn set_run_on_startup(app: &tauri::AppHandle, enabled: bool) -> Result<(), String> {
+    let previous = *app.state::<AppState>().run_on_startup.lock().unwrap();
+    let autolaunch = app.autolaunch();
+
+    if enabled {
+        autolaunch
+            .enable()
+            .map_err(|e| format!("Cannot enable Run on Startup: {e}"))?;
+    } else {
+        autolaunch
+            .disable()
+            .map_err(|e| format!("Cannot disable Run on Startup: {e}"))?;
+    }
+
+    if let Err(err) = write_run_on_startup_setting(app, enabled) {
+        let rollback = if previous {
+            autolaunch.enable()
+        } else {
+            autolaunch.disable()
+        };
+        if let Err(rollback_err) = rollback {
+            eprintln!(
+                "[holler-desktop] Failed to roll back Run on Startup after DB write failure: {rollback_err}"
+            );
+        }
+        return Err(err);
+    }
+
+    *app.state::<AppState>().run_on_startup.lock().unwrap() = enabled;
+    Ok(())
 }
 
 fn display_version(raw: &str) -> String {
@@ -378,6 +516,7 @@ pub fn update_tray_menu(app: &tauri::AppHandle) {
     let ready = *state.server_ready.lock().unwrap();
     let port = *state.port.lock().unwrap();
     let managed = *state.managed.lock().unwrap();
+    let run_on_startup = *state.run_on_startup.lock().unwrap();
 
     let status_text = if ready {
         format!("Running (port {port})")
@@ -388,7 +527,7 @@ pub fn update_tray_menu(app: &tauri::AppHandle) {
     };
 
     if let Some(tray) = app.tray_by_id("main-tray") {
-        if let Ok(menu) = make_tray_menu(app, &status_text, port, managed) {
+        if let Ok(menu) = make_tray_menu(app, &status_text, port, managed, run_on_startup) {
             let _ = tray.set_menu(Some(menu));
         }
         let tooltip = if ready {
