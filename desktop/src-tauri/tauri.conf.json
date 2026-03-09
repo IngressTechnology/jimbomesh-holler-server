@@ -1,0 +1,55 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "JimboMesh Holler",
+  "version": "0.2.11",
+  "identifier": "ai.jimbomesh.holler",
+  "build": {
+    "devUrl": "http://localhost:1920/admin",
+    "frontendDist": "http://localhost:1920/admin"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "JimboMesh Holler",
+        "width": 1200,
+        "height": 800,
+        "minWidth": 800,
+        "minHeight": 600
+      }
+    ]
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["dmg", "nsis", "appimage"],
+    "icon": [
+      "icons/32x32.png",
+      "icons/128x128.png",
+      "icons/128x128@2x.png",
+      "icons/icon.icns",
+      "icons/icon.ico"
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15"
+    },
+    "windows": {
+      "nsis": {
+        "oneClick": false,
+        "installerIcon": "icons/icon.ico",
+        "headerImage": "icons/nsis-header.bmp",
+        "sidebarImage": "icons/nsis-sidebar.bmp",
+        "license": "../../LICENSE",
+        "shortDescription": "JimboMesh Holler — Local AI Compute Node",
+        "perMachine": false
+      }
+    }
+  },
+  "plugins": {
+    "updater": {
+      "active": true,
+      "dialog": true,
+      "endpoints": [
+        "https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest/download/latest.json"
+      ]
+    }
+  }
+}
