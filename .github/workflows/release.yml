@@ -20,6 +20,10 @@ jobs:
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> "$GITHUB_OUTPUT"
 
+      - name: Lowercase repository
+        id: repo
+        run: echo "lowercase=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
@@ -33,8 +37,8 @@ jobs:
           context: .
           push: true
           tags: |
-            ghcr.io/ingresstechnology/jimbomesh-still:${{ steps.version.outputs.version }}
-            ghcr.io/ingresstechnology/jimbomesh-still:latest
+            ghcr.io/${{ steps.repo.outputs.lowercase }}:${{ steps.version.outputs.version }}
+            ghcr.io/${{ steps.repo.outputs.lowercase }}:latest
 
   tauri-build:
     name: Desktop (${{ matrix.label }})
@@ -71,7 +75,9 @@ jobs:
 
       - name: Install desktop dependencies
         working-directory: desktop
-        run: npm ci
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild better-sqlite3
 
       - uses: tauri-apps/tauri-action@v0
         env:
