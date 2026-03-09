@@ -53,6 +53,7 @@
     "installedModels": "Installed Models",
     "refresh": "Refresh",
     "emptyState": "Ain't nothin' up this holler. Pull a still above.",
+    "ollamaUnavailable": "Couldn't connect to Ollama",
     "running": "Running",
     "loaded": "Loaded",
     "details": "Details",

@@ -15,6 +15,8 @@ const NODEJS_INDEX_URL: &str = "https://nodejs.org/dist/index.json";
 const OLLAMA_WINDOWS_URL: &str = "https://ollama.com/download/OllamaSetup.exe";
 const SERVER_BUNDLE_BASE_URL: &str =
     "https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest/download";
+#[cfg(target_os = "windows")]
+const CREATE_NO_WINDOW: u32 = 0x08000000;
 
 #[derive(Debug, Clone)]
 pub struct RuntimePaths {
@@ -288,6 +290,13 @@ fn which_ollama() -> Option<std::path::PathBuf> {
     which::which("ollama").ok()
 }
 
+fn apply_background_process_flags(cmd: &mut Command) {
+    #[cfg(target_os = "windows")]
+    {
+        cmd.creation_flags(CREATE_NO_WINDOW);
+    }
+}
+
 /// Start `ollama serve` as a child process.
 pub async fn start_ollama(app: &tauri::AppHandle) -> Result<(), String> {
     if is_ollama_running().await {
@@ -297,12 +306,15 @@ pub async fn start_ollama(app: &tauri::AppHandle) -> Result<(), String> {
 
     let bin = which_ollama().ok_or_else(|| "Ollama not found".to_string())?;
 
-    let child = Command::new(bin)
-        .arg("serve")
+    let mut cmd = Command::new(bin);
+    cmd.arg("serve")
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::null())
         .stderr(std::process::Stdio::null())
-        .kill_on_drop(true)
+        .kill_on_drop(true);
+    apply_background_process_flags(&mut cmd);
+
+    let child = cmd
         .spawn()
         .map_err(|e| format!("Failed to start Ollama: {e}"))?;
 
@@ -340,6 +352,7 @@ pub async fn start_holler(app: &tauri::AppHandle, port: u16) -> Result<(), Strin
         .stdout(Stdio::from(log_file))
         .stderr(Stdio::from(log_file_err))
         .kill_on_drop(true);
+    apply_background_process_flags(&mut cmd);
 
     // Pass through generated API key and runtime config from the server-local env file.
     if paths.env_file.exists() {

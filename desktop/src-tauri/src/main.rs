@@ -11,6 +11,16 @@ use tauri::{
     tray::TrayIconBuilder,
     Manager, RunEvent, WindowEvent,
 };
+use tauri_plugin_notification::NotificationExt;
+
+const RELEASES_API_URL: &str =
+    "https://api.github.com/repos/IngressTechnology/jimbomesh-holler-server/releases/latest";
+
+#[derive(Debug, serde::Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    html_url: String,
+}
 
 pub struct AppState {
     pub holler_process: Mutex<Option<tokio::process::Child>>,
@@ -26,6 +36,7 @@ fn main() {
     let app = tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_notification::init())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -47,6 +58,12 @@ fn main() {
                 }
                 update_tray_menu(&handle);
                 start_health_polling(handle);
+            });
+            let handle = app.handle().clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(err) = check_for_updates(&handle, true, false).await {
+                    eprintln!("[holler-desktop] Update check failed: {err}");
+                }
             });
             Ok(())
         })
@@ -156,6 +173,13 @@ fn make_tray_menu(
         true,
         None::<&str>,
     )?;
+    let check_update = MenuItem::with_id(
+        app,
+        "check_update",
+        "\u{21bb}  Check for Update Now",
+        true,
+        None::<&str>,
+    )?;
     let sep4 = PredefinedMenuItem::separator(app)?;
     let quit = MenuItem::with_id(app, "quit", "\u{2715}  Quit JimboMesh", true, None::<&str>)?;
 
@@ -172,6 +196,7 @@ fn make_tray_menu(
         .item(&sep3)
         .item(&portal)
         .item(&switch)
+        .item(&check_update)
         .item(&sep4)
         .item(&quit)
         .build()
@@ -228,6 +253,14 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
                 update_tray_menu(&handle);
             });
         }
+        "check_update" => {
+            let handle = app.clone();
+            tauri::async_runtime::spawn(async move {
+                if let Err(err) = check_for_updates(&handle, false, true).await {
+                    eprintln!("[holler-desktop] Update check failed: {err}");
+                }
+            });
+        }
         "quit" => {
             process::kill_children(app);
             app.exit(0);
@@ -239,6 +272,102 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
 fn primary_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow<tauri::Wry>> {
     app.get_webview_window("admin")
         .or_else(|| app.get_webview_window("main"))
+}
+
+fn display_version(raw: &str) -> String {
+    if raw.starts_with('v') {
+        raw.to_string()
+    } else {
+        format!("v{raw}")
+    }
+}
+
+fn parse_version_parts(raw: &str) -> Vec<u32> {
+    raw.trim_start_matches('v')
+        .split(|c: char| !c.is_ascii_digit())
+        .filter(|part| !part.is_empty())
+        .filter_map(|part| part.parse::<u32>().ok())
+        .collect()
+}
+
+fn is_newer_version(latest: &str, current: &str) -> bool {
+    let latest_parts = parse_version_parts(latest);
+    let current_parts = parse_version_parts(current);
+    let width = latest_parts.len().max(current_parts.len());
+
+    for idx in 0..width {
+        let latest_part = *latest_parts.get(idx).unwrap_or(&0);
+        let current_part = *current_parts.get(idx).unwrap_or(&0);
+        if latest_part != current_part {
+            return latest_part > current_part;
+        }
+    }
+
+    false
+}
+
+async fn fetch_latest_release() -> Result<GitHubRelease, String> {
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("Failed to build update client: {e}"))?;
+
+    client
+        .get(RELEASES_API_URL)
+        .header(
+            reqwest::header::USER_AGENT,
+            format!("JimboMesh-Holler-Desktop/{}", env!("CARGO_PKG_VERSION")),
+        )
+        .send()
+        .await
+        .map_err(|e| format!("Failed to query GitHub releases: {e}"))?
+        .error_for_status()
+        .map_err(|e| format!("GitHub release check failed: {e}"))?
+        .json::<GitHubRelease>()
+        .await
+        .map_err(|e| format!("Failed to parse GitHub release payload: {e}"))
+}
+
+fn show_notification(app: &tauri::AppHandle, title: &str, body: &str) {
+    if let Err(err) = app
+        .notification()
+        .builder()
+        .title(title)
+        .body(body)
+        .show()
+    {
+        eprintln!("[holler-desktop] Notification failed: {err}");
+    }
+}
+
+async fn check_for_updates(
+    app: &tauri::AppHandle,
+    silent_when_current: bool,
+    open_release_page_when_available: bool,
+) -> Result<(), String> {
+    let current_version = app.package_info().version.to_string();
+    let latest = fetch_latest_release().await?;
+    let current_display = display_version(&current_version);
+    let latest_display = display_version(&latest.tag_name);
+
+    if is_newer_version(&latest.tag_name, &current_version) {
+        show_notification(
+            app,
+            "Update Available",
+            &format!("JimboMesh {latest_display} available! Click to download."),
+        );
+        if open_release_page_when_available {
+            let _ = open::that(&latest.html_url);
+        }
+    } else if !silent_when_current {
+        show_notification(
+            app,
+            "JimboMesh Holler",
+            &format!("You're on the latest version ({current_display})"),
+        );
+    }
+
+    Ok(())
 }
 
 /// Rebuild the tray menu with current state.

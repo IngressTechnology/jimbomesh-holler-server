@@ -174,6 +174,7 @@ let isShuttingDown = false;
 let modelListCache = null;
 let modelListCacheTime = 0;
 const MODEL_CACHE_TTL_MS = 30000;
+const HUGGINGFACE_MODELS_API = 'https://huggingface.co/api/models';
 
 if (!currentApiKey) {
   console.error('[api-gateway] ERROR: JIMBOMESH_HOLLER_API_KEY must be set');
@@ -607,6 +608,42 @@ function fetchModelList() {
 
     req.end();
   });
+}
+
+async function fetchHuggingFaceModels(reqUrl) {
+  const reqParams = new URL(reqUrl, 'http://localhost').searchParams;
+  const search = reqParams.get('search') || '';
+  const task = reqParams.get('task') || '';
+  const limit = Math.min(Math.max(parseInt(reqParams.get('limit') || '20', 10) || 20, 1), 100);
+
+  const upstream = new URL(HUGGINGFACE_MODELS_API);
+  upstream.searchParams.set('filter', 'gguf');
+  upstream.searchParams.set('sort', 'downloads');
+  upstream.searchParams.set('direction', '-1');
+  upstream.searchParams.set('limit', String(limit));
+  if (search) upstream.searchParams.set('search', search);
+  if (task) upstream.searchParams.set('task', task);
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), 10000);
+
+  try {
+    const response = await fetch(upstream, {
+      signal: controller.signal,
+      headers: {
+        Accept: 'application/json',
+        'User-Agent': `JimboMesh-Holler/${HOLLER_VERSION}`,
+      },
+    });
+
+    if (!response.ok) {
+      throw new Error(`HuggingFace returned ${response.status}`);
+    }
+
+    return await response.json();
+  } finally {
+    clearTimeout(timeoutId);
+  }
 }
 
 function createRequestHandler() {
@@ -1226,6 +1263,39 @@ function createRequestHandler() {
             });
             sendError(res, 503, 'model_list_unavailable', 'Could not fetch model list from Ollama');
           });
+        return;
+      }
+
+      // ── Hugging Face Model Search Proxy ─────────────────────────
+      if (req.method === 'GET' && pathname === '/api/models/huggingface') {
+        try {
+          const models = await fetchHuggingFaceModels(req.url);
+          console.log(`[api-gateway] ${clientIp} - 200 GET ${req.url} (${keyType})`);
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 200,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: keyType,
+          });
+          res.writeHead(200, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify(models));
+        } catch (err) {
+          console.error(`[api-gateway] HuggingFace proxy error:`, err.message);
+          recordActivity({
+            timestamp: new Date().toISOString(),
+            method: req.method,
+            path: req.url,
+            status: 502,
+            ip: clientIp,
+            duration_ms: Date.now() - reqStart,
+            auth_type: keyType,
+          });
+          res.writeHead(502, { 'Content-Type': 'application/json' });
+          res.end(JSON.stringify({ error: 'HuggingFace API unavailable' }));
+        }
         return;
       }
 
@@ -1920,6 +1990,11 @@ function createRequestHandler() {
       // ── Proxy to Ollama (with resource limits) ──────────────────
       const maxBodyProxy = MAX_REQUEST_BODY_BYTES();
       const ollamaTimeoutProxy = OLLAMA_TIMEOUT_MS();
+      const isTagsProxyRequest = req.method === 'GET' && pathname === '/api/tags';
+      const isPullProxyRequest = req.method === 'POST' && pathname === '/api/pull';
+      const proxyTimeoutMs = isTagsProxyRequest ? 5000 : ollamaTimeoutProxy;
+      const proxyUnavailableMessage =
+        isTagsProxyRequest || isPullProxyRequest ? "Couldn't connect to Ollama" : 'Ollama service unavailable';
 
       // Early Content-Length check for methods with a body
       const hasBody = ['POST', 'PUT', 'PATCH'].includes(req.method);
@@ -1958,7 +2033,7 @@ function createRequestHandler() {
         path: req.url,
         method: req.method,
         headers: proxyHeaders,
-        timeout: ollamaTimeoutProxy,
+        timeout: isPullProxyRequest ? 5000 : proxyTimeoutMs,
       };
       const nativeInference =
         req.method === 'POST' &&
@@ -2042,6 +2117,9 @@ function createRequestHandler() {
             if (nativeTracking && proxyRes.statusCode >= 400) {
               maybeFailNative(new Error('Ollama HTTP ' + proxyRes.statusCode));
             }
+            if (isPullProxyRequest) {
+              proxyReq.setTimeout(0);
+            }
             recordActivity({
               timestamp: new Date().toISOString(),
               method: req.method,
@@ -2080,7 +2158,7 @@ function createRequestHandler() {
             releaseOnce();
             if (nativeTracking)
               stats.failRequest(nativeTracking, new Error('Native Ollama timeout')).catch(function () {});
-            console.log(`[api-gateway] ${clientIp} - 504 ${req.method} ${req.url} (timeout ${ollamaTimeoutProxy}ms)`);
+            console.log(`[api-gateway] ${clientIp} - 504 ${req.method} ${req.url} (timeout ${proxyOpts.timeout}ms)`);
             recordActivity({
               timestamp: new Date().toISOString(),
               method: req.method,
@@ -2090,7 +2168,11 @@ function createRequestHandler() {
               duration_ms: Date.now() - reqStart,
               auth_type: keyType,
             });
-            sendError(res, 504, 'request_timeout', `Ollama did not respond within ${ollamaTimeoutProxy}ms`);
+            if (isTagsProxyRequest || isPullProxyRequest) {
+              sendError(res, 502, 'model_error', proxyUnavailableMessage);
+            } else {
+              sendError(res, 504, 'request_timeout', `Ollama did not respond within ${proxyOpts.timeout}ms`);
+            }
           });
 
           proxyReq.on('error', (err) => {
@@ -2106,7 +2188,7 @@ function createRequestHandler() {
               duration_ms: Date.now() - reqStart,
               auth_type: keyType,
             });
-            sendError(res, 502, 'model_error', 'Ollama service unavailable');
+            sendError(res, 502, 'model_error', proxyUnavailableMessage);
           });
 
           res.on('close', releaseOnce);

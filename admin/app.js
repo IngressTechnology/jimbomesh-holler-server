@@ -158,8 +158,8 @@
 
   // ── API ───────────────────────────────────────────────────────
 
-  function api(path, opts) {
-    opts = opts || {};
+  function withAuthHeaders(opts) {
+    opts = Object.assign({}, opts || {});
     const headers = { 'X-API-Key': state.apiKey };
     if (opts.headers) {
       Object.keys(opts.headers).forEach(function (k) {
@@ -167,16 +167,36 @@
       });
     }
     opts.headers = headers;
-    return fetch('/admin/api' + path, opts).then(function (res) {
-      if (res.status === 401) {
-        state.authenticated = false;
-        state.apiKey = '';
-        sessionStorage.removeItem('admin_api_key');
-        localStorage.removeItem('admin_api_key');
-        render();
-        throw new Error('Session expired');
-      }
-      return res;
+    return opts;
+  }
+
+  function handleAuthResponse(res) {
+    if (res.status === 401) {
+      state.authenticated = false;
+      state.apiKey = '';
+      sessionStorage.removeItem('admin_api_key');
+      localStorage.removeItem('admin_api_key');
+      render();
+      throw new Error('Session expired');
+    }
+    return res;
+  }
+
+  function extractErrorMessage(data, fallback) {
+    if (data && typeof data.error === 'string') return data.error;
+    if (data && data.error && data.error.message) return data.error.message;
+    return fallback || 'Request failed';
+  }
+
+  function api(path, opts) {
+    return fetch('/admin/api' + path, withAuthHeaders(opts)).then(function (res) {
+      return handleAuthResponse(res);
+    });
+  }
+
+  function gateway(path, opts) {
+    return fetch(path, withAuthHeaders(opts)).then(function (res) {
+      return handleAuthResponse(res);
     });
   }
 
@@ -186,7 +206,7 @@
     });
   }
 
-  function apiJSONChecked(path, opts) {
+  function requestJSONChecked(requestFn, path, opts) {
     opts = opts || {};
     const timeoutMs = opts.timeoutMs || 0;
     const fetchOpts = Object.assign({}, opts);
@@ -202,7 +222,7 @@
       }, timeoutMs);
     }
 
-    return api(path, fetchOpts)
+    return requestFn(path, fetchOpts)
       .then(function (res) {
         return res.text().then(function (text) {
           let data = {};
@@ -214,9 +234,7 @@
             }
           }
           if (!res.ok) {
-            const message =
-              data && data.error && data.error.message ? data.error.message : 'Request failed';
-            throw new Error(message);
+            throw new Error(extractErrorMessage(data, 'Request failed'));
           }
           return data;
         });
@@ -224,6 +242,14 @@
       .finally(function () {
         if (timeoutId) clearTimeout(timeoutId);
       });
+  }
+
+  function gatewayJSONChecked(path, opts) {
+    return requestJSONChecked(gateway, path, opts);
+  }
+
+  function apiJSONChecked(path, opts) {
+    return requestJSONChecked(api, path, opts);
   }
 
   function ollamaFetch(path, opts) {
@@ -1451,13 +1477,40 @@
   }
 
   function refreshModels() {
-    Promise.all([apiJSON('/models'), apiJSON('/models/running')])
-      .then(function (results) {
-        modelsData.models = results[0].models || [];
-        modelsData.running = results[1].models || [];
-        renderModelTable();
-      })
-      .catch(function () {});
+    const el = $('#models-body');
+    if (el) {
+      el.innerHTML = '<div class="empty-state"><span class="spinner"></span> ' + esc(t('status.loading')) + '</div>';
+    }
+
+    Promise.allSettled([
+      gatewayJSONChecked('/api/tags', { timeoutMs: 5000 }),
+      gatewayJSONChecked('/api/ps', { timeoutMs: 5000 }),
+    ]).then(function (results) {
+      if (results[0].status !== 'fulfilled') {
+        modelsData.models = [];
+        modelsData.running = [];
+        renderModelsError(getOllamaUnavailableMessage(results[0].reason));
+        return;
+      }
+
+      modelsData.models = results[0].value.models || [];
+      modelsData.running = results[1].status === 'fulfilled' ? results[1].value.models || [] : [];
+      renderModelTable();
+    });
+  }
+
+  function getOllamaUnavailableMessage(err) {
+    const fallback = t('models.ollamaUnavailable');
+    if (!err || !err.message) return fallback;
+    return /AbortError|timed out|Failed to fetch|Couldn.t connect to Ollama|Ollama service unavailable/i.test(err.message)
+      ? fallback
+      : err.message;
+  }
+
+  function renderModelsError(message) {
+    const el = $('#models-body');
+    if (!el) return;
+    el.innerHTML = '<div class="empty-state" style="color:var(--danger)">' + esc(message) + '</div>';
   }
 
   function renderModelTable() {
@@ -1622,13 +1675,29 @@
     const controller = new AbortController();
     activePulls[name] = controller;
 
-    api('/models/pull', {
+    gateway('/api/pull', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ name: name }),
       signal: controller.signal,
     })
       .then(function (res) {
+        if (!res.ok) {
+          return res.text().then(function (text) {
+            let data = {};
+            if (text) {
+              try {
+                data = JSON.parse(text);
+              } catch {
+                throw new Error(text);
+              }
+            }
+            throw new Error(extractErrorMessage(data, t('marketplace.pullError')));
+          });
+        }
+        if (!res.body) {
+          throw new Error(t('marketplace.pullError'));
+        }
         const reader = res.body.getReader();
         const decoder = new TextDecoder();
         let buffer = '';
@@ -2232,10 +2301,10 @@
     if (hfSearch) params += '&search=' + encodeURIComponent(hfSearch);
     if (hfTask) params += '&task=' + encodeURIComponent(hfTask);
 
-    apiJSONChecked('/models/huggingface' + params, { timeoutMs: 10000 })
+    gatewayJSONChecked('/api/models/huggingface' + params, { timeoutMs: 10000 })
       .then(function (data) {
-        hfResults = data.models || [];
-        hfImported = data.imported || {};
+        hfResults = Array.isArray(data) ? data : data.models || [];
+        hfImported = {};
         renderHfGrid();
       })
       .catch(function (err) {

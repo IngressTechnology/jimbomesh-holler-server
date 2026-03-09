@@ -53,6 +53,7 @@
     "installedModels": "Modelos instalados",
     "refresh": "Actualizar",
     "emptyState": "No hay modelos instalados. Descarga uno arriba.",
+    "ollamaUnavailable": "No se pudo conectar con Ollama",
     "running": "Activo",
     "loaded": "Cargado",
     "details": "Detalles",

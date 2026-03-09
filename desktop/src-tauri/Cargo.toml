@@ -23,6 +23,7 @@ dirs = "5"
 open = "5"
 flate2 = "1"
 tar = "0.4"
+tauri-plugin-notification = "2.3.3"
 
 [build-dependencies]
 tauri-build = { version = "2", features = [] }
