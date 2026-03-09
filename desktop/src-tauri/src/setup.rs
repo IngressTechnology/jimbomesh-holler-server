@@ -481,6 +481,9 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
         *state.managed.lock().unwrap() = true;
     }
 
+    let env = read_env_file(app).unwrap_or_default();
+    schedule_setup_redirect(app, port, &env);
+
     Ok(())
 }
 
@@ -697,18 +700,33 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
     let progress_markup = format!(
         "<div class=\"bar\"><div class=\"fill\" style=\"width:{progress}%\"></div></div><div class=\"percent\">{progress}%</div>"
     );
-    let redirect_script = if should_redirect {
-        r#"<script>
-  setTimeout(() => {
-    try {
-      window.location.href = '/admin';
-    } catch (error) {
-      console.error('First-run setup redirect failed', error);
-    }
-  }, 2000);
-</script>"#
+    let redirect_url = if should_redirect {
+        let port = *app.state::<crate::AppState>().port.lock().unwrap();
+        let env = read_env_file(app).unwrap_or_default();
+        Some(admin_url_from_env(port, &env))
     } else {
-        ""
+        None
+    };
+    let redirect_script = if should_redirect {
+        let encoded = redirect_url
+            .as_ref()
+            .and_then(|url| serde_json::to_string(url).ok())
+            .unwrap_or_else(|| "\"http://localhost:1920/admin\"".to_string());
+        format!(
+            r#"<script>
+  setTimeout(() => {{
+    try {{
+      const targetUrl = {encoded};
+      console.log('First-run setup redirecting to', targetUrl, 'from', window.location.href);
+      window.location.href = targetUrl;
+    }} catch (error) {{
+      console.error('First-run setup redirect failed', error);
+    }}
+  }}, 2000);
+</script>"#
+        )
+    } else {
+        String::new()
     };
 
     let html = format!(
@@ -870,6 +888,26 @@ fn admin_url_from_env(port: u16, env: &HashMap<String, String>) -> String {
     } else {
         format!("http://localhost:{port}/admin#key={key}")
     }
+}
+
+fn schedule_setup_redirect(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
+    let url = admin_url_from_env(port, env);
+    let app = app.clone();
+    tauri::async_runtime::spawn(async move {
+        tokio::time::sleep(std::time::Duration::from_millis(2000)).await;
+        eprintln!(
+            "[holler-desktop] Redirecting setup webview to {}",
+            if url.contains("#key=") {
+                url.split("#key=")
+                    .next()
+                    .map(|base| format!("{base}#key=<redacted>"))
+                    .unwrap_or_else(|| "<unknown>".to_string())
+            } else {
+                url.clone()
+            }
+        );
+        navigate_with_url(&app, &url);
+    });
 }
 
 fn navigate_with_key_from(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
