@@ -16,6 +16,7 @@ $ScriptDir = Split-Path -Parent $MyInvocation.MyCommand.Path
 $RepoRoot = Split-Path -Parent $ScriptDir
 $VersionFilesChanged = $false
 $CommitCreated = $false
+$NpmCommand = "npm.cmd"
 
 function Show-Usage {
     Write-Host "Usage: .\scripts\release.ps1 <version>"
@@ -44,6 +45,15 @@ function Assert-LastExitCode {
     if ($LASTEXITCODE -ne 0) {
         throw $Message
     }
+}
+
+function Invoke-Npm {
+    param(
+        [Parameter(ValueFromRemainingArguments = $true)]
+        [string[]]$Arguments
+    )
+
+    & $NpmCommand @Arguments
 }
 
 function Test-CleanWorkingTree {
@@ -130,15 +140,15 @@ try {
     Ensure-CleanWorktree
 
     Write-Step "Running lint"
-    & npm run lint
+    Invoke-Npm run lint
     Assert-LastExitCode "npm run lint failed."
 
     Write-Step "Running unit tests"
-    & npm test
+    Invoke-Npm test
     Assert-LastExitCode "npm test failed."
 
     Write-Step "Updating package.json version"
-    & npm version $Version --no-git-tag-version
+    Invoke-Npm version $Version --no-git-tag-version
     Assert-LastExitCode "npm version failed."
     $VersionFilesChanged = $true
 
@@ -178,3 +188,4 @@ catch {
 finally {
     Pop-Location
 }
+
