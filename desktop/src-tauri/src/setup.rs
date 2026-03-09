@@ -1,7 +1,7 @@
 use crate::{config, process};
 use rand::Rng;
 use std::collections::HashMap;
-use tauri::Manager;
+use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
 const NODEJS_DOWNLOAD_URL: &str = "https://nodejs.org";
@@ -906,7 +906,7 @@ fn schedule_setup_redirect(app: &tauri::AppHandle, port: u16, env: &HashMap<Stri
                 url.clone()
             }
         );
-        navigate_with_url(&app, &url);
+        replace_main_window_with_url(&app, &url);
     });
 }
 
@@ -935,6 +935,51 @@ fn navigate_with_url(app: &tauri::AppHandle, url: &str) {
             Err(e) => eprintln!("[holler-desktop] Failed to parse URL: {e}"),
         }
     }
+}
+
+fn replace_main_window_with_url(app: &tauri::AppHandle, url: &str) {
+    let parsed = match url.parse() {
+        Ok(parsed) => parsed,
+        Err(e) => {
+            eprintln!("[holler-desktop] Failed to parse redirect URL: {e}");
+            return;
+        }
+    };
+    let app = app.clone();
+    let redacted = if url.contains("#key=") {
+        url.split("#key=")
+            .next()
+            .map(|base| format!("{base}#key=<redacted>"))
+            .unwrap_or_else(|| "<unknown>".to_string())
+    } else {
+        url.to_string()
+    };
+    let app_for_main_thread = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        if let Some(window) = app_for_main_thread.get_webview_window("admin") {
+            let _ = window.show();
+            let _ = window.set_focus();
+            eprintln!("[holler-desktop] Focused existing admin webview at {redacted}");
+            return;
+        }
+
+        match WebviewWindowBuilder::new(&app_for_main_thread, "admin", WebviewUrl::External(parsed))
+            .title("JimboMesh Holler")
+            .inner_size(1200.0, 800.0)
+            .min_inner_size(800.0, 600.0)
+            .build()
+        {
+            Ok(window) => {
+                let _ = window.show();
+                let _ = window.set_focus();
+                if let Some(setup_window) = app_for_main_thread.get_webview_window("main") {
+                    let _ = setup_window.destroy();
+                }
+                eprintln!("[holler-desktop] Opened admin webview at {redacted}");
+            }
+            Err(e) => eprintln!("[holler-desktop] Failed to open admin webview: {e}"),
+        }
+    });
 }
 
 fn env_candidates(app: &tauri::AppHandle) -> Vec<std::path::PathBuf> {

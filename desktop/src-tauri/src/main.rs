@@ -91,7 +91,7 @@ fn build_tray(app: &tauri::AppHandle) -> tauri::Result<()> {
         })
         .on_tray_icon_event(|tray, event| {
             if let tauri::tray::TrayIconEvent::DoubleClick { .. } = event {
-                if let Some(w) = tray.app_handle().get_webview_window("main") {
+                if let Some(w) = primary_window(tray.app_handle()) {
                     let _ = w.show();
                     let _ = w.set_focus();
                 }
@@ -153,13 +153,13 @@ fn make_tray_menu(
 fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
     match id {
         "show" => {
-            if let Some(w) = app.get_webview_window("main") {
+            if let Some(w) = primary_window(app) {
                 let _ = w.show();
                 let _ = w.set_focus();
             }
         }
         "hide" => {
-            if let Some(w) = app.get_webview_window("main") {
+            if let Some(w) = primary_window(app) {
                 let _ = w.hide();
             }
         }
@@ -207,6 +207,11 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
         }
         _ => {}
     }
+}
+
+fn primary_window(app: &tauri::AppHandle) -> Option<tauri::WebviewWindow<tauri::Wry>> {
+    app.get_webview_window("admin")
+        .or_else(|| app.get_webview_window("main"))
 }
 
 /// Rebuild the tray menu with current state.
