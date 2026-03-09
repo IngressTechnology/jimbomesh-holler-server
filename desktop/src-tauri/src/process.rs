@@ -62,7 +62,33 @@ pub async fn node_version() -> Result<String, String> {
 
 pub async fn ollama_version() -> Result<String, String> {
     let ollama = which_ollama().ok_or_else(|| "Ollama not found".to_string())?;
-    command_version(&ollama, "--version", "Ollama").await
+    let output = Command::new(&ollama)
+        .arg("--version")
+        .stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .output()
+        .await
+        .map_err(|e| format!("Failed to run `{}` --version: {e}", ollama.display()))?;
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    let stderr = String::from_utf8_lossy(&output.stderr);
+    let combined = format!("{stdout}\n{stderr}");
+
+    if let Some(version) = parse_ollama_version(&combined) {
+        return Ok(version);
+    }
+
+    if !output.status.success() {
+        let details = stderr.trim();
+        return Err(if details.is_empty() {
+            "Ollama check failed: `ollama --version` exited unsuccessfully".to_string()
+        } else {
+            format!("Ollama check failed: {details}")
+        });
+    }
+
+    Err("Ollama check returned an empty version string".to_string())
 }
 
 /// Resolve and verify a working Node.js runtime by running `node --version`.
@@ -521,6 +547,24 @@ async fn command_version(binary: &Path, flag: &str, label: &str) -> Result<Strin
     } else {
         Ok(stdout)
     }
+}
+
+fn parse_ollama_version(text: &str) -> Option<String> {
+    text.split_whitespace().find_map(|raw| {
+        let token = raw.trim_matches(|c: char| !(c.is_ascii_alphanumeric() || c == '.' || c == '-'));
+        let normalized = token.strip_prefix('v').unwrap_or(token);
+        let has_three_parts = normalized.split('.').count() >= 3;
+        let is_semverish = !normalized.is_empty()
+            && normalized.chars().all(|c| c.is_ascii_digit() || c == '.')
+            && has_three_parts
+            && normalized.chars().next().is_some_and(|c| c.is_ascii_digit());
+
+        if is_semverish {
+            Some(format!("v{normalized}"))
+        } else {
+            None
+        }
+    })
 }
 
 async fn latest_node_windows_msi() -> Result<(String, String), String> {

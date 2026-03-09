@@ -20,7 +20,6 @@ struct SetupWizard {
     ollama: StepDisplay,
     server: StepDisplay,
     model: StepDisplay,
-    qdrant: StepDisplay,
 }
 
 #[derive(Clone)]
@@ -35,7 +34,6 @@ enum StepState {
     Waiting,
     Working,
     Done,
-    Skipped,
     Failed,
 }
 
@@ -48,29 +46,27 @@ impl SetupWizard {
             ollama: StepDisplay::waiting("Ollama"),
             server: StepDisplay::waiting("Holler Server"),
             model: StepDisplay::waiting("Default AI Model"),
-            qdrant: StepDisplay::skipped("Qdrant (optional)", "Not selected"),
         }
     }
 
     fn progress_percent(&self) -> u8 {
         let steps = [
-            (&self.node, 20_u16),
-            (&self.ollama, 20_u16),
-            (&self.server, 25_u16),
-            (&self.model, 30_u16),
-            (&self.qdrant, 5_u16),
+            &self.node,
+            &self.ollama,
+            &self.server,
+            &self.model,
         ];
 
-        let total: u16 = steps
+        let completed: u16 = steps
             .iter()
-            .map(|(step, weight)| match step.state {
-                StepState::Done | StepState::Skipped => *weight,
-                StepState::Working => weight / 2,
+            .map(|step| match step.state {
+                StepState::Done => 2_u16,
+                StepState::Working => 1_u16,
                 StepState::Waiting | StepState::Failed => 0,
             })
             .sum();
 
-        total.min(100) as u8
+        ((completed * 100) / 8).min(100) as u8
     }
 }
 
@@ -99,14 +95,6 @@ impl StepDisplay {
         }
     }
 
-    fn skipped(label: &'static str, detail: impl Into<String>) -> Self {
-        Self {
-            label,
-            state: StepState::Skipped,
-            detail: detail.into(),
-        }
-    }
-
     fn failed(label: &'static str, detail: impl Into<String>) -> Self {
         Self {
             label,
@@ -120,7 +108,6 @@ impl StepDisplay {
             StepState::Waiting => "⬜",
             StepState::Working => "⏳",
             StepState::Done => "✅",
-            StepState::Skipped => "➖",
             StepState::Failed => "❌",
         }
     }
@@ -417,6 +404,7 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
 
     wizard.ollama = StepDisplay::working("Ollama", "Checking...");
     render_setup_wizard(app, &wizard);
+    let ollama_was_running = process::is_ollama_running().await;
     let ollama_version = match process::ollama_version().await {
         Ok(version) => version,
         Err(_) => {
@@ -434,7 +422,11 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
             }
         }
     };
-    wizard.ollama = StepDisplay::done("Ollama", format!("Installed ({ollama_version})"));
+    wizard.ollama = if ollama_was_running {
+        StepDisplay::done("Ollama", format!("Running ({ollama_version})"))
+    } else {
+        StepDisplay::done("Ollama", format!("Installed ({ollama_version}) - Not running yet"))
+    };
     render_setup_wizard(app, &wizard);
 
     wizard.ollama = StepDisplay::working("Ollama", "Starting service...");
@@ -489,7 +481,7 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     }
 
     let env = read_env_file(app).unwrap_or_default();
-    navigate_with_key_from(app, port, &env);
+    schedule_setup_redirect(app, port, &env);
 
     Ok(())
 }
@@ -828,17 +820,11 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
 }
 
 fn render_setup_steps(wizard: &SetupWizard) -> String {
-    [
-        &wizard.node,
-        &wizard.ollama,
-        &wizard.server,
-        &wizard.model,
-        &wizard.qdrant,
-    ]
-    .into_iter()
-    .map(render_setup_step)
-    .collect::<Vec<_>>()
-    .join("")
+    [&wizard.node, &wizard.ollama, &wizard.server, &wizard.model]
+        .into_iter()
+        .map(render_setup_step)
+        .collect::<Vec<_>>()
+        .join("")
 }
 
 fn render_setup_step(step: &StepDisplay) -> String {
@@ -857,30 +843,72 @@ fn html_escape(input: &str) -> String {
         .replace('>', "&gt;")
 }
 
-fn navigate_with_key_from(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
+fn admin_url_from_env(port: u16, env: &HashMap<String, String>) -> String {
     let key = env
         .get("JIMBOMESH_HOLLER_API_KEY")
         .or_else(|| env.get("ADMIN_API_KEY"))
         .map(|s| s.as_str())
         .unwrap_or("");
 
-    let url = if key.is_empty() {
+    if key.is_empty() {
         eprintln!("[holler-desktop] No API key found \u{2014} navigating without auto-auth");
         format!("http://localhost:{port}/admin")
     } else {
         format!("http://localhost:{port}/admin#key={key}")
-    };
+    }
+}
 
+fn schedule_setup_redirect(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
+    let url = admin_url_from_env(port, env);
+
+    if let Some(w) = app.get_webview_window("main") {
+        if let Ok(encoded) = serde_json::to_string(&url) {
+            let _ = w.eval(&format!(
+                r#"
+                (() => {{
+                    const targetUrl = {encoded};
+                    const go = () => {{
+                        try {{
+                            window.location.href = targetUrl;
+                        }} catch (_) {{
+                            try {{ window.location.assign(targetUrl); }} catch (_) {{}}
+                        }}
+                    }};
+                    setTimeout(go, 1200);
+                    setTimeout(go, 2200);
+                }})();
+                "#
+            ));
+        }
+
+        let app = app.clone();
+        let url_for_log = url.clone();
+        tauri::async_runtime::spawn(async move {
+            tokio::time::sleep(std::time::Duration::from_millis(2800)).await;
+            navigate_with_url(&app, &url_for_log);
+        });
+    }
+}
+
+fn navigate_with_key_from(app: &tauri::AppHandle, port: u16, env: &HashMap<String, String>) {
+    let url = admin_url_from_env(port, env);
+    navigate_with_url(app, &url);
+}
+
+fn navigate_with_url(app: &tauri::AppHandle, url: &str) {
     if let Some(w) = app.get_webview_window("main") {
         match url.parse() {
             Ok(parsed) => {
                 let _ = w.navigate(parsed);
                 eprintln!(
-                    "[holler-desktop] Navigated webview to :{port}/admin{}",
-                    if key.is_empty() {
-                        ""
+                    "[holler-desktop] Navigated webview to {}",
+                    if url.contains("#key=") {
+                        url.split("#key=")
+                            .next()
+                            .map(|base| format!("{base}#key=<redacted>"))
+                            .unwrap_or_else(|| "<unknown>".to_string())
                     } else {
-                        "#key=<redacted>"
+                        url.to_string()
                     }
                 );
             }
