@@ -37,7 +37,7 @@ restarting the container. Port and TLS changes still require a restart.
 | `SHUTDOWN_TIMEOUT_MS` | `10000` | Graceful shutdown drain timeout in milliseconds |
 | `HOLLER_SERVER_NAME` | `Holler Server <hostname>` | Branded server name shown in Admin UI/login. `setup.sh` / `setup.ps1` auto-generates this when missing |
 
-**Important:** If `JIMBOMESH_HOLLER_API_KEY` is not set, the server will run WITHOUT authentication (not recommended for production).
+**Important:** `JIMBOMESH_HOLLER_API_KEY` is required. If it is missing, the gateway exits at startup instead of running without authentication.
 
 ### Runtime API Key Rotation
 
@@ -121,7 +121,27 @@ Generate a token at [github.com/settings/tokens](https://github.com/settings/tok
 |----------|---------|-------------|
 | `ENHANCED_SECURITY_ENABLED` | `false` | Enable Tier 2 bearer tokens (`jmh_*`) with scoped permissions, per-token rate limits, expiry, and usage tracking. Can also be toggled via Admin UI > Configuration > Security |
 
-When enabled, clients can authenticate with `Authorization: Bearer jmh_...` tokens in addition to the standard `X-API-Key`. Tokens are managed via Admin UI or `POST/GET/DELETE/PATCH /admin/api/tokens`. Token hashes are stored in `/data/keys.json` on the `holler_data` volume.
+When enabled, clients can authenticate with `Authorization: Bearer jmh_...` tokens in addition to the standard `X-API-Key`. Tokens are managed via Admin UI or `POST/GET/DELETE/PATCH /admin/api/tokens`. Token hashes are stored in `/data/keys.json` on the `holler_data` volume. Admin routes continue to use the admin API key flow.
+
+### Tier 3 JWT Validation (Mesh-Connected Mode)
+
+Tier 3 JWT auth is not controlled by a single env var. It becomes active only when all of the following are true:
+
+1. `JIMBOMESH_API_KEY` is set
+2. `data/auth0-config.json` exists
+3. `auth0-config.json` contains at least `domain` and `audience`
+
+Example `data/auth0-config.json`:
+
+```json
+{
+  "domain": "your-tenant.auth0.com",
+  "audience": "https://api.jimbomesh.ai/",
+  "issuer": "https://your-tenant.auth0.com/"
+}
+```
+
+When configured, the gateway accepts `Authorization: Bearer <jwt>` on inference routes, validates RS256 signatures through JWKS, and applies per-buyer rate limits from JWT claims.
 
 ### Mesh Connectivity (Optional)
 

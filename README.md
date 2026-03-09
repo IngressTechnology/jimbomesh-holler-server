@@ -1,6 +1,6 @@
 # JimboMesh Holler Server
 
-On-prem embedding and LLM inference server for [JimboMesh](https://github.com/IngressTechnology/JimboMesh). Replaces cloud-based embedding calls (OpenRouter/OpenAI) with a local Ollama instance, keeping all data on-premises.
+On-prem embedding and LLM inference gateway for [JimboMesh](https://github.com/IngressTechnology/JimboMesh). It replaces cloud-based embedding calls (OpenRouter/OpenAI) with a local Ollama instance and also exposes local chat, generate, OpenAI-compatible APIs, Admin UI, optional document RAG, and Mesh connectivity while keeping data on-premises.
 
 ## What This Does
 
@@ -115,7 +115,7 @@ See [NAMING.md](NAMING.md) for details on why this structure supports multiple s
 │  │  ┌───────────────┐   │   │                     │   │
 │  │  │ API Gateway   │   │   │  Qdrant v1.13.2     │   │
 │  │  │ :1920 (ext)   │   │   │  :6333 REST         │   │
-│  │  │ X-API-Key auth│   │   │  :6334 gRPC         │   │
+│  │  │ Tiered auth   │   │   │  :6334 gRPC         │   │
 │  │  │ /admin (UI)   │   │   │                     │   │
 │  │  └───────┬───────┘   │   │                     │   │
 │  │          ▼           │   │  Collections:       │   │
@@ -178,7 +178,7 @@ See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#alternative-embedding-models) 
 
 ## API
 
-**Authentication Required:** All API requests must include the `X-API-Key` header.
+**Authentication Required:** Inference and OpenAI-compatible API requests require either `X-API-Key` or `Authorization: Bearer ...` when bearer auth is enabled/configured. Admin routes continue to use the admin API key flow.
 
 OpenAPI schemas in this section:
 - `GET /api/tags` → response `TagsResponse`
@@ -257,7 +257,7 @@ navigate to `http://localhost:1920/admin` and enter the key manually.
 | Models | List, pull (with streaming progress), delete, view details |
 | Mesh | Connect/disconnect/cancel Mesh sessions, set coordinator URL and Holler name, view live Mesh connection log and mode |
 | Playground | Test embeddings, chat (streaming), generate (streaming) |
-| Configuration | Editable runtime settings, API key management (view masked, copy, regenerate) |
+| Configuration | Editable runtime settings, API/Qdrant key management, enhanced security token controls, mesh auth status, and restart utilities |
 | Activity | Last 200 requests with method, path, status, IP, duration (auto-refresh 5s + manual Refresh button) |
 | Documents | Upload files (.pdf, .md, .txt, .csv, .docx), browse/search documents, RAG Q&A with streaming answers |
 | Feedback | Bug reports and feature requests — creates GitHub issues (requires `GITHUB_TOKEN`) |
@@ -340,15 +340,21 @@ See [docs/OPENCLAW_INTEGRATION.md](docs/OPENCLAW_INTEGRATION.md) for the full se
 
 ## Security
 
-### API Key Authentication
+### Tiered Authentication
 
-The Ollama server requires API key authentication for all requests:
+The gateway supports three authentication tiers:
 
-- **Admin UI** — Web panel at `/admin` behind API key auth; static assets served without auth (contain no secrets)
-- **API Gateway** — Node.js proxy validates `X-API-Key` header on all requests
-- **Rate Limiting** — 60 requests/minute per IP address (configurable)
-- **Internal Isolation** — Ollama runs on localhost:11435, only accessible via the gateway
-- **External Access** — API gateway on 0.0.0.0:1920 validates all incoming requests
+- **Tier 1: API key** — `X-API-Key: <JIMBOMESH_HOLLER_API_KEY>` for standard local clients and admin access
+- **Tier 2: Bearer tokens** — `Authorization: Bearer jmh_...` scoped tokens with expiry and per-token rate limits when Enhanced Security is enabled
+- **Tier 3: JWT** — `Authorization: Bearer <jwt>` with Auth0 JWKS validation when mesh-connected mode is configured
+
+Operational notes:
+
+- **Admin UI** — `/admin` and `/admin/api/*` use API key auth (`ADMIN_API_KEY` if set, otherwise `JIMBOMESH_HOLLER_API_KEY`)
+- **Inference APIs** — `X-API-Key` always works; bearer tokens and JWTs are supported when enabled/configured
+- **Rate Limiting** — per-IP limits apply at the gateway, with additional per-token or per-buyer limits for Tier 2 and Tier 3
+- **Internal Isolation** — Ollama runs on localhost:11435 in Secure Mode and is reachable only through the gateway
+- **External Access** — the gateway on port `1920` enforces authentication for inference and admin APIs
 
 Generate an API key:
 
@@ -364,7 +370,7 @@ JIMBOMESH_HOLLER_API_KEY=your_generated_key_here
 
 ### Health Endpoints
 
-Health endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. The gateway-level `/health` endpoint on port `1920` also bypasses auth. All inference and admin API endpoints require authentication.
+Health endpoints on port `9090` (`/healthz`, `/readyz`, `/status`) bypass authentication for monitoring. The gateway-level `/health` endpoint on port `1920` also bypasses auth. All inference and admin API endpoints require Tier 1, Tier 2, or Tier 3 authentication as applicable.
 
 ## Documentation
 

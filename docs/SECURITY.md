@@ -31,15 +31,31 @@ The Holler Server supports two distinct security profiles on macOS. On Linux and
 
 ## Authentication
 
-### API Key Authentication
+### Tiered Authentication Model
 
-Every request to the API gateway (port `1920`) requires an `X-API-Key` header:
+The gateway supports three authentication tiers:
+
+| Tier | Credential | Where It Applies | Notes |
+|------|------------|------------------|-------|
+| Tier 1 | `X-API-Key: <key>` | All standard local API clients and admin auth | Always available; backed by `JIMBOMESH_HOLLER_API_KEY` |
+| Tier 2 | `Authorization: Bearer jmh_...` | Inference and OpenAI-compatible routes | Requires Enhanced Security to be enabled |
+| Tier 3 | `Authorization: Bearer <jwt>` | Inference routes in mesh-connected environments | Requires `JIMBOMESH_API_KEY` plus `data/auth0-config.json` |
+
+Examples:
 
 ```bash
+# Tier 1: API key
 curl -H "X-API-Key: YOUR_KEY" http://localhost:1920/api/tags
+
+# Tier 2: bearer token
+curl -H "Authorization: Bearer jmh_..." http://localhost:1920/v1/models
 ```
 
-Without a valid key, the gateway returns `401 Unauthorized` (missing key) or `403 Forbidden` (invalid key).
+Without a valid credential, the gateway returns `401 Unauthorized` for missing/invalid auth and `403 Forbidden` for disabled features or insufficient permissions.
+
+### Tier 1: API Key Authentication
+
+Tier 1 is the default and simplest auth path. The gateway refuses to start if `JIMBOMESH_HOLLER_API_KEY` is missing.
 
 **Key generation:**
 
@@ -54,17 +70,50 @@ openssl rand -hex 32
 3. New key takes effect immediately (saved to SQLite `api_key_override`)
 4. Update `.env` to persist across container recreations
 
-### Admin Key Separation
+### Tier 1 Admin Key Separation
 
 Set `ADMIN_API_KEY` in `.env` to use a separate credential for admin routes (`/admin/api/*`):
 
 ```bash
 # .env
 JIMBOMESH_HOLLER_API_KEY=<inference-key>    # Used by clients for embeddings/chat
-ADMIN_API_KEY=<admin-key>                    # Used for Admin UI only
+ADMIN_API_KEY=<admin-key>                   # Used for Admin UI and admin APIs
 ```
 
-Without `ADMIN_API_KEY`, both routes use `JIMBOMESH_HOLLER_API_KEY`.
+Without `ADMIN_API_KEY`, both admin and inference routes use `JIMBOMESH_HOLLER_API_KEY`.
+
+### Tier 2: Bearer Tokens
+
+Tier 2 adds named bearer tokens with:
+
+- Scoped permissions
+- Per-token rate limits
+- Optional expiry
+- Usage tracking
+- SHA-256 hashed storage in `/data/keys.json`
+
+Enable Tier 2 with `ENHANCED_SECURITY_ENABLED=true` or the Admin UI toggle. Token management endpoints live under the admin API:
+
+- `GET /admin/api/auth/status`
+- `GET /admin/api/tokens`
+- `POST /admin/api/tokens`
+- `PATCH /admin/api/tokens/:id`
+- `DELETE /admin/api/tokens/:id`
+- `GET /admin/api/tokens/:id/usage`
+
+Tier 2 does not replace admin API key auth. The Admin UI still authenticates with the admin key flow.
+
+### Tier 3: JWT / Auth0 Validation
+
+Tier 3 is intended for mesh-connected deployments that need buyer-scoped JWT validation.
+
+Requirements:
+
+1. Set `JIMBOMESH_API_KEY`
+2. Provide `data/auth0-config.json` with at least `domain` and `audience`
+3. Ensure outbound access to the Auth0 JWKS endpoint
+
+When active, the gateway validates RS256 JWTs against JWKS, extracts buyer permissions and rate limits, and enforces per-buyer request quotas.
 
 ### No Authentication for Health Endpoints
 
@@ -84,7 +133,7 @@ These are intended for infrastructure monitoring (load balancers, Kubernetes pro
 
 | Port | Service | Auth Required | Exposed To |
 |------|---------|---------------|------------|
-| `1920` | API gateway | Yes (`X-API-Key`) | Configured hosts (LAN or localhost) |
+| `1920` | API gateway | Yes (Tier 1 / Tier 2 / Tier 3 depending on route) | Configured hosts (LAN or localhost) |
 | `9090` | Health server | No | Same as above |
 | `6333` | Qdrant REST | Yes (`api-key`) | Same as above |
 | `11435` (internal) | Ollama (Secure Mode) | No | Localhost inside container only — not mapped to host |
@@ -201,8 +250,11 @@ This pattern (XML tagging of external content) is a recognized mitigation agains
 
 - `JIMBOMESH_HOLLER_API_KEY` — Grants full API access (inference + admin if no separate `ADMIN_API_KEY`)
 - `ADMIN_API_KEY` — Grants admin access if configured
+- Bearer tokens (`jmh_*`) — Grant scoped inference access when Enhanced Security is enabled
+- `JIMBOMESH_API_KEY` — Grants mesh coordinator access
 - `QDRANT_API_KEY` — Grants access to all Qdrant collections and vector data
 - `GITHUB_TOKEN` — Can create issues on the configured repository
+- `data/auth0-config.json` — Contains Auth0 issuer/audience settings for JWT validation
 
 ### What Is Safe to Share
 

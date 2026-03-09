@@ -381,7 +381,8 @@ All server settings grouped by category, editable in-place:
 - **Ollama** -- models, embed model, dimensions, parallelism, keep-alive
 - **Health** -- port, warmup checks
 - **Data** -- log retention
-- **Security** -- API key status (read-only booleans)
+- **Security** -- masked API key display, copy/regenerate actions, Qdrant key visibility, Enhanced Security toggle, bearer token management, and Tier 3 auth status
+- **Utilities** -- Restart Holler and Restart Ollama buttons when supported by the current deployment mode
 
 Changes to non-port settings take effect within seconds. Port and startup
 changes require a container restart. Values are persisted in SQLite and
@@ -394,8 +395,9 @@ A live feed of the last 200 API requests showing:
 - Timestamp, HTTP method, path, status code, client IP, duration (ms)
 
 Auto-refreshes every 5 seconds. Use the **Refresh** button to pull updates
-immediately without waiting for the next auto-refresh. Useful for debugging
-client integrations and spotting rate-limited or failed requests.
+immediately without waiting for the next auto-refresh. Use **Clear Log** to wipe
+the activity table after confirmation. Useful for debugging client integrations
+and spotting rate-limited or failed requests.
 
 ### Documents
 
@@ -440,6 +442,9 @@ After updating `.env`, restart:
 ```bash
 docker compose restart jimbomesh-still
 ```
+
+After the first successful connection, the Mesh tab can reuse the stored key for
+one-click **Connect**, **Reconnect**, **Cancel**, and **Forget Key** actions.
 
 ---
 

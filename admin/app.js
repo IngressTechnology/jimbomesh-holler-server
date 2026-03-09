@@ -172,6 +172,7 @@
         state.authenticated = false;
         state.apiKey = '';
         sessionStorage.removeItem('admin_api_key');
+        localStorage.removeItem('admin_api_key');
         render();
         throw new Error('Session expired');
       }
@@ -228,6 +229,7 @@
     state.apiKey = '';
     state.authenticated = false;
     sessionStorage.removeItem('admin_api_key');
+    localStorage.removeItem('admin_api_key');
     render();
   }
 
@@ -255,7 +257,13 @@
     if (tryHashLogin()) return;
     const tabFromHash = getTabFromHash();
     if (tabFromHash) state.tab = tabFromHash;
-    const saved = sessionStorage.getItem('admin_api_key');
+    let saved = sessionStorage.getItem('admin_api_key');
+    if (!saved) saved = localStorage.getItem('admin_api_key');
+    if (typeof console !== 'undefined' && console.log) {
+      console.log('[holler-admin] tryRestore: sessionStorage=%s localStorage=%s',
+        sessionStorage.getItem('admin_api_key') ? 'set' : 'empty',
+        localStorage.getItem('admin_api_key') ? 'set' : 'empty');
+    }
     if (saved) {
       login(saved);
     } else {

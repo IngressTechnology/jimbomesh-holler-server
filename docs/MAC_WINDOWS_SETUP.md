@@ -59,7 +59,7 @@ The installer then:
 2. Runs `brew install ollama` and `brew services start ollama`
 3. Verifies Ollama is bound to **localhost only** (rejects 0.0.0.0 binding)
 4. Sets `chmod 700 ~/.ollama` to restrict model directory access
-5. Generates `docker-compose.mac.yml` (the compose overlay)
+5. Uses the committed `docker-compose.mac.yml` overlay and refreshes it for the current install
 6. Writes `COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml` to `.env`
 7. Builds and starts the Docker API gateway
 8. Pulls configured models through the native Ollama
@@ -83,7 +83,7 @@ To skip the prompt and use Secure Mode automatically:
 │  │  ┌────────────────────────┐                      │    │
 │  │  │  jimbomesh-still        │                      │    │
 │  │  │  API Gateway :1920     │                      │    │
-│  │  │  X-API-Key auth        │                      │    │
+│  │  │  Tiered auth           │                      │    │
 │  │  │  /admin (UI)           │─────────────────┐    │    │
 │  │  │  SQLite (holler.db)    │                 │    │    │
 │  │  └────────────────────────┘                 │    │    │
@@ -190,6 +190,8 @@ See [UNINSTALL-OLLAMA.md](../UNINSTALL-OLLAMA.md) in the project root for step-b
 ## Mac and Windows Cross-Machine Setup
 
 This section documents how to set up JimboMesh (running on Mac) to use the Holler Server (running on a separate Windows machine).
+
+For most IDEs and third-party tools, the simplest integration path is the OpenAI-compatible `/v1` API on the Holler. The `embed.sh` flow documented here remains the drop-in path for JimboMesh's existing ingestion pipeline.
 
 ### Overview
 

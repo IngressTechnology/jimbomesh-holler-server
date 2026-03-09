@@ -20,7 +20,8 @@ vi admin/assets/theme.css
 # 2. Optionally set a custom server name in .env
 echo 'HOLLER_SERVER_NAME=My GPU Farm' >> .env
 
-# 3. Restart
+# 3. Refresh the browser for CSS/assets changes
+# Restart only if you changed .env branding values
 docker compose restart
 ```
 
@@ -88,16 +89,18 @@ Override any of these in `admin/assets/theme.css`:
 
 ## Logo Replacement
 
-Replace the SVG files in `admin/assets/`:
+Replace or add the branding assets in `admin/assets/`:
 
 | File | Purpose | Recommended Size |
 |------|---------|-----------------|
-| `logo.svg` | Login page logo | Max height 48px, width auto |
-| `favicon.svg` | Browser tab icon + header icon | 32×32px square |
+| `logo.png` | Login page logo and header brand icon | Roughly 200×48px, transparent background recommended |
+| `favicon.svg` | SVG browser tab icon | 32×32px square |
+| `favicon-32x32.png` | PNG browser tab fallback | 32×32px square |
+| `apple-touch-icon.png` | iOS/macOS touch icon | 180×180px square |
 
-SVG is preferred because it stays crisp at all display sizes. PNG files also work — just match the filenames.
+The current UI code loads `logo.png` for the login/header branding and `favicon.svg`, `favicon-32x32.png`, and `apple-touch-icon.png` for browser/platform icons. Refresh the browser after swapping assets; no container restart is needed unless you also changed `.env`.
 
-The logo appears on the login page. The favicon appears in the browser tab and next to the server name in the header.
+The logo appears on the login page and in the header. The favicon assets appear in the browser tab and on supported platforms.
 
 ## Environment Variables
 
@@ -207,7 +210,7 @@ The admin panel supports multiple languages. All user-facing strings are stored 
 
 ### Locale File Structure
 
-Each locale file is a flat JSON object organized by section:
+Each locale file is a flat JSON object organized by section. The example below is partial; the real locale files also include newer namespaces for Marketplace, Mesh, Documents, Feedback, Utilities/restart controls, API/Qdrant key management, and enhanced security/token flows.
 
 ```json
 {

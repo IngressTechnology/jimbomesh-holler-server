@@ -181,6 +181,7 @@ Or connect from Admin UI:
 2. Go to the **Mesh** tab
 3. Enter Mesh API key, coordinator URL, and Holler name
 4. Click **Connect**
+5. After the first successful connection, the stored key can be reused for one-click **Connect**, **Reconnect**, **Cancel**, or **Forget Key** actions from the same Mesh card
 
 ## Deployment Modes
 
@@ -237,7 +238,7 @@ Run `./setup.sh` and select **[P] Performance Mode** when prompted. The installe
 1. Checks for Homebrew, installs if needed
 2. Installs and starts native Ollama via `brew services`
 3. Hardens Ollama with localhost-only binding and restricted model directory permissions
-4. Generates `docker-compose.mac.yml` overlay (`OLLAMA_EXTERNAL_URL=http://host.docker.internal:11434`)
+4. Uses the committed `docker-compose.mac.yml` overlay and refreshes it for the current install (`OLLAMA_EXTERNAL_URL=http://host.docker.internal:11434`)
 5. Writes `COMPOSE_FILE=docker-compose.yml:docker-compose.mac.yml` to `.env`
 6. Pulls models through the native Ollama, then starts the Docker gateway
 
@@ -265,7 +266,7 @@ docker compose down
 # Stop AND delete model data (destructive!)
 docker compose down -v
 
-# Restart Ollama
+# Restart the Holler container / gateway
 docker compose restart jimbomesh-still
 
 # Check service status
@@ -337,6 +338,18 @@ ollama show nomic-embed-text
 ```
 
 Models in Performance Mode are stored in `~/.ollama/models/` on your Mac, not in a Docker volume.
+
+### Restarting Services
+
+Use the Admin UI **Configuration → Utilities** buttons for the safest operator workflow:
+
+- **Restart Holler** restarts the gateway/container process
+- **Restart Ollama** restarts the Ollama backend when supported by the current mode
+
+CLI guidance by mode:
+
+- **Secure Mode / NVIDIA GPU Mode**: `docker compose restart jimbomesh-still`
+- **macOS Performance Mode**: restart the gateway with `docker compose restart jimbomesh-still`, and restart native Ollama with `brew services restart ollama` when the backend itself needs a restart
 
 ### Mesh Operations
 

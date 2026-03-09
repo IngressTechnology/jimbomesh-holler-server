@@ -3,9 +3,9 @@
 ## Quick Start
 
 1. Edit `theme.css` to override brand colors
-2. Replace `logo.svg` with your own logo (recommended: 200×48px)
-3. Replace `favicon.svg` with your own icon (recommended: 32×32px)
-4. Restart the server
+2. Replace or add `logo.png` with your own logo (recommended: about 200×48px)
+3. Replace `favicon.svg` and optionally add `favicon-32x32.png` / `apple-touch-icon.png`
+4. Refresh the browser; restart only if you changed `.env` branding values
 
 ## CSS Variables
 
@@ -27,9 +27,10 @@
 
 ## Logo Requirements
 
-- **logo.svg**: Main login page logo. Recommended max height 48px.
-- **favicon.svg**: Browser tab icon + header icon. Square, works at 16–32px.
-- SVG preferred (crisp at all sizes). PNG also works.
+- **logo.png**: Main login page logo and header brand icon. Recommended around 200×48px with transparency.
+- **favicon.svg**: Primary browser tab icon.
+- **favicon-32x32.png**: PNG favicon fallback for browsers that prefer raster icons.
+- **apple-touch-icon.png**: 180×180px touch icon for Apple devices.
 
 ## Environment Variables
 
@@ -68,8 +69,10 @@ Set these in `.env` to customize the name without editing any code.
 | File | Purpose |
 |------|---------|
 | `theme.css` | User-editable CSS overrides (loaded after defaults) |
-| `logo.svg` | Login page logo |
-| `favicon.svg` | Browser tab icon and header icon |
+| `logo.png` | Login page logo and header brand icon |
+| `favicon.svg` | Primary browser tab icon |
+| `favicon-32x32.png` | PNG favicon fallback |
+| `apple-touch-icon.png` | Apple touch icon |
 | `README.md` | This file |
 
 See [docs/CUSTOMIZATION.md](../../docs/CUSTOMIZATION.md) for the full theming guide.

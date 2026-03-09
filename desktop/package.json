@@ -1,0 +1,14 @@
+{
+  "name": "jimbomesh-holler-desktop",
+  "version": "0.3.0",
+  "private": true,
+  "description": "JimboMesh Holler — native desktop installer",
+  "scripts": {
+    "tauri": "tauri",
+    "tauri:dev": "tauri dev",
+    "tauri:build": "tauri build"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}
