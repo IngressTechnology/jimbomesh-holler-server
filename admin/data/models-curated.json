@@ -1,0 +1,368 @@
+[
+  {
+    "name": "llama3.1",
+    "description": "Meta's Llama 3.1 — versatile general-purpose model with 128K context",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "8b", "params": "8B", "size_gb": 4.7, "vram_gb": 6 },
+      { "tag": "70b", "params": "70B", "size_gb": 40, "vram_gb": 48 },
+      { "tag": "405b", "params": "405B", "size_gb": 229, "vram_gb": 256 }
+    ],
+    "license": "Llama 3.1 Community"
+  },
+  {
+    "name": "llama3.2",
+    "description": "Meta's Llama 3.2 — lightweight models optimized for edge and mobile",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "1b", "params": "1B", "size_gb": 1.3, "vram_gb": 2 },
+      { "tag": "3b", "params": "3B", "size_gb": 2.0, "vram_gb": 3 }
+    ],
+    "license": "Llama 3.2 Community"
+  },
+  {
+    "name": "llama3.2-vision",
+    "description": "Meta's Llama 3.2 Vision — multimodal model for image understanding",
+    "tasks": ["chat", "vision"],
+    "variants": [
+      { "tag": "11b", "params": "11B", "size_gb": 7.9, "vram_gb": 10 },
+      { "tag": "90b", "params": "90B", "size_gb": 55, "vram_gb": 64 }
+    ],
+    "license": "Llama 3.2 Community"
+  },
+  {
+    "name": "gemma2",
+    "description": "Google's Gemma 2 — efficient and performant open model",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "2b", "params": "2B", "size_gb": 1.6, "vram_gb": 3 },
+      { "tag": "9b", "params": "9B", "size_gb": 5.4, "vram_gb": 8 },
+      { "tag": "27b", "params": "27B", "size_gb": 16, "vram_gb": 20 }
+    ],
+    "license": "Gemma"
+  },
+  {
+    "name": "phi3",
+    "description": "Microsoft's Phi-3 — small but capable model for constrained environments",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "mini", "params": "3.8B", "size_gb": 2.3, "vram_gb": 4 },
+      { "tag": "medium", "params": "14B", "size_gb": 7.9, "vram_gb": 10 }
+    ],
+    "license": "MIT"
+  },
+  {
+    "name": "phi4",
+    "description": "Microsoft's Phi-4 — next-gen small language model with strong reasoning",
+    "tasks": ["chat", "code"],
+    "variants": [{ "tag": "14b", "params": "14B", "size_gb": 9.1, "vram_gb": 12 }],
+    "license": "MIT"
+  },
+  {
+    "name": "mistral",
+    "description": "Mistral 7B — fast and efficient model by Mistral AI",
+    "tasks": ["chat", "code"],
+    "variants": [{ "tag": "7b", "params": "7B", "size_gb": 4.1, "vram_gb": 6 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "mixtral",
+    "description": "Mixtral 8x7B — mixture of experts model with high throughput",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "8x7b", "params": "8x7B", "size_gb": 26, "vram_gb": 32 },
+      { "tag": "8x22b", "params": "8x22B", "size_gb": 80, "vram_gb": 96 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "qwen2.5",
+    "description": "Alibaba's Qwen 2.5 — multilingual model with strong benchmarks",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "0.5b", "params": "0.5B", "size_gb": 0.4, "vram_gb": 1 },
+      { "tag": "1.5b", "params": "1.5B", "size_gb": 1.0, "vram_gb": 2 },
+      { "tag": "3b", "params": "3B", "size_gb": 1.9, "vram_gb": 3 },
+      { "tag": "7b", "params": "7B", "size_gb": 4.7, "vram_gb": 6 },
+      { "tag": "14b", "params": "14B", "size_gb": 9.0, "vram_gb": 12 },
+      { "tag": "32b", "params": "32B", "size_gb": 20, "vram_gb": 24 },
+      { "tag": "72b", "params": "72B", "size_gb": 47, "vram_gb": 56 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "qwen2.5-coder",
+    "description": "Qwen 2.5 Coder — specialized for code generation and understanding",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "1.5b", "params": "1.5B", "size_gb": 1.0, "vram_gb": 2 },
+      { "tag": "3b", "params": "3B", "size_gb": 1.9, "vram_gb": 3 },
+      { "tag": "7b", "params": "7B", "size_gb": 4.7, "vram_gb": 6 },
+      { "tag": "14b", "params": "14B", "size_gb": 9.0, "vram_gb": 12 },
+      { "tag": "32b", "params": "32B", "size_gb": 20, "vram_gb": 24 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "codellama",
+    "description": "Meta's Code Llama — specialized for code generation, completion, and infilling",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "7b", "params": "7B", "size_gb": 3.8, "vram_gb": 6 },
+      { "tag": "13b", "params": "13B", "size_gb": 7.4, "vram_gb": 10 },
+      { "tag": "34b", "params": "34B", "size_gb": 19, "vram_gb": 24 },
+      { "tag": "70b", "params": "70B", "size_gb": 39, "vram_gb": 48 }
+    ],
+    "license": "Llama 2 Community"
+  },
+  {
+    "name": "deepseek-coder-v2",
+    "description": "DeepSeek Coder V2 — strong code model with 128K context",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "16b", "params": "16B", "size_gb": 8.9, "vram_gb": 12 },
+      { "tag": "236b", "params": "236B", "size_gb": 133, "vram_gb": 160 }
+    ],
+    "license": "DeepSeek"
+  },
+  {
+    "name": "starcoder2",
+    "description": "BigCode's StarCoder2 — trained on The Stack v2 for code generation",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "3b", "params": "3B", "size_gb": 1.7, "vram_gb": 3 },
+      { "tag": "7b", "params": "7B", "size_gb": 4.0, "vram_gb": 6 },
+      { "tag": "15b", "params": "15B", "size_gb": 9.1, "vram_gb": 12 }
+    ],
+    "license": "BigCode OpenRAIL-M"
+  },
+  {
+    "name": "nomic-embed-text",
+    "description": "Nomic Embed Text — high-quality 768-dimensional text embeddings",
+    "tasks": ["embedding"],
+    "variants": [{ "tag": "latest", "params": "137M", "size_gb": 0.27, "vram_gb": 1 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "mxbai-embed-large",
+    "description": "Mixedbread AI — 1024-dimensional embedding model with strong retrieval",
+    "tasks": ["embedding"],
+    "variants": [{ "tag": "latest", "params": "335M", "size_gb": 0.67, "vram_gb": 1 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "all-minilm",
+    "description": "All-MiniLM — lightweight 384-dimensional sentence embeddings",
+    "tasks": ["embedding"],
+    "variants": [{ "tag": "latest", "params": "23M", "size_gb": 0.045, "vram_gb": 0.5 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "snowflake-arctic-embed",
+    "description": "Snowflake Arctic Embed — family of text embedding models",
+    "tasks": ["embedding"],
+    "variants": [
+      { "tag": "xs", "params": "22M", "size_gb": 0.046, "vram_gb": 0.5 },
+      { "tag": "s", "params": "33M", "size_gb": 0.067, "vram_gb": 0.5 },
+      { "tag": "m", "params": "110M", "size_gb": 0.22, "vram_gb": 1 },
+      { "tag": "l", "params": "335M", "size_gb": 0.67, "vram_gb": 1 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "llava",
+    "description": "LLaVA — large language and vision assistant for image understanding",
+    "tasks": ["chat", "vision"],
+    "variants": [
+      { "tag": "7b", "params": "7B", "size_gb": 4.7, "vram_gb": 8 },
+      { "tag": "13b", "params": "13B", "size_gb": 8.0, "vram_gb": 12 },
+      { "tag": "34b", "params": "34B", "size_gb": 20, "vram_gb": 24 }
+    ],
+    "license": "Llama 2 Community"
+  },
+  {
+    "name": "moondream",
+    "description": "Moondream — tiny vision-language model for edge deployment",
+    "tasks": ["vision"],
+    "variants": [{ "tag": "latest", "params": "1.9B", "size_gb": 1.7, "vram_gb": 3 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "llama3.3",
+    "description": "Meta's Llama 3.3 — 70B model with improved instruction following",
+    "tasks": ["chat", "code"],
+    "variants": [{ "tag": "70b", "params": "70B", "size_gb": 43, "vram_gb": 48 }],
+    "license": "Llama 3.3 Community"
+  },
+  {
+    "name": "deepseek-r1",
+    "description": "DeepSeek R1 — reasoning model with chain-of-thought capabilities",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "1.5b", "params": "1.5B", "size_gb": 1.1, "vram_gb": 2 },
+      { "tag": "7b", "params": "7B", "size_gb": 4.7, "vram_gb": 6 },
+      { "tag": "8b", "params": "8B", "size_gb": 4.9, "vram_gb": 6 },
+      { "tag": "14b", "params": "14B", "size_gb": 9.0, "vram_gb": 12 },
+      { "tag": "32b", "params": "32B", "size_gb": 20, "vram_gb": 24 },
+      { "tag": "70b", "params": "70B", "size_gb": 43, "vram_gb": 48 },
+      { "tag": "671b", "params": "671B", "size_gb": 404, "vram_gb": 480 }
+    ],
+    "license": "MIT"
+  },
+  {
+    "name": "command-r",
+    "description": "Cohere's Command R — optimized for RAG and tool use",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "35b", "params": "35B", "size_gb": 20, "vram_gb": 24 }],
+    "license": "CC-BY-NC-4.0"
+  },
+  {
+    "name": "command-r-plus",
+    "description": "Cohere's Command R+ — larger model for complex RAG workloads",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "104b", "params": "104B", "size_gb": 59, "vram_gb": 72 }],
+    "license": "CC-BY-NC-4.0"
+  },
+  {
+    "name": "wizardlm2",
+    "description": "WizardLM 2 — instruction-tuned model with strong reasoning",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "7b", "params": "7B", "size_gb": 4.1, "vram_gb": 6 },
+      { "tag": "8x22b", "params": "8x22B", "size_gb": 80, "vram_gb": 96 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "vicuna",
+    "description": "Vicuna — fine-tuned LLaMA for engaging conversation",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "7b", "params": "7B", "size_gb": 3.8, "vram_gb": 6 },
+      { "tag": "13b", "params": "13B", "size_gb": 7.4, "vram_gb": 10 },
+      { "tag": "33b", "params": "33B", "size_gb": 19, "vram_gb": 24 }
+    ],
+    "license": "Llama 2 Community"
+  },
+  {
+    "name": "neural-chat",
+    "description": "Intel's Neural Chat — fine-tuned on conversation data",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "7b", "params": "7B", "size_gb": 4.1, "vram_gb": 6 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "dolphin-mixtral",
+    "description": "Dolphin Mixtral — uncensored mixture of experts model",
+    "tasks": ["chat", "code"],
+    "variants": [
+      { "tag": "8x7b", "params": "8x7B", "size_gb": 26, "vram_gb": 32 },
+      { "tag": "8x22b", "params": "8x22B", "size_gb": 80, "vram_gb": 96 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "yi",
+    "description": "01.AI's Yi — bilingual (English/Chinese) with strong performance",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "6b", "params": "6B", "size_gb": 3.5, "vram_gb": 5 },
+      { "tag": "9b", "params": "9B", "size_gb": 5.0, "vram_gb": 7 },
+      { "tag": "34b", "params": "34B", "size_gb": 19, "vram_gb": 24 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "solar",
+    "description": "Upstage Solar — depth-upscaled model with strong instruction following",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "10.7b", "params": "10.7B", "size_gb": 6.1, "vram_gb": 8 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "granite-code",
+    "description": "IBM Granite Code — enterprise-focused code generation models",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "3b", "params": "3B", "size_gb": 2.0, "vram_gb": 3 },
+      { "tag": "8b", "params": "8B", "size_gb": 4.6, "vram_gb": 6 },
+      { "tag": "20b", "params": "20B", "size_gb": 12, "vram_gb": 16 },
+      { "tag": "34b", "params": "34B", "size_gb": 19, "vram_gb": 24 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "tinyllama",
+    "description": "TinyLlama — compact 1.1B model, great for testing and constrained devices",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "1.1b", "params": "1.1B", "size_gb": 0.64, "vram_gb": 1 }],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "orca-mini",
+    "description": "Orca Mini — small model trained with progressive learning",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "3b", "params": "3B", "size_gb": 1.9, "vram_gb": 3 },
+      { "tag": "7b", "params": "7B", "size_gb": 3.8, "vram_gb": 6 },
+      { "tag": "13b", "params": "13B", "size_gb": 7.4, "vram_gb": 10 }
+    ],
+    "license": "Llama 2 Community"
+  },
+  {
+    "name": "falcon",
+    "description": "TII's Falcon — open model trained on RefinedWeb",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "7b", "params": "7B", "size_gb": 3.8, "vram_gb": 6 },
+      { "tag": "40b", "params": "40B", "size_gb": 23, "vram_gb": 28 },
+      { "tag": "180b", "params": "180B", "size_gb": 102, "vram_gb": 128 }
+    ],
+    "license": "Apache 2.0"
+  },
+  {
+    "name": "codegemma",
+    "description": "Google's CodeGemma — code-specialized Gemma variant",
+    "tasks": ["code"],
+    "variants": [
+      { "tag": "2b", "params": "2B", "size_gb": 1.6, "vram_gb": 3 },
+      { "tag": "7b", "params": "7B", "size_gb": 5.0, "vram_gb": 8 }
+    ],
+    "license": "Gemma"
+  },
+  {
+    "name": "dolphin-phi",
+    "description": "Dolphin Phi — uncensored Phi-based model for unrestricted use",
+    "tasks": ["chat"],
+    "variants": [{ "tag": "2.7b", "params": "2.7B", "size_gb": 1.6, "vram_gb": 3 }],
+    "license": "MIT"
+  },
+  {
+    "name": "bge-m3",
+    "description": "BAAI BGE-M3 — multilingual multi-granularity embedding model",
+    "tasks": ["embedding"],
+    "variants": [{ "tag": "latest", "params": "568M", "size_gb": 1.2, "vram_gb": 2 }],
+    "license": "MIT"
+  },
+  {
+    "name": "llama-guard3",
+    "description": "Meta's Llama Guard 3 — safety classifier for content moderation",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "1b", "params": "1B", "size_gb": 0.8, "vram_gb": 1.5 },
+      { "tag": "8b", "params": "8B", "size_gb": 4.9, "vram_gb": 6 }
+    ],
+    "license": "Llama 3.1 Community"
+  },
+  {
+    "name": "smollm2",
+    "description": "Hugging Face SmolLM2 — tiny models for on-device applications",
+    "tasks": ["chat"],
+    "variants": [
+      { "tag": "135m", "params": "135M", "size_gb": 0.09, "vram_gb": 0.5 },
+      { "tag": "360m", "params": "360M", "size_gb": 0.23, "vram_gb": 0.5 },
+      { "tag": "1.7b", "params": "1.7B", "size_gb": 1.0, "vram_gb": 2 }
+    ],
+    "license": "Apache 2.0"
+  }
+]

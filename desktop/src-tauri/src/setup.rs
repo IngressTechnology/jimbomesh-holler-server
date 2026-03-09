@@ -14,6 +14,44 @@ const NATIVE_MODULE_REBUILD_FAILED_MESSAGE: &str =
     "Native module rebuild failed. Please install Node.js build tools: npm install -g node-gyp windows-build-tools";
 const SETUP_COMPLETE_MESSAGE: &str = "Setup complete. Opening your local Holler admin now.";
 const WIZARD_WAITING: &str = "Waiting";
+const STARTER_MODEL_STEP_LABEL: &str = "Starter Models";
+const STARTER_MODEL_SUMMARY: &str = "Downloading starter models so chat and embeddings work right away.";
+
+const STARTER_MODELS: [StarterModel; 2] = [
+    StarterModel {
+        name: "llama3.2:1b",
+        label: "llama3.2:1b",
+        purpose: "chat",
+    },
+    StarterModel {
+        name: "nomic-embed-text",
+        label: "nomic-embed-text",
+        purpose: "embeddings",
+    },
+];
+
+#[derive(Clone, Copy)]
+struct StarterModel {
+    name: &'static str,
+    label: &'static str,
+    purpose: &'static str,
+}
+
+#[derive(Default, Clone)]
+struct PullProgress {
+    status: String,
+    completed: Option<u64>,
+    total: Option<u64>,
+}
+
+#[derive(serde::Deserialize)]
+struct OllamaPullEvent {
+    #[serde(default)]
+    status: String,
+    completed: Option<u64>,
+    total: Option<u64>,
+    error: Option<String>,
+}
 
 #[derive(Clone)]
 struct SetupWizard {
@@ -48,7 +86,7 @@ impl SetupWizard {
             node: StepDisplay::waiting("Node.js"),
             ollama: StepDisplay::waiting("Ollama"),
             server: StepDisplay::waiting("Holler Server"),
-            model: StepDisplay::waiting("Default AI Model"),
+            model: StepDisplay::waiting(STARTER_MODEL_STEP_LABEL),
         }
     }
 
@@ -459,28 +497,77 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     wizard.ollama = StepDisplay::done("Ollama", format!("Running ({ollama_version})"));
     render_setup_wizard(app, &wizard);
 
-    wizard.model = StepDisplay::working("Default AI Model", "Checking llama3.2:1b...");
+    wizard.model = StepDisplay::working(
+        STARTER_MODEL_STEP_LABEL,
+        "Checking llama3.2:1b and nomic-embed-text...",
+    );
+    wizard.detail = STARTER_MODEL_SUMMARY.into();
     render_setup_wizard(app, &wizard);
-    if is_model_installed("llama3.2:1b").await? {
-        wizard.model = StepDisplay::done("Default AI Model", "Installed (llama3.2:1b)");
-    } else {
-        wizard.model = StepDisplay::working("Default AI Model", "Pulling llama3.2:1b...");
-        render_setup_wizard(app, &wizard);
-        if let Err(err) = pull_default_model().await {
-            wizard.model = StepDisplay::failed("Default AI Model", "Pull failed");
-            wizard.detail = err.clone();
-            render_setup_wizard(app, &wizard);
-            show_setup_error(
-                app,
-                "Model Download Failed",
-                &format!(
-                    "JimboMesh Holler could not download the default model `llama3.2:1b`.\n\n{err}"
-                ),
-            )
-            .await;
-            return Err(err);
+
+    let mut ready_models = Vec::new();
+    let mut failed_models = Vec::new();
+
+    for (index, model) in STARTER_MODELS.iter().enumerate() {
+        if is_model_installed(model.name).await? {
+            ready_models.push(model.label);
+            continue;
         }
-        wizard.model = StepDisplay::done("Default AI Model", "Installed (llama3.2:1b)");
+
+        wizard.model = StepDisplay::working(
+            STARTER_MODEL_STEP_LABEL,
+            format!("Pulling {} ({}/{})...", model.label, index + 1, STARTER_MODELS.len()),
+        );
+        wizard.detail = STARTER_MODEL_SUMMARY.into();
+        render_setup_wizard(app, &wizard);
+
+        let mut last_detail = String::new();
+        let pull_result = pull_model_with_progress(model.name, |progress| {
+            let detail = format_pull_progress(model, index + 1, STARTER_MODELS.len(), progress);
+            if detail != last_detail {
+                last_detail = detail.clone();
+                wizard.model = StepDisplay::working(STARTER_MODEL_STEP_LABEL, detail);
+                wizard.detail = STARTER_MODEL_SUMMARY.into();
+                render_setup_wizard(app, &wizard);
+            }
+        })
+        .await;
+
+        match pull_result {
+            Ok(()) => ready_models.push(model.label),
+            Err(err) => {
+                failed_models.push(format!("{} ({})", model.label, err));
+                wizard.model = StepDisplay::working(
+                    STARTER_MODEL_STEP_LABEL,
+                    format!("Couldn't pull {}. Continuing setup...", model.label),
+                );
+                wizard.detail = format!(
+                    "Holler will still finish setup, but {} may need to be downloaded later from Models > Marketplace.",
+                    model.purpose
+                );
+                render_setup_wizard(app, &wizard);
+            }
+        }
+    }
+
+    if failed_models.is_empty() {
+        wizard.model = StepDisplay::done(
+            STARTER_MODEL_STEP_LABEL,
+            format!("Installed ({})", ready_models.join(", ")),
+        );
+        wizard.detail = "Starter chat and embedding models are ready.".into();
+    } else {
+        wizard.model = StepDisplay::done(
+            STARTER_MODEL_STEP_LABEL,
+            format!(
+                "Installed {} of {}",
+                ready_models.len(),
+                STARTER_MODELS.len()
+            ),
+        );
+        wizard.detail = format!(
+            "Setup is continuing, but some starter downloads need a retry later: {}",
+            failed_models.join("; ")
+        );
     }
     render_setup_wizard(app, &wizard);
 
@@ -599,20 +686,23 @@ DOCUMENTS_COLLECTION=documents
     Ok(())
 }
 
-async fn pull_default_model() -> Result<(), String> {
+async fn pull_model_with_progress<F>(model: &str, mut on_progress: F) -> Result<(), String>
+where
+    F: FnMut(&PullProgress),
+{
     let client = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(600))
         .build()
         .map_err(|e| e.to_string())?;
 
     let body = serde_json::json!({
-        "name": "llama3.2:1b",
-        "stream": false
+        "name": model,
+        "stream": true
     });
 
-    eprintln!("[holler-desktop] Pulling llama3.2:1b (this may take a few minutes)\u{2026}");
+    eprintln!("[holler-desktop] Pulling {model} (this may take a few minutes)...");
 
-    let resp = client
+    let mut resp = client
         .post("http://127.0.0.1:11434/api/pull")
         .json(&body)
         .send()
@@ -625,7 +715,58 @@ async fn pull_default_model() -> Result<(), String> {
         return Err(format!("Model pull returned {status}: {text}"));
     }
 
-    eprintln!("[holler-desktop] llama3.2:1b ready");
+    let mut buffer = String::new();
+    let mut last_progress = PullProgress::default();
+
+    while let Some(chunk) = resp
+        .chunk()
+        .await
+        .map_err(|e| format!("Model pull stream failed: {e}"))?
+    {
+        buffer.push_str(&String::from_utf8_lossy(&chunk));
+        while let Some(newline_idx) = buffer.find('\n') {
+            let line = buffer[..newline_idx].trim().to_string();
+            buffer = buffer[newline_idx + 1..].to_string();
+            if line.is_empty() {
+                continue;
+            }
+            let event: OllamaPullEvent =
+                serde_json::from_str(&line).map_err(|e| format!("Invalid pull progress from Ollama: {e}"))?;
+            if let Some(err) = event.error {
+                return Err(err);
+            }
+            last_progress = PullProgress {
+                status: event.status,
+                completed: event.completed,
+                total: event.total,
+            };
+            on_progress(&last_progress);
+        }
+    }
+
+    if !buffer.trim().is_empty() {
+        let event: OllamaPullEvent =
+            serde_json::from_str(buffer.trim()).map_err(|e| format!("Invalid pull progress from Ollama: {e}"))?;
+        if let Some(err) = event.error {
+            return Err(err);
+        }
+        last_progress = PullProgress {
+            status: event.status,
+            completed: event.completed,
+            total: event.total,
+        };
+        on_progress(&last_progress);
+    }
+
+    if last_progress.status.is_empty() {
+        on_progress(&PullProgress {
+            status: "done".into(),
+            completed: None,
+            total: None,
+        });
+    }
+
+    eprintln!("[holler-desktop] {model} ready");
     Ok(())
 }
 
@@ -649,7 +790,52 @@ async fn is_model_installed(model: &str) -> Result<bool, String> {
         .as_array()
         .into_iter()
         .flatten()
-        .any(|entry| entry["name"].as_str() == Some(model)))
+        .filter_map(|entry| entry["name"].as_str())
+        .any(|installed| installed == model || installed.split(':').next() == Some(model)))
+}
+
+fn format_pull_progress(
+    model: &StarterModel,
+    current_index: usize,
+    total_models: usize,
+    progress: &PullProgress,
+) -> String {
+    let prefix = format!("{} ({}/{})", model.label, current_index, total_models);
+    match (progress.completed, progress.total) {
+        (Some(completed), Some(total)) if total > 0 => {
+            let percent = ((completed as f64 / total as f64) * 100.0).round() as u64;
+            format!(
+                "{prefix} — {} {}% ({}/{})",
+                prettify_pull_status(&progress.status),
+                percent,
+                format_size_mb(completed),
+                format_size_mb(total)
+            )
+        }
+        _ if !progress.status.is_empty() => {
+            format!("{prefix} — {}", prettify_pull_status(&progress.status))
+        }
+        _ => format!("{prefix} — downloading..."),
+    }
+}
+
+fn prettify_pull_status(status: &str) -> String {
+    if status.is_empty() {
+        return "Downloading".into();
+    }
+    let mut chars = status.chars();
+    match chars.next() {
+        Some(first) => format!("{}{}", first.to_ascii_uppercase(), chars.as_str()),
+        None => "Downloading".into(),
+    }
+}
+
+fn format_size_mb(bytes: u64) -> String {
+    if bytes >= 1024 * 1024 * 1024 {
+        format!("{:.1} GB", bytes as f64 / (1024.0 * 1024.0 * 1024.0))
+    } else {
+        format!("{:.0} MB", bytes as f64 / (1024.0 * 1024.0))
+    }
 }
 
 async fn prompt_install_ollama(app: &tauri::AppHandle, details: &str) {

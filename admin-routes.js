@@ -35,6 +35,7 @@ function safeCompare(a, b) {
 }
 
 const ADMIN_DIR = path.join(__dirname, 'admin');
+const CURATED_MODEL_CATALOG_FILES = ['models-curated.json', 'ollama-catalog.json'];
 
 const MIME_TYPES = {
   '.html': 'text/html; charset=utf-8',
@@ -1438,19 +1439,41 @@ getSystemInfoPayload().catch(() => {});
 
 // ── Ollama Marketplace ──────────────────────────────────────────
 
+function loadCuratedModelCatalog() {
+  const attempted = [];
+  for (const filename of CURATED_MODEL_CATALOG_FILES) {
+    const filePath = path.join(ADMIN_DIR, 'data', filename);
+    attempted.push(filePath);
+    if (!fs.existsSync(filePath)) continue;
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf8'));
+    if (!Array.isArray(parsed)) {
+      throw new Error(`Curated catalog ${filename} must contain a JSON array`);
+    }
+    return { models: parsed, filename };
+  }
+  throw new Error(`Curated model catalog not found. Checked: ${attempted.join(', ')}`);
+}
+
 async function handleMarketplaceOllama(ollamaUrl, res, sendError) {
   try {
-    const catalog = JSON.parse(fs.readFileSync(path.join(ADMIN_DIR, 'data', 'ollama-catalog.json'), 'utf8'));
-    const installed = await ollamaFetch(ollamaUrl, 'GET', '/api/tags');
     const installedNames = new Set();
-    if (installed.data && installed.data.models) {
-      for (const m of installed.data.models) {
-        installedNames.add(m.name);
-        const base = m.name.split(':')[0];
-        installedNames.add(base);
+    const catalog = loadCuratedModelCatalog();
+    let warning = null;
+
+    try {
+      const installed = await ollamaFetch(ollamaUrl, 'GET', '/api/tags');
+      if (installed.data && installed.data.models) {
+        for (const m of installed.data.models) {
+          installedNames.add(m.name);
+          const base = m.name.split(':')[0];
+          installedNames.add(base);
+        }
       }
+    } catch (err) {
+      warning = `Couldn't reach Ollama to check installed models. Showing the curated library only: ${err.message}`;
     }
-    const models = catalog.map((m) => ({
+
+    const models = catalog.models.map((m) => ({
       ...m,
       installed_tags: m.variants
         .filter((v) => {
@@ -1459,7 +1482,13 @@ async function handleMarketplaceOllama(ollamaUrl, res, sendError) {
         })
         .map((v) => v.tag),
     }));
-    json(res, 200, { models, cached_at: new Date().toISOString() });
+
+    json(res, 200, {
+      models,
+      warning,
+      source: catalog.filename,
+      cached_at: new Date().toISOString(),
+    });
   } catch (err) {
     sendError(res, 500, 'marketplace_error', `Failed to load Ollama catalog: ${err.message}`);
   }
@@ -1494,7 +1523,7 @@ function hfFetch(url) {
       });
     });
     req.on('error', reject);
-    req.setTimeout(15000, () => req.destroy(new Error('HuggingFace request timed out')));
+    req.setTimeout(10000, () => req.destroy(new Error('HuggingFace request timed out')));
   });
 }
 
@@ -2824,11 +2853,17 @@ function createAdminRoutes(config) {
       detectGpuInfo(ollamaUrl)
         .then((data) => json(res, 200, data))
         .catch((err) => sendError(res, 500, 'gpu_error', err.message));
-    } else if (req.method === 'GET' && route === '/marketplace/ollama') {
+    } else if (req.method === 'GET' && (route === '/marketplace/ollama' || route === '/models/curated')) {
       handleMarketplaceOllama(ollamaUrl, res, sendError);
-    } else if (req.method === 'GET' && route === '/marketplace/huggingface') {
+    } else if (
+      req.method === 'GET' &&
+      (route === '/marketplace/huggingface' || route === '/models/huggingface')
+    ) {
       handleMarketplaceHuggingFace(req, res, sendError, db);
-    } else if (req.method === 'GET' && route === '/marketplace/huggingface/files') {
+    } else if (
+      req.method === 'GET' &&
+      (route === '/marketplace/huggingface/files' || route === '/models/huggingface/files')
+    ) {
       handleHfModelFiles(req, res, sendError, db);
     } else if (req.method === 'POST' && route === '/models/import-hf') {
       handleHfImport(ollamaUrl, req, res, sendError, db);
@@ -3161,6 +3196,7 @@ module.exports = {
   createAdminRoutes,
   __test: {
     isAllowedHfDownloadUrl,
+    loadCuratedModelCatalog,
     resolveRedirectUrl,
   },
 };

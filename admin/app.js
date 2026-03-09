@@ -186,6 +186,46 @@
     });
   }
 
+  function apiJSONChecked(path, opts) {
+    opts = opts || {};
+    const timeoutMs = opts.timeoutMs || 0;
+    const fetchOpts = Object.assign({}, opts);
+    delete fetchOpts.timeoutMs;
+
+    let timeoutId = null;
+    let controller = null;
+    if (timeoutMs) {
+      controller = new AbortController();
+      fetchOpts.signal = controller.signal;
+      timeoutId = setTimeout(function () {
+        controller.abort();
+      }, timeoutMs);
+    }
+
+    return api(path, fetchOpts)
+      .then(function (res) {
+        return res.text().then(function (text) {
+          let data = {};
+          if (text) {
+            try {
+              data = JSON.parse(text);
+            } catch {
+              throw new Error('Server returned invalid JSON');
+            }
+          }
+          if (!res.ok) {
+            const message =
+              data && data.error && data.error.message ? data.error.message : 'Request failed';
+            throw new Error(message);
+          }
+          return data;
+        });
+      })
+      .finally(function () {
+        if (timeoutId) clearTimeout(timeoutId);
+      });
+  }
+
   function ollamaFetch(path, opts) {
     opts = opts || {};
     const headers = { 'X-API-Key': state.apiKey };
@@ -1192,10 +1232,12 @@
   const modelsData = { models: [], running: [] };
   let gpuInfo = null;
   let ollamaCatalog = [];
+  let ollamaCatalogWarning = '';
   let ollamaFilterTask = '';
   let ollamaSearch = '';
   let hfResults = [];
   let hfImported = {};
+  let hfErrorMessage = '';
   let hfSearch = '';
   let hfTask = '';
   let hfSort = 'downloads';
@@ -1799,6 +1841,7 @@
       '</option>' +
       '</select>' +
       '</div>' +
+      '<div id="ollama-marketplace-warning"></div>' +
       '<div id="ollama-grid"><div class="mp-empty"><span class="spinner"></span> ' +
       esc(t('marketplace.loading')) +
       '</div></div>' +
@@ -1824,20 +1867,35 @@
   }
 
   function loadOllamaCatalog() {
-    apiJSON('/marketplace/ollama')
+    apiJSONChecked('/models/curated', { timeoutMs: 10000 })
       .then(function (data) {
         ollamaCatalog = data.models || [];
+        ollamaCatalogWarning = data.warning || '';
         renderOllamaGrid();
       })
-      .catch(function () {
+      .catch(function (err) {
+        ollamaCatalog = [];
+        ollamaCatalogWarning = '';
         const el = $('#ollama-grid');
-        if (el) el.innerHTML = '<div class="mp-empty">' + esc(t('marketplace.noResults')) + '</div>';
+        const warningEl = $('#ollama-marketplace-warning');
+        if (warningEl) warningEl.innerHTML = '';
+        if (el)
+          el.innerHTML =
+            '<div class="mp-empty" style="color:var(--danger)">' +
+            esc(err.message || t('marketplace.catalogError')) +
+            '</div>';
       });
   }
 
   function renderOllamaGrid() {
     const el = $('#ollama-grid');
+    const warningEl = $('#ollama-marketplace-warning');
     if (!el) return;
+    if (warningEl) {
+      warningEl.innerHTML = ollamaCatalogWarning
+        ? '<div class="login-error" style="margin-bottom:0.75rem">' + esc(ollamaCatalogWarning) + '</div>'
+        : '';
+    }
 
     const filtered = ollamaCatalog.filter(function (m) {
       if (ollamaFilterTask && m.tasks.indexOf(ollamaFilterTask) === -1) return false;
@@ -2163,6 +2221,7 @@
   function loadHfModels() {
     const searchInput = $('#hf-search');
     if (searchInput) hfSearch = searchInput.value;
+    hfErrorMessage = '';
 
     const gridEl = $('#hf-grid');
     if (gridEl)
@@ -2173,18 +2232,25 @@
     if (hfSearch) params += '&search=' + encodeURIComponent(hfSearch);
     if (hfTask) params += '&task=' + encodeURIComponent(hfTask);
 
-    apiJSON('/marketplace/huggingface' + params)
+    apiJSONChecked('/models/huggingface' + params, { timeoutMs: 10000 })
       .then(function (data) {
         hfResults = data.models || [];
         hfImported = data.imported || {};
         renderHfGrid();
       })
       .catch(function (err) {
+        hfResults = [];
+        hfImported = {};
+        hfErrorMessage =
+          err && (err.name === 'AbortError' || /timed out/i.test(err.message || ''))
+            ? t('marketplace.hfOffline')
+            : err && err.message
+              ? err.message
+              : t('marketplace.hfError');
         if (gridEl)
           gridEl.innerHTML =
             '<div class="mp-empty" style="color:var(--danger)">' +
-            esc(t('marketplace.hfError') || 'Failed to load models from HuggingFace') +
-            (err.message ? ': ' + esc(err.message) : '') +
+            esc(hfErrorMessage) +
             '</div>';
       });
   }
@@ -2192,6 +2258,11 @@
   function renderHfGrid() {
     const el = $('#hf-grid');
     if (!el) return;
+
+    if (hfErrorMessage) {
+      el.innerHTML = '<div class="mp-empty" style="color:var(--danger)">' + esc(hfErrorMessage) + '</div>';
+      return;
+    }
 
     if (hfResults.length === 0) {
       el.innerHTML = '<div class="mp-empty">' + esc(t('marketplace.noResults')) + '</div>';
@@ -2279,7 +2350,7 @@
     const el = $id('hf-files-' + safeRepoId);
     if (!el) return;
 
-    apiJSON('/marketplace/huggingface/files?repo=' + encodeURIComponent(repoId))
+    apiJSONChecked('/models/huggingface/files?repo=' + encodeURIComponent(repoId), { timeoutMs: 10000 })
       .then(function (data) {
         const files = data.files || [];
         if (files.length === 0) {

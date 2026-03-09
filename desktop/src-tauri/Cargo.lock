@@ -1632,7 +1632,7 @@ dependencies = [
 
 [[package]]
 name = "jimbomesh-holler"
-version = "0.3.6"
+version = "0.3.7"
 dependencies = [
  "dirs 5.0.1",
  "flate2",

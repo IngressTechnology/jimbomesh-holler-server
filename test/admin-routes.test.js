@@ -4,6 +4,16 @@ const assert = require('node:assert/strict');
 const { __test } = require('../admin-routes');
 
 describe('admin-routes redirect hardening', function () {
+  describe('loadCuratedModelCatalog', function () {
+    it('loads the curated marketplace catalog from disk', function () {
+      const catalog = __test.loadCuratedModelCatalog();
+      assert.equal(Array.isArray(catalog.models), true);
+      assert.equal(catalog.filename, 'models-curated.json');
+      assert.equal(catalog.models.some((entry) => entry.name === 'llama3.2'), true);
+      assert.equal(catalog.models.some((entry) => entry.name === 'nomic-embed-text'), true);
+    });
+  });
+
   describe('isAllowedHfDownloadUrl', function () {
     it('allows HuggingFace primary host over https', function () {
       assert.equal(__test.isAllowedHfDownloadUrl('https://huggingface.co/owner/repo/resolve/main/model.gguf'), true);
