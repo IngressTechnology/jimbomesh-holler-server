@@ -194,19 +194,7 @@ if (currentApiKey && MESH_API_KEY && currentApiKey === MESH_API_KEY) {
   process.exit(1);
 }
 
-// Check SQLite for a rotated key that overrides the env var
-try {
-  const dbKey = db.getSetting('api_key_override');
-  if (dbKey) {
-    currentApiKey = dbKey;
-    console.log('[api-gateway] Using rotated API key from database');
-  }
-} catch {
-  /* SQLite not ready yet, use env var */
-}
-
-// Initialize Tier 2 (Bearer Tokens) and Tier 3 (Auth0 JWT)
-tokenManager.init(db);
+// Initialize Tier 3 (Auth0 JWT) eagerly.
 jwtValidator.init();
 
 // TLS validation: both cert and key must be set, or neither
@@ -2332,6 +2320,16 @@ process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
 // Start server
 async function startServer() {
+  await db.init();
+
+  const dbKey = db.getSetting('api_key_override');
+  if (dbKey) {
+    currentApiKey = dbKey;
+    console.log('[api-gateway] Using rotated API key from database');
+  }
+
+  tokenManager.init(db);
+
   detectedGpuCount = await detectGpuCount();
   const concurrencyStats = getConcurrencyStats();
   console.log(

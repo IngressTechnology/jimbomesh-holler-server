@@ -20,7 +20,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm rebuild better-sqlite3
       - run: npm run lint
       - run: npm run format:check
 
@@ -35,7 +34,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm rebuild better-sqlite3
       - run: npm test
         if: hashFiles('test/**') != ''
 
@@ -51,7 +49,6 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
-      - run: npm rebuild better-sqlite3
       - run: npx playwright install chromium --with-deps
       - name: Start Holler server
         run: npm start &

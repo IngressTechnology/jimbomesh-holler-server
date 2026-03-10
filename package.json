@@ -22,12 +22,12 @@
     "format:check": "prettier --check ."
   },
   "dependencies": {
-    "better-sqlite3": "^11.8.1",
     "busboy": "^1.6.0",
     "jsonwebtoken": "^9.0.2",
     "jwks-rsa": "^3.1.0",
     "mammoth": "^1.8.0",
     "pdfjs-dist": "^5.4.624",
+    "sql.js": "^1.14.1",
     "swagger-ui-dist": "^5.31.2",
     "wrtc": "^0.4.7"
   },

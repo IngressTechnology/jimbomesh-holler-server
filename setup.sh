@@ -174,25 +174,62 @@ repair_stats_schema() {
     fi
 
     read -r -d '' node_script <<'EOF' || true
-const Database = require('better-sqlite3');
-const dbPath = process.env.SQLITE_DB_PATH || '/opt/jimbomesh-still/data/holler.db';
-const db = new Database(dbPath);
-try {
-  const table = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='request_stats'").get();
-  if (!table) {
-    console.log('stats-schema:request_stats-missing');
-    process.exit(0);
+const fs = require('fs');
+const initSqlJs = require('sql.js');
+
+function getRow(db, sql, params) {
+  const stmt = db.prepare(sql);
+  try {
+    if (params && params.length) stmt.bind(params);
+    if (!stmt.step()) return null;
+    return stmt.getAsObject();
+  } finally {
+    stmt.free();
   }
-  const cols = db.prepare("PRAGMA table_info(request_stats)").all().map(function (r) { return r.name; });
-  if (cols.indexOf('connection_type') === -1) {
-    db.exec('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
-    console.log('stats-schema:patched');
-  } else {
-    console.log('stats-schema:ok');
-  }
-} finally {
-  db.close();
 }
+
+function getRows(db, sql, params) {
+  const stmt = db.prepare(sql);
+  try {
+    if (params && params.length) stmt.bind(params);
+    const rows = [];
+    while (stmt.step()) rows.push(stmt.getAsObject());
+    return rows;
+  } finally {
+    stmt.free();
+  }
+}
+
+(async function () {
+  const SQL = await initSqlJs({
+    locateFile: function (file) {
+      return require.resolve('sql.js/dist/' + file);
+    },
+  });
+  const dbPath = process.env.SQLITE_DB_PATH || '/opt/jimbomesh-still/data/holler.db';
+  const buffer = fs.existsSync(dbPath) ? fs.readFileSync(dbPath) : null;
+  const db = new SQL.Database(buffer || undefined);
+  try {
+    const table = getRow(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='request_stats'");
+    if (!table) {
+      console.log('stats-schema:request_stats-missing');
+      process.exit(0);
+    }
+    const cols = getRows(db, "PRAGMA table_info(request_stats)").map(function (r) { return r.name; });
+    if (cols.indexOf('connection_type') === -1) {
+      db.run('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
+      fs.writeFileSync(dbPath, Buffer.from(db.export()));
+      console.log('stats-schema:patched');
+    } else {
+      console.log('stats-schema:ok');
+    }
+  } finally {
+    db.close();
+  }
+})().catch(function (err) {
+  console.error('stats-schema:error', err.message);
+  process.exit(1);
+});
 EOF
 
     local result

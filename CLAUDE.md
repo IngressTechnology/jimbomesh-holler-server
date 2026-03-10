@@ -25,12 +25,12 @@ jimbomesh-holler-server/
   .setup-config.json      # Written by setup.sh — records ollamaMode, installedAt, securityWarningAccepted, platform, arch
   docker-entrypoint.sh    # Production entrypoint (start → wait → pull → serve; branches on OLLAMA_EXTERNAL_URL)
   mesh-webrtc.js          # WebRTC peer-to-peer handler (HollerPeerHandler, PeerSession) for direct Buyer connections
-  package.json            # Node.js dependencies (better-sqlite3, busboy, pdfjs-dist, mammoth, swagger-ui-dist, wrtc, jsonwebtoken, jwks-rsa)
+  package.json            # Node.js dependencies (sql.js, busboy, pdfjs-dist, mammoth, swagger-ui-dist, wrtc, jsonwebtoken, jwks-rsa)
   setup.ps1             # Windows PowerShell installer
   setup.sh                # Linux/macOS Bash installer
   .env.example            # Configuration template
   api-gateway.js          # Node.js API gateway with auth, rate limiting, admin, /v1/embeddings, /docs
-  db.js                   # SQLite database layer (better-sqlite3, WAL mode, prepared statements)
+  db.js                   # SQLite database layer (sql.js, persisted on mutation)
   qdrant-client.js        # Qdrant vector DB HTTP client (collections, points, search)
   document-pipeline.js    # Document RAG pipeline (extract, chunk, embed, store, search, Q&A)
   openapi.yaml            # OpenAPI 3.0.3 spec, version 0.7.2 (served by Swagger UI at /docs)
@@ -349,8 +349,8 @@ Two deployment modes for macOS. The mode is controlled by whether `docker-compos
 - **Optional TLS**: `TLS_CERT_PATH` + `TLS_KEY_PATH` env vars for HTTPS mode, validation that both must be set
 
 ### SQLite Persistent Storage
-- **db.js**: New SQLite wrapper using `better-sqlite3` (WAL mode, prepared statements)
-- **package.json**: New file with `better-sqlite3` dependency
+- **db.js**: New SQLite wrapper using `sql.js` with explicit saves after mutations
+- **package.json**: New file with `sql.js` dependency
 - **Tables**: `request_log`, `settings`, `stats_hourly`, `schema_version`
 - **holler_data volume**: `/opt/jimbomesh-still/data/holler.db`
 - **Env vars**: `SQLITE_DB_PATH`, `LOG_RETENTION_DAYS`

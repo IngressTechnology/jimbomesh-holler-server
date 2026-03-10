@@ -8,12 +8,13 @@ const TEST_DB_PATH = path.join(__dirname, '.test-holler.db');
 describe('db', function () {
   let db;
 
-  before(function () {
+  before(async function () {
     // Point at a throwaway database for testing
     process.env.SQLITE_DB_PATH = TEST_DB_PATH;
     // Prevent default model pulls during test
     process.env.HOLLER_MODELS = '';
     db = require('../db');
+    await db.init();
   });
 
   after(function () {

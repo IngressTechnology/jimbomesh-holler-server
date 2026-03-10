@@ -407,8 +407,8 @@ API keys are passed via `.env` file and environment variables at runtime. Nothin
 | OpenRouter fallback in embed.sh | Allows gradual migration without breaking existing pipelines |
 | Admin UI on existing port | No new port, no new process — reuses API gateway on :1920 |
 | Vanilla JS for admin UI | No build step, works in air-gapped deployments |
-| SQLite via `better-sqlite3` | Synchronous API (~5μs writes), fastest Node.js binding, single dependency, no external service |
-| SQLite WAL mode | Concurrent reads during writes, no lock contention on the hot path |
+| SQLite via `sql.js` | Pure JavaScript/WASM, no native modules or ABI rebuilds, single-file persistence |
+| Explicit DB saves after mutations | Keeps the on-disk SQLite file current without relying on native WAL support |
 | Separate `holler_data` volume | Different lifecycle than model weights — DB is small, models are large |
 | In-memory rate limiting | SQLite per-request writes for rate limits would be slower than in-memory Map |
 | `ADMIN_ENABLED` env var | Kill switch for security-sensitive deployments |

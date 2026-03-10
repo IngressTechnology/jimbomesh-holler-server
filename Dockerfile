@@ -19,7 +19,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     gnupg \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Node.js 22.x (LTS) from NodeSource for API gateway and better-sqlite3
+# Install Node.js 22.x (LTS) from NodeSource for the API gateway
 RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
     && apt-get install -y --no-install-recommends nodejs build-essential python3 \
     && rm -rf /var/lib/apt/lists/*
@@ -27,11 +27,9 @@ RUN curl -fsSL https://deb.nodesource.com/setup_22.x | bash - \
 # Copy entrypoint (production lifecycle: start → wait → pull models → serve)
 COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 
-# Install Node.js dependencies (better-sqlite3)
+# Install Node.js dependencies
 COPY package.json package-lock.json /opt/jimbomesh-still/
-# wrtc postinstall calls `node-pre-gyp` directly; install it globally so npm v10+ can resolve it.
-RUN npm install -g node-pre-gyp \
-    && cd /opt/jimbomesh-still \
+RUN cd /opt/jimbomesh-still \
     && npm ci --production
 
 # Copy API gateway, SQLite layer, and admin UI

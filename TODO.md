@@ -30,14 +30,14 @@
 - [x] CONTRIBUTING.md
 - [x] HTTP health check endpoints (`/healthz`, `/readyz`, `/status`) with optional model warmup
 - [x] Admin UI web panel at `/admin` (dashboard, models, playground, config, activity)
-- [x] SQLite persistent storage (`better-sqlite3`) for request logs, settings, and statistics
+- [x] SQLite persistent storage (`sql.js`) for request logs, settings, and statistics
   - Request logs survive container restarts (replaces in-memory ring buffer)
   - Runtime-mutable settings editable from admin UI
   - Hourly aggregated statistics with rollups
   - Paginated activity log API
   - Admin dashboard shows persistent stats (today, all-time, DB size)
   - Automatic log pruning (configurable retention)
-  - WAL mode + prepared statements for performance
+  - Pure JavaScript/WASM SQLite with explicit saves after mutations
 - [x] OpenAI-compatible `/v1/embeddings` endpoint with batch support
 - [x] Batch embedding — `/v1/embeddings` accepts array of inputs natively
 - [x] Pinned Node.js 22.x (LTS) via NodeSource in Dockerfile

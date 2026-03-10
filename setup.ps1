@@ -113,20 +113,59 @@ function Repair-StatsSchema {
     if (-not $running) { return }
 
     $nodeScript = @'
-const Database = require('better-sqlite3');
-const dbPath = process.env.SQLITE_DB_PATH || '/opt/jimbomesh-still/data/holler.db';
-const db = new Database(dbPath);
-try {
-  const table = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='request_stats'").get();
-  if (!table) { process.exit(0); }
-  const cols = db.prepare("PRAGMA table_info(request_stats)").all().map(function (r) { return r.name; });
-  if (cols.indexOf('connection_type') === -1) {
-    db.exec('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
-    db.prepare("INSERT OR REPLACE INTO schema_version (version) VALUES (?)").run(4);
-    console.log('stats-schema:repaired');
+const fs = require('fs');
+const initSqlJs = require('sql.js');
+
+function getRow(db, sql, params) {
+  const stmt = db.prepare(sql);
+  try {
+    if (params && params.length) stmt.bind(params);
+    if (!stmt.step()) return null;
+    return stmt.getAsObject();
+  } finally {
+    stmt.free();
   }
-} catch (e) { console.error('stats-schema-error:', e.message); }
-db.close();
+}
+
+function getRows(db, sql, params) {
+  const stmt = db.prepare(sql);
+  try {
+    if (params && params.length) stmt.bind(params);
+    const rows = [];
+    while (stmt.step()) rows.push(stmt.getAsObject());
+    return rows;
+  } finally {
+    stmt.free();
+  }
+}
+
+(async function () {
+  const SQL = await initSqlJs({
+    locateFile: function (file) {
+      return require.resolve('sql.js/dist/' + file);
+    },
+  });
+  const dbPath = process.env.SQLITE_DB_PATH || '/opt/jimbomesh-still/data/holler.db';
+  const buffer = fs.existsSync(dbPath) ? fs.readFileSync(dbPath) : null;
+  const db = new SQL.Database(buffer || undefined);
+  try {
+    const table = getRow(db, "SELECT name FROM sqlite_master WHERE type='table' AND name='request_stats'");
+    if (!table) { process.exit(0); }
+    const cols = getRows(db, "PRAGMA table_info(request_stats)").map(function (r) { return r.name; });
+    if (cols.indexOf('connection_type') === -1) {
+      db.run('ALTER TABLE request_stats ADD COLUMN connection_type TEXT');
+      db.run("INSERT OR REPLACE INTO schema_version (version) VALUES (?)", [4]);
+      fs.writeFileSync(dbPath, Buffer.from(db.export()));
+      console.log('stats-schema:repaired');
+    }
+  } catch (e) {
+    console.error('stats-schema-error:', e.message);
+  } finally {
+    db.close();
+  }
+})().catch(function (e) {
+  console.error('stats-schema-error:', e.message);
+});
 '@
     try {
         $result = docker exec $service node -e $nodeScript 2>&1

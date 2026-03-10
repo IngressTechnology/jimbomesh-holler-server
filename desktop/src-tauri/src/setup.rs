@@ -10,8 +10,8 @@ const HOLLER_SERVER_INSTALL_URL: &str =
     "https://github.com/IngressTechnology/jimbomesh-holler-server";
 const HOLLER_SERVER_NOT_FOUND_MESSAGE: &str =
     "JimboMesh Holler server not found. Please install from https://github.com/IngressTechnology/jimbomesh-holler-server or use Docker.";
-const NATIVE_MODULE_REBUILD_FAILED_MESSAGE: &str =
-    "Native module rebuild failed. Please install Node.js build tools: npm install -g node-gyp windows-build-tools";
+const SERVER_BUNDLE_VALIDATION_FAILED_MESSAGE: &str =
+    "Bundled Holler dependencies are missing or incomplete. Please reinstall the desktop bundle.";
 const SETUP_COMPLETE_MESSAGE: &str = "Setup complete. Opening your local Holler admin now.";
 const WIZARD_WAITING: &str = "Waiting";
 const STARTER_MODEL_STEP_LABEL: &str = "Starter Models";
@@ -434,19 +434,19 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     };
 
     ensure_env(app)?;
-    wizard.server = StepDisplay::working("Holler Server", "Rebuilding native modules...");
+    wizard.server = StepDisplay::working("Holler Server", "Verifying bundled dependencies...");
     wizard.detail =
-        "Recompiling better-sqlite3 for your installed Node.js version. This usually takes 10-30 seconds."
+        "Checking that the bundled server includes its local dependencies. No native rebuild is required."
             .into();
     render_setup_wizard(app, &wizard);
-    if let Err(err) = process::rebuild_better_sqlite3(&server_dir).await {
-        wizard.server = StepDisplay::failed("Holler Server", "Native rebuild failed");
+    if let Err(err) = process::verify_server_bundle(&server_dir).await {
+        wizard.server = StepDisplay::failed("Holler Server", "Bundle verification failed");
         wizard.detail = err.clone();
         render_setup_wizard(app, &wizard);
         show_setup_error(
             app,
-            "Native Module Rebuild Failed",
-            &format!("{NATIVE_MODULE_REBUILD_FAILED_MESSAGE}\n\n{err}"),
+            "Bundled Dependencies Missing",
+            &format!("{SERVER_BUNDLE_VALIDATION_FAILED_MESSAGE}\n\n{err}"),
         )
         .await;
         return Err(err);

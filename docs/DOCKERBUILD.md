@@ -36,10 +36,10 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 |------|------|-----|-------|
 | 1 | `ollama/ollama:0.17.4` base | Pre-built Ollama with all dependencies | cached |
 | 2 | System deps (curl, jq, bash, socat) | Health checks, JSON parsing | ~10s |
-| 3 | Node.js 22.x LTS via NodeSource (+ build-essential, python3) | API gateway runtime, native module compilation | ~15s |
+| 3 | Node.js 22.x LTS via NodeSource (+ build-essential, python3) | API gateway runtime and supporting dependencies | ~15s |
 | 4 | Copy `docker-entrypoint.sh` | Production lifecycle management | instant |
-| 5 | Copy `package.json` + `npm ci` | Install dependencies (better-sqlite3, pdfjs-dist, wrtc, etc.) | ~30s |
-| 6 | Copy API gateway, db.js, admin UI, and all modules | Auth proxy, SQLite, stats, mesh, tokens, documents, Swagger | instant |
+| 5 | Copy `package.json` + `npm ci` | Install dependencies (`sql.js`, `pdfjs-dist`, `wrtc`, etc.) | ~30s |
+| 6 | Copy API gateway, `db.js`, admin UI, and all modules | Auth proxy, SQLite, stats, mesh, tokens, documents, Swagger | instant |
 | 7 | Create `/opt/jimbomesh-still/data/` | SQLite database directory | instant |
 | 8 | Copy utility scripts | Health check, embed, Qdrant init | instant |
 | 9 | Set executable permissions | Script execution | instant |
@@ -61,9 +61,9 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 /usr/local/bin/docker-entrypoint.sh    ← Production entrypoint
 /opt/jimbomesh-still/api-gateway.js    ← API gateway (auth, rate limiting, admin)
 /opt/jimbomesh-still/admin-routes.js   ← Admin UI API handlers + static server
-/opt/jimbomesh-still/db.js             ← SQLite database layer (better-sqlite3)
+/opt/jimbomesh-still/db.js             ← SQLite database layer (sql.js)
 /opt/jimbomesh-still/package.json      ← Node.js dependencies
-/opt/jimbomesh-still/node_modules/     ← Installed dependencies (better-sqlite3, pdfjs-dist, etc.)
+/opt/jimbomesh-still/node_modules/     ← Installed dependencies (sql.js, pdfjs-dist, etc.)
 /opt/jimbomesh-still/stats-collector.js ← Request stats, model metadata/pricing
 /opt/jimbomesh-still/mesh-connector.js ← Mesh connector (SaaS registration, heartbeat, jobs)
 /opt/jimbomesh-still/mesh-webrtc.js    ← WebRTC peer handler (P2P inference)

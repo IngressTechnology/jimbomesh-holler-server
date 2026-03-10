@@ -463,56 +463,34 @@ fn monitor_holler_exit(app: tauri::AppHandle, port: u16, expected_child_id: Opti
     });
 }
 
-/// Rebuild native Node modules in the extracted Holler server bundle so they
-/// match the user's installed Node.js ABI.
-pub async fn rebuild_better_sqlite3(server_dir: &Path) -> Result<(), String> {
-    let npm = find_npm()?;
+/// Verify the extracted Holler server bundle includes its local Node.js
+/// dependencies. sql.js is pure JavaScript, so no ABI-specific rebuild step is
+/// required anymore.
+pub async fn verify_server_bundle(server_dir: &Path) -> Result<(), String> {
+    let package_json = server_dir.join("package.json");
+    if !package_json.exists() {
+        return Err(format!(
+            "Holler server bundle is incomplete: missing {}",
+            package_json.display()
+        ));
+    }
+
+    let sql_js_package = server_dir
+        .join("node_modules")
+        .join("sql.js")
+        .join("package.json");
+    if !sql_js_package.exists() {
+        return Err(format!(
+            "Holler server bundle is missing the local sql.js dependency at {}",
+            sql_js_package.display()
+        ));
+    }
+
     eprintln!(
-        "[holler-desktop] Rebuilding better-sqlite3 in {}",
+        "[holler-desktop] Verified bundled server dependencies in {}",
         server_dir.display()
     );
-
-    let output = Command::new(&npm)
-        .args(["rebuild", "better-sqlite3"])
-        .current_dir(server_dir)
-        .env("npm_config_update_notifier", "false")
-        .env("npm_config_fund", "false")
-        .env("npm_config_audit", "false")
-        .stdin(Stdio::null())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::piped())
-        .output()
-        .await
-        .map_err(|e| {
-            format!(
-                "Failed to run `{}` rebuild better-sqlite3: {e}",
-                npm.display()
-            )
-        })?;
-
-    if output.status.success() {
-        return Ok(());
-    }
-
-    let stdout = String::from_utf8_lossy(&output.stdout).trim().to_string();
-    let stderr = String::from_utf8_lossy(&output.stderr).trim().to_string();
-    let details = [stdout, stderr]
-        .into_iter()
-        .filter(|part| !part.is_empty())
-        .collect::<Vec<_>>()
-        .join("\n");
-
-    if details.is_empty() {
-        Err(format!(
-            "`npm rebuild better-sqlite3` exited with status {}",
-            output.status
-        ))
-    } else {
-        Err(format!(
-            "`npm rebuild better-sqlite3` failed with status {}:\n{}",
-            output.status, details
-        ))
-    }
+    Ok(())
 }
 
 /// Poll a URL until it returns 2xx, with a timeout in seconds.
