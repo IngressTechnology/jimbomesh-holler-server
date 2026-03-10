@@ -38,7 +38,7 @@ The Dockerfile extends the official Ollama image with health checks, utility scr
 | 2 | System deps (curl, jq, bash, socat) | Health checks, JSON parsing | ~10s |
 | 3 | Node.js 22.x LTS via NodeSource (+ build-essential, python3) | API gateway runtime and supporting dependencies | ~15s |
 | 4 | Copy `docker-entrypoint.sh` | Production lifecycle management | instant |
-| 5 | Copy `package.json` + `npm ci` | Install dependencies (`sql.js`, `pdfjs-dist`, `wrtc`, etc.) | ~30s |
+| 5 | Copy `package.json` + `npm ci` | Install dependencies (`sql.js`, `pdfjs-dist`, optional `wrtc`, etc.) | ~30s |
 | 6 | Copy API gateway, `db.js`, admin UI, and all modules | Auth proxy, SQLite, stats, mesh, tokens, documents, Swagger | instant |
 | 7 | Create `/opt/jimbomesh-still/data/` | SQLite database directory | instant |
 | 8 | Copy utility scripts | Health check, embed, Qdrant init | instant |

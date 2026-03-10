@@ -30,7 +30,7 @@ COPY docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
 # Install Node.js dependencies
 COPY package.json package-lock.json /opt/jimbomesh-still/
 RUN cd /opt/jimbomesh-still \
-    && npm ci --production
+    && npm ci --omit=dev
 
 # Copy API gateway, SQLite layer, and admin UI
 COPY api-gateway.js /opt/jimbomesh-still/api-gateway.js
