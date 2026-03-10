@@ -87,7 +87,7 @@ jobs:
           APPLE_ID: ${{ secrets.APPLE_ID }}
           APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
           APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
-          RUSTFLAGS: "-A warnings"
+          RUSTFLAGS: '-A warnings'
         with:
           projectPath: desktop
           tagName: v__VERSION__
