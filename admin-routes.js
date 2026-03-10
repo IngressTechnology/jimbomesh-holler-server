@@ -2855,10 +2855,7 @@ function createAdminRoutes(config) {
         .catch((err) => sendError(res, 500, 'gpu_error', err.message));
     } else if (req.method === 'GET' && (route === '/marketplace/ollama' || route === '/models/curated')) {
       handleMarketplaceOllama(ollamaUrl, res, sendError);
-    } else if (
-      req.method === 'GET' &&
-      (route === '/marketplace/huggingface' || route === '/models/huggingface')
-    ) {
+    } else if (req.method === 'GET' && (route === '/marketplace/huggingface' || route === '/models/huggingface')) {
       handleMarketplaceHuggingFace(req, res, sendError, db);
     } else if (
       req.method === 'GET' &&

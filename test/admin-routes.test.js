@@ -9,8 +9,14 @@ describe('admin-routes redirect hardening', function () {
       const catalog = __test.loadCuratedModelCatalog();
       assert.equal(Array.isArray(catalog.models), true);
       assert.equal(catalog.filename, 'models-curated.json');
-      assert.equal(catalog.models.some((entry) => entry.name === 'llama3.2'), true);
-      assert.equal(catalog.models.some((entry) => entry.name === 'nomic-embed-text'), true);
+      assert.equal(
+        catalog.models.some((entry) => entry.name === 'llama3.2'),
+        true
+      );
+      assert.equal(
+        catalog.models.some((entry) => entry.name === 'nomic-embed-text'),
+        true
+      );
     });
   });
 

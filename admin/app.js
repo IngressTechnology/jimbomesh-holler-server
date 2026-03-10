@@ -1502,7 +1502,9 @@
   function getOllamaUnavailableMessage(err) {
     const fallback = t('models.ollamaUnavailable');
     if (!err || !err.message) return fallback;
-    return /AbortError|timed out|Failed to fetch|Couldn.t connect to Ollama|Ollama service unavailable/i.test(err.message)
+    return /AbortError|timed out|Failed to fetch|Couldn.t connect to Ollama|Ollama service unavailable/i.test(
+      err.message
+    )
       ? fallback
       : err.message;
   }
@@ -2317,10 +2319,7 @@
               ? err.message
               : t('marketplace.hfError');
         if (gridEl)
-          gridEl.innerHTML =
-            '<div class="mp-empty" style="color:var(--danger)">' +
-            esc(hfErrorMessage) +
-            '</div>';
+          gridEl.innerHTML = '<div class="mp-empty" style="color:var(--danger)">' + esc(hfErrorMessage) + '</div>';
       });
   }
 
