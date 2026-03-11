@@ -388,6 +388,9 @@ async fn do_attach(
 
 /// Full standalone setup: Ollama, env gen, model pull, start server.
 async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> {
+    // Clean up leftover upgrade bundles from prior launches.
+    process::cleanup_old_bundles(app);
+
     let mut wizard = SetupWizard::new();
     wizard.detail = "Checking local dependencies and downloading anything missing.".into();
     render_setup_wizard(app, &wizard);

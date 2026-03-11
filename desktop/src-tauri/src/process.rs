@@ -187,7 +187,7 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
         let paths = runtime_paths(app)?;
         if existing == paths.server_dir {
             eprintln!(
-                "[holler-desktop] Removing stale server bundle at {}",
+                "[holler-desktop] Stale server bundle detected at {}",
                 existing.display()
             );
 
@@ -197,7 +197,7 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
                     .map_err(|e| format!("Cannot backup .env before upgrade: {e}"))?;
             }
 
-            fs::remove_dir_all(&existing)
+            prepare_server_dir_for_upgrade(&paths.root_dir, &existing)
                 .map_err(|e| format!("Cannot remove stale server bundle: {e}"))?;
         } else {
             eprintln!(
@@ -215,7 +215,7 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
     download_to_file(&bundle_url, &archive_path).await?;
 
     if paths.server_dir.exists() {
-        fs::remove_dir_all(&paths.server_dir)
+        prepare_server_dir_for_upgrade(&paths.root_dir, &paths.server_dir)
             .map_err(|e| format!("Cannot replace existing server bundle: {e}"))?;
     }
     fs::create_dir_all(&paths.server_dir).map_err(|e| format!("Cannot create server dir: {e}"))?;
@@ -236,6 +236,78 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
     }
 
     Ok(paths.server_dir)
+}
+
+fn prepare_server_dir_for_upgrade(root_dir: &Path, server_dir: &Path) -> Result<(), String> {
+    if !server_dir.exists() {
+        return Ok(());
+    }
+
+    // Delete is the fast path on Unix and when no handles are open.
+    for attempt in 1..=3 {
+        match fs::remove_dir_all(server_dir) {
+            Ok(_) => {
+                eprintln!("[holler-desktop] Stale bundle deleted (attempt {attempt})");
+                return Ok(());
+            }
+            Err(e) => {
+                eprintln!(
+                    "[holler-desktop] Delete attempt {attempt}/3 failed: {e} — retrying in 2s"
+                );
+                std::thread::sleep(Duration::from_secs(2));
+            }
+        }
+    }
+
+    // Windows lock workaround: move aside and continue with a fresh server dir.
+    let timestamp = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs();
+    let old_name = root_dir.join(format!("server.old.{timestamp}"));
+
+    fs::rename(server_dir, &old_name).map_err(|e| {
+        format!(
+            "Delete retries failed and rename fallback to {} also failed: {e}",
+            old_name.display()
+        )
+    })?;
+
+    eprintln!(
+        "[holler-desktop] Stale bundle renamed to {} (locked files workaround)",
+        old_name.display()
+    );
+    Ok(())
+}
+
+/// Remove any leftover server.old.* directories from previous upgrades.
+/// Called during startup when no file locks should exist.
+pub fn cleanup_old_bundles(app: &tauri::AppHandle) {
+    if let Ok(paths) = runtime_paths(app) {
+        if let Ok(entries) = fs::read_dir(&paths.root_dir) {
+            for entry in entries.flatten() {
+                let path = entry.path();
+                if !path.is_dir() {
+                    continue;
+                }
+
+                let name = entry.file_name();
+                let name_str = name.to_string_lossy();
+                if name_str.starts_with("server.old.") {
+                    match fs::remove_dir_all(&path) {
+                        Ok(_) => {
+                            eprintln!("[holler-desktop] Cleaned up old bundle: {}", path.display())
+                        }
+                        Err(e) => eprintln!(
+                            "[holler-desktop] Could not clean up {}: {} (will retry next launch)",
+                            path.display(),
+                            e
+                        ),
+                    }
+                }
+            }
+        }
+    }
 }
 
 pub fn runtime_paths(app: &tauri::AppHandle) -> Result<RuntimePaths, String> {
