@@ -1,7 +1,7 @@
 openapi: 3.0.3
 info:
   title: JimboMesh Holler Server API
-  version: 0.7.2
+  version: 0.7.3
   contact:
     email: security@jimbomesh.ai
   description: |
@@ -172,7 +172,7 @@ components:
             properties:
               id:
                 type: string
-                example: llama3.1:8b
+                example: llama3.2:1b
               object:
                 type: string
                 example: model
@@ -221,7 +221,7 @@ components:
         frequency_penalty:
           type: number
       example:
-        model: llama3.1:8b
+        model: llama3.2:1b
         stream: false
         messages:
           - role: system
@@ -712,6 +712,28 @@ components:
                     description: Unix timestamp (ms)
       additionalProperties: true
 
+    AdminMeshLatestVersionResponse:
+      type: object
+      properties:
+        connected:
+          type: boolean
+          description: True when currently connected to mesh coordinator
+        currentVersion:
+          type: string
+          description: Running Holler version (package.json)
+        latestVersion:
+          type: string
+          nullable: true
+          description: Latest published Holler version reported by mesh coordinator
+        updateAvailable:
+          type: boolean
+          description: Reserved for future version-compare behavior
+        source:
+          type: string
+          nullable: true
+          format: uri
+          description: Mesh endpoint URL used to resolve latestVersion
+
     AdminRestartRequest:
       type: object
       properties:
@@ -863,7 +885,7 @@ components:
       properties:
         name:
           type: string
-          example: llama3.1:8b
+          example: llama3.2:1b
 
     ShowRequest:
       type: object
@@ -967,7 +989,7 @@ components:
           type: integer
         model:
           type: string
-          description: Chat model for RAG Q&A (documents/ask). Defaults to llama3.1:8b
+          description: Chat model for RAG Q&A (documents/ask). Defaults to llama3.2:1b
 
     AdminDocumentQueryResponse:
       type: object
@@ -1692,7 +1714,7 @@ paths:
                     requests: 2104
                     errors: 5
                     avg_latency_ms: 128
-                  - model: llama3.1:8b
+                  - model: llama3.2:1b
                     requests: 743
                     errors: 14
                     avg_latency_ms: 947
@@ -1753,7 +1775,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminStatsModelResponse'
               example:
-                model: llama3.1:8b
+                model: llama3.2:1b
                 stats:
                   requests: 743
                   errors: 14
@@ -1809,7 +1831,7 @@ paths:
               example:
                 requests:
                   - timestamp: '2026-03-01T15:41:28.121Z'
-                    model: llama3.1:8b
+                    model: llama3.2:1b
                     path: /v1/chat/completions
                     status: 200
                     duration_ms: 1114
@@ -1892,7 +1914,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminStatsResetRequest'
             example:
-              model: llama3.1:8b
+              model: llama3.2:1b
       responses:
         '200':
           description: Reset result payload
@@ -1904,7 +1926,7 @@ paths:
               example:
                 success: true
                 reset_scope: model
-                model: llama3.1:8b
+                model: llama3.2:1b
                 rows_deleted: 96
         '401':
           $ref: '#/components/responses/Unauthorized'
@@ -1936,8 +1958,8 @@ paths:
                 $ref: '#/components/schemas/AdminStatsPricingResponse'
               example:
                 pricing:
-                  llama3.1:8b:
-                    model: llama3.1:8b
+                  llama3.2:1b:
+                    model: llama3.2:1b
                     input_per_1k: 0.0015
                     output_per_1k: 0.002
                   nomic-embed-text:
@@ -1970,7 +1992,7 @@ paths:
             schema:
               $ref: '#/components/schemas/AdminStatsPricingRequest'
             example:
-              model: llama3.1:8b
+              model: llama3.2:1b
               input_per_1k: 0.0015
               output_per_1k: 0.002
       responses:
@@ -1982,7 +2004,7 @@ paths:
                 $ref: '#/components/schemas/AdminStatsPricingResponse'
               example:
                 pricing:
-                  model: llama3.1:8b
+                  model: llama3.2:1b
                   input_per_1k: 0.0015
                   output_per_1k: 0.002
         '400':
@@ -3116,6 +3138,29 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthorized'
 
+  /admin/api/mesh/latest-version:
+    get:
+      tags: [Admin Mesh]
+      summary: Latest published mesh-compatible Holler version
+      description: Returns current and latest version metadata. Latest version is only resolved when mesh is connected.
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: Version metadata
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminMeshLatestVersionResponse'
+              example:
+                connected: true
+                currentVersion: 0.3.14
+                latestVersion: 0.3.14
+                updateAvailable: false
+                source: https://api.jimbomesh.ai/api/holler/version
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
   /admin/api/mesh/connect:
     post:
       tags: [Admin Mesh]
@@ -3310,7 +3355,7 @@ paths:
                 maxConnections: 10
                 jobs:
                   - jobId: 'job_a1b2c3d4'
-                    model: 'llama3.1:8b'
+                    model: 'llama3.2:1b'
                     state: 'streaming'
                     startedAt: 1709312400000
                   - jobId: 'job_e5f6g7h8'

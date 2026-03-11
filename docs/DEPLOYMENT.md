@@ -43,13 +43,14 @@ irm https://github.com/IngressTechnology/jimbomesh-holler-server/archive/refs/he
 2. **Checks prerequisites** — Docker, Docker Compose, Docker running
 3. **GPU / mode selection** — Linux/Windows: Detects NVIDIA GPU; defaults to GPU if found, CPU if not. macOS: Shows a **Performance Mode vs Secure Mode** prompt — [P] installs Ollama natively via Homebrew for full Apple Metal GPU, [S] uses Docker CPU-only. Use `--cpu` to skip the prompt and select Secure Mode automatically. See [MAC_WINDOWS_SETUP.md](MAC_WINDOWS_SETUP.md)
 4. **Qdrant prompt** — Asks if you want the Qdrant vector database (default: Yes). Skipped with `--qdrant` flag
-5. **Creates/preserves `.env`** — Copies from `.env.example` only when missing; otherwise preserves your existing configuration
-6. **Persists setup choices** — Writes selected mode, ports, model list, mesh auto-connect/name, and admin settings to `.env`
-7. **Auto-generates server branding** — Sets `HOLLER_SERVER_NAME=Holler Server <hostname>` when missing/empty
-8. **Builds the image** — `jimbomesh-still:latest` from the Dockerfile (~1-2 min)
-9. **Starts Ollama** — Launches the container, pulls models on first run
-10. **Waits for readiness** — Polls health endpoint until services are available
-11. **Prints auto-login URL + config summary** — Shows clickable Admin URL and a saved `.env` summary
+5. **Mesh prompt (optional)** — Offers mesh setup (`JIMBOMESH_API_KEY`, coordinator URL, Holler name, auto-connect)
+6. **Creates/preserves `.env`** — Copies from `.env.example` only when missing; otherwise preserves your existing configuration
+7. **Persists setup choices** — Writes selected mode, ports, model list, mesh auto-connect/name, and admin settings to `.env`
+8. **Auto-generates server branding** — Sets `HOLLER_SERVER_NAME=Holler Server <hostname>` when missing/empty
+9. **Builds the image** — `jimbomesh-still:latest` from the Dockerfile (~1-2 min)
+10. **Starts services** — Launches container(s), pulls models on first run
+11. **Waits for readiness** — Uses container health/running state checks until services are available
+12. **Prints auto-login URL + config summary** — Shows clickable Admin URL and a saved `.env` summary
 
 ### Installer Options
 
@@ -471,7 +472,7 @@ curl -X POST -H "api-key: YOUR_KEY" \
 
 ### Ollama is slow to start
 
-First startup downloads models (~274 MB for nomic-embed-text, ~4.9 GB for llama3.1:8b). This can take 2-5 minutes depending on network speed. Check logs:
+First startup downloads models (~274 MB for nomic-embed-text, ~1.3 GB for llama3.2:1b). This can take 2-5 minutes depending on network speed. Check logs:
 
 ```bash
 docker logs -f jimbomesh-still

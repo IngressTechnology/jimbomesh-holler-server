@@ -110,7 +110,7 @@ Ollama loads the entire model into memory. ARM devices typically have less RAM t
 | `nomic-embed-text` | ~600 MB | OK | OK | OK |
 | `mxbai-embed-large` | ~1.4 GB | Tight | OK | OK |
 | `snowflake-arctic-embed` | ~1.4 GB | Tight | OK | OK |
-| `llama3.1:8b` | ~5.5 GB | No | Tight | OK |
+| `llama3.2:1b` | ~1.3 GB | Yes | Yes | Yes |
 
 > "Tight" means it works but leaves little room for the OS, API gateway, and Qdrant. Consider running embedding-only on constrained devices.
 
@@ -139,7 +139,7 @@ OLLAMA_KEEP_ALIVE=5m
 **Apple Silicon (16+ GB)**
 ```bash
 # .env — default configuration works well
-HOLLER_MODELS=nomic-embed-text,llama3.1:8b
+HOLLER_MODELS=nomic-embed-text,llama3.2:1b
 OLLAMA_EMBED_MODEL=nomic-embed-text
 OLLAMA_MAX_LOADED_MODELS=2
 OLLAMA_NUM_PARALLEL=4
@@ -156,7 +156,7 @@ All embedding models used by JimboMesh are available for ARM64 through Ollama:
 | `snowflake-arctic-embed` | Yes | Full support |
 | `all-minilm` | Yes | Full support |
 | `bge-large` | Yes | Full support |
-| `llama3.1:8b` | Yes | Full support, needs 6+ GB RAM |
+| `llama3.2:1b` | Yes | Full support, low-memory friendly |
 
 Ollama serves GGUF model files which are architecture-independent. The Ollama runtime handles hardware-specific optimizations (NEON SIMD on ARM, AVX on x86).
 

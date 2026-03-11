@@ -84,7 +84,7 @@ services:
       - "9090:9090"
     environment:
       - JIMBOMESH_HOLLER_API_KEY=${JIMBOMESH_HOLLER_API_KEY}  # Required for authentication
-      - HOLLER_MODELS=nomic-embed-text,llama3.1:8b
+      - HOLLER_MODELS=nomic-embed-text,llama3.2:1b
       - OLLAMA_EMBED_MODEL=nomic-embed-text
       - GATEWAY_PORT=1920
       - OLLAMA_INTERNAL_PORT=11435

@@ -26,7 +26,7 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │  │  :9090 (health)      │   │                     │             │
 │  │  Models:             │   │  Indexes:           │             │
 │  │  - nomic-embed-text  │   │  - source (keyword) │             │
-│  │  - llama3.1:8b       │   │  - tags (keyword)   │             │
+│  │  - llama3.2:1b       │   │  - tags (keyword)   │             │
 │  │                      │   │  - client (keyword) │             │
 │  │  API:                │   │                     │             │
 │  │  /api/embed          │   │                     │             │

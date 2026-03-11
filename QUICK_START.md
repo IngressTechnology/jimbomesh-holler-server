@@ -65,7 +65,7 @@ irm https://github.com/IngressTechnology/jimbomesh-holler-server/archive/refs/he
 | CPU | `--cpu` | `-CpuOnly` | Force CPU mode (skip prompt) |
 | Qdrant | `--qdrant` | `-WithQdrant` | Include local Qdrant vector DB |
 | No start | `--no-start` | `-NoStart` | Set up everything but don't start services |
-| Pull only | `--pull-only` | `-PullOnly` | Pull Docker images without building |
+| Pull only | `--pull-only` | `-PullOnly` | Build the Holler image, skip startup |
 
 Without flags, the installer prompts interactively for both GPU and Qdrant:
 
@@ -224,7 +224,7 @@ The container follows this lifecycle:
 
 1. Ollama starts on an internal port (11435, localhost only)
 2. The entrypoint waits for Ollama to become ready
-3. Models are pulled (default: `nomic-embed-text` ~274 MB + `llama3.1:8b` ~4.9 GB)
+3. Models are pulled (default: `nomic-embed-text` ~274 MB + `llama3.2:1b` ~1.3 GB)
 4. The Node.js API gateway starts on port 1920 with authentication enabled
 
 First startup takes 2-10 minutes depending on your network speed while models
@@ -244,8 +244,8 @@ You will see output like:
 [jimbomesh-still] Ollama API ready on :11435 (waited 8s)
 [jimbomesh-still] pulling nomic-embed-text...
 [jimbomesh-still] nomic-embed-text — done
-[jimbomesh-still] pulling llama3.1:8b...
-[jimbomesh-still] llama3.1:8b — done
+[jimbomesh-still] pulling llama3.2:1b...
+[jimbomesh-still] llama3.2:1b — done
 [jimbomesh-still] all models ready — starting API gateway on :1920 (auth)
 [api-gateway] Listening on 0.0.0.0:1920 (HTTP)
 ```
@@ -470,11 +470,16 @@ one-click **Connect**, **Reconnect**, **Cancel**, and **Forget Key** actions.
 | `/api/tags` | List installed models |
 | `/api/embed` | Generate embeddings (Ollama format) |
 | `/v1/embeddings` | Generate embeddings (OpenAI-compatible, batch support) |
+| `/v1/models` | List models (OpenAI-compatible) |
+| `/v1/chat/completions` | Chat completions (OpenAI-compatible, streaming/non-streaming) |
+| `/v1/documents/search` | Public semantic search over indexed documents |
+| `/v1/documents/ask` | Public RAG Q&A over indexed documents |
 | `/api/generate` | LLM text completion |
 | `/api/chat` | LLM chat completion |
 | `/admin/api/documents/*` | Document upload, browse, search, RAG Q&A |
 | `/admin/api/collections` | Qdrant collection management |
 | `/admin/api/mesh/status` | Mesh connection status and state |
+| `/admin/api/mesh/latest-version` | Latest published mesh version (when connected) |
 | `/admin/api/mesh/peers` | Active WebRTC peer sessions |
 
 ### Common Commands

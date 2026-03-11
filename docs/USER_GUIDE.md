@@ -105,7 +105,7 @@ You can:
 Good first models:
 
 - `llama3.2:1b` for a tiny, friendly starter model
-- `llama3.1:8b` for a better all-round local chat model if your hardware can handle it
+- `llama3.2:1b` as the default all-round local chat model that fits most hardware
 - `nomic-embed-text` for embeddings and document search
 
 ### Playground

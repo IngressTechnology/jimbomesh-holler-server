@@ -144,7 +144,7 @@ Performance Mode runs Ollama natively on the host via Homebrew, giving it full a
 | `snowflake-arctic-embed` | 5-15ms | 10-30ms | 18-50ms | 12-40ms | ~5x faster |
 | `all-minilm` | 1-5ms | 3-8ms | 5-15ms | 3-10ms | ~4x faster |
 
-**LLM throughput** (`llama3.1:8b` via `/api/chat`):
+**LLM throughput** (`llama3.2:1b` via `/api/chat`):
 
 | Chip | Tokens/sec (approx) | Notes |
 |------|---------------------|-------|
@@ -196,7 +196,7 @@ Changing embedding models requires re-embedding all content and re-creating Qdra
 
 1. Update `.env`:
    ```bash
-   HOLLER_MODELS=mxbai-embed-large,llama3.1:8b
+   HOLLER_MODELS=mxbai-embed-large,llama3.2:1b
    OLLAMA_EMBED_MODEL=mxbai-embed-large
    EMBED_DIMENSIONS=1024
    ```

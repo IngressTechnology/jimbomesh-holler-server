@@ -163,7 +163,7 @@ curl -X POST $BASE_URL/api/chat \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "messages": [
       {"role": "system", "content": "You are a helpful assistant."},
       {"role": "user", "content": "What is the capital of France?"}
@@ -174,7 +174,7 @@ curl -X POST $BASE_URL/api/chat \
 
 ```json
 {
-  "model": "llama3.1:8b",
+  "model": "llama3.2:1b",
   "message": {"role": "assistant", "content": "The capital of France is Paris."},
   "done": true,
   "total_duration": 1234567890,
@@ -191,7 +191,7 @@ curl -X POST $BASE_URL/api/chat \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "messages": [
       {"role": "user", "content": "What is the capital of France?"}
     ]
@@ -209,7 +209,7 @@ curl -X POST $BASE_URL/api/chat \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "messages": [
       {"role": "system", "content": "You are a helpful assistant."},
       {"role": "user", "content": "What is the capital of France?"},
@@ -233,7 +233,7 @@ curl -X POST $BASE_URL/api/generate \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "prompt": "Explain quantum computing in one paragraph.",
     "stream": false
   }'
@@ -248,7 +248,7 @@ curl -X POST $BASE_URL/api/generate \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "prompt": "Write a haiku about programming.",
     "stream": false,
     "options": {
@@ -288,7 +288,7 @@ OpenAPI request schema: `ShowRequest`.
 curl -X POST $BASE_URL/admin/api/models/show \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "llama3.1:8b"}'
+  -d '{"name": "llama3.2:1b"}'
 ```
 
 ### Pull a model (admin)
@@ -301,7 +301,7 @@ Returns a Server-Sent Events stream with download progress:
 curl -X POST $BASE_URL/admin/api/models/pull \
   -H "X-API-Key: $API_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "llama3.1:8b"}'
+  -d '{"name": "llama3.2:1b"}'
 ```
 
 ### Delete a model (admin)
@@ -472,6 +472,25 @@ curl $BASE_URL/admin/api/mesh/status \
 
 `state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect.
 
+### Get latest published Mesh version
+
+```bash
+curl $BASE_URL/admin/api/mesh/latest-version \
+  -H "X-API-Key: $API_KEY"
+```
+
+```json
+{
+  "connected": true,
+  "currentVersion": "0.3.14",
+  "latestVersion": "0.3.14",
+  "updateAvailable": false,
+  "source": "https://api.jimbomesh.ai/api/holler/version"
+}
+```
+
+When not connected, returns `connected: false` with `latestVersion: null`.
+
 ### Connect to Mesh
 
 ```bash
@@ -565,7 +584,7 @@ curl $BASE_URL/admin/api/mesh/peers \
   "jobs": [
     {
       "jobId": "job_a1b2c3d4",
-      "model": "llama3.1:8b",
+      "model": "llama3.2:1b",
       "state": "streaming",
       "startedAt": 1709312400000
     }
@@ -711,12 +730,12 @@ curl -X POST $BASE_URL/admin/api/documents/ask \
   -d '{
     "query": "What is the refund policy?",
     "collection": "documents",
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "limit": 5
   }'
 ```
 
-Optional `model` defaults to `llama3.1:8b`. SSE events stream in phases (for example `phase: "sources"` and `phase: "answer"`) until `done: true`.
+Optional `model` defaults to `llama3.2:1b`. SSE events stream in phases (for example `phase: "sources"` and `phase: "answer"`) until `done: true`.
 
 ---
 
@@ -782,10 +801,14 @@ curl -X DELETE $BASE_URL/admin/api/collections/my-docs \
 | GET | `{{baseUrl}}/readyz` | — |
 | GET | `http://localhost:9090/healthz` | — |
 | POST | `{{baseUrl}}/v1/embeddings` | `{"model":"nomic-embed-text","input":"test text"}` |
-| POST | `{{baseUrl}}/api/chat` | `{"model":"llama3.1:8b","messages":[{"role":"user","content":"Hello"}],"stream":false}` |
-| POST | `{{baseUrl}}/api/generate` | `{"model":"llama3.1:8b","prompt":"Hello","stream":false}` |
+| GET | `{{baseUrl}}/v1/models` | — |
+| POST | `{{baseUrl}}/v1/chat/completions` | `{"model":"llama3.2:1b","messages":[{"role":"user","content":"Hello"}],"stream":false}` |
+| POST | `{{baseUrl}}/api/chat` | `{"model":"llama3.2:1b","messages":[{"role":"user","content":"Hello"}],"stream":false}` |
+| POST | `{{baseUrl}}/api/generate` | `{"model":"llama3.2:1b","prompt":"Hello","stream":false}` |
 | GET | `{{baseUrl}}/api/tags` | — |
 | GET | `{{baseUrl}}/api/ps` | — |
+| POST | `{{baseUrl}}/v1/documents/search` | `{"query":"search text","collection":"documents"}` |
+| POST | `{{baseUrl}}/v1/documents/ask` | `{"query":"question","collection":"documents","model":"llama3.2:1b"}` |
 | GET | `{{baseUrl}}/admin/api/status` | — |
 | GET | `{{baseUrl}}/admin/api/config` | — |
 | GET | `{{baseUrl}}/admin/api/activity` | — |
@@ -794,6 +817,7 @@ curl -X DELETE $BASE_URL/admin/api/collections/my-docs \
 | GET | `{{baseUrl}}/admin/api/qdrantkey` | — |
 | GET | `{{baseUrl}}/admin/api/gpu-info` | — |
 | GET | `{{baseUrl}}/admin/api/mesh/status` | — |
+| GET | `{{baseUrl}}/admin/api/mesh/latest-version` | — |
 | POST | `{{baseUrl}}/admin/api/mesh/connect` | `{"apiKey":"jmsh_...","meshUrl":"https://api.jimbomesh.ai","hollerName":"my-holler","autoConnect":true}` |
 | POST | `{{baseUrl}}/admin/api/mesh/cancel` | — |
 | POST | `{{baseUrl}}/admin/api/mesh/settings` | `{"meshUrl":"...","hollerName":"...","autoConnect":true}` |
@@ -804,11 +828,11 @@ curl -X DELETE $BASE_URL/admin/api/collections/my-docs \
 | POST | `{{baseUrl}}/admin/api/mesh/forget-key` | — |
 | GET | `{{baseUrl}}/admin/api/mesh/peers` | — |
 | POST | `{{baseUrl}}/admin/api/restart` | `{"target":"holler"}` |
-| POST | `{{baseUrl}}/admin/api/models/pull` | `{"name":"llama3.1:8b"}` |
-| POST | `{{baseUrl}}/admin/api/models/show` | `{"name":"llama3.1:8b"}` |
+| POST | `{{baseUrl}}/admin/api/models/pull` | `{"name":"llama3.2:1b"}` |
+| POST | `{{baseUrl}}/admin/api/models/show` | `{"name":"llama3.2:1b"}` |
 | GET | `{{baseUrl}}/admin/api/documents` | — |
 | POST | `{{baseUrl}}/admin/api/documents/query` | `{"query":"search text","collection":"documents"}` |
-| POST | `{{baseUrl}}/admin/api/documents/ask` | `{"query":"question","collection":"documents","model":"llama3.1:8b"}` |
+| POST | `{{baseUrl}}/admin/api/documents/ask` | `{"query":"question","collection":"documents","model":"llama3.2:1b"}` |
 | GET | `{{baseUrl}}/admin/api/collections` | — |
 
 ---
@@ -860,5 +884,5 @@ Invoke-RestMethod -Uri "http://localhost:1920/v1/embeddings" `
 # Chat (non-streaming)
 Invoke-RestMethod -Uri "http://localhost:1920/api/chat" `
   -Method Post -Headers $headers `
-  -Body '{"model":"llama3.1:8b","messages":[{"role":"user","content":"Hello"}],"stream":false}'
+  -Body '{"model":"llama3.2:1b","messages":[{"role":"user","content":"Hello"}],"stream":false}'
 ```

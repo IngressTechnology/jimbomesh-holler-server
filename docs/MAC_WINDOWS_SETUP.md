@@ -119,7 +119,7 @@ When `OLLAMA_EXTERNAL_URL` is set, `docker-entrypoint.sh` skips starting its int
 
 Approximate embedding latency with native Ollama (Metal GPU):
 
-| Chip | nomic-embed-text (short) | nomic-embed-text (medium) | llama3.1:8b (tokens/sec) |
+| Chip | nomic-embed-text (short) | nomic-embed-text (medium) | chat model (tokens/sec) |
 |------|--------------------------|---------------------------|--------------------------|
 | M1 | ~8–20ms | ~15–40ms | ~25–40 t/s |
 | M1 Pro/Max | ~5–15ms | ~10–30ms | ~40–65 t/s |
@@ -144,7 +144,7 @@ ollama list
 ollama pull mxbai-embed-large
 
 # Remove a model
-ollama rm llama3.1:8b
+ollama rm llama3.2:1b
 
 # Check what's loaded in memory
 ollama ps
@@ -229,11 +229,13 @@ ipconfig
 
 Note your IP address (e.g., `your-server-ip`).
 
-### 1.2 Start Ollama Server
+### 1.2 Start Holler on Windows
 
 ```bash
 cd D:/Source/jimbomesh-holler-server
-docker compose up -d
+
+# Recommended first run (PowerShell 7+)
+pwsh .\setup.ps1
 
 # With GPU support (add to .env: COMPOSE_FILE=docker-compose.yml;docker-compose.gpu.yml):
 docker compose up -d
@@ -254,6 +256,12 @@ docker exec jimbomesh-still ollama list
 # Test embedding API
 curl -H "X-API-Key: YOUR_KEY" \
   -X POST http://localhost:1920/api/embed \
+  -H "Content-Type: application/json" \
+  -d '{"model":"nomic-embed-text","input":"test"}'
+
+# Optional: OpenAI-compatible endpoint
+curl -H "X-API-Key: YOUR_KEY" \
+  -X POST http://localhost:1920/v1/embeddings \
   -H "Content-Type: application/json" \
   -d '{"model":"nomic-embed-text","input":"test"}'
 ```
@@ -369,7 +377,7 @@ If you want to migrate existing embeddings to Ollama:
 
 | Service | Port | Purpose |
 |---------|------|---------|
-| Ollama API | 1920 | Embedding generation, LLM inference |
+| Holler API Gateway | 1920 | Authenticated Ollama + OpenAI-compatible API |
 | Health Server | 9090 | Health checks (/healthz, /readyz, /status) |
 | Qdrant (optional) | 6333 | Vector database |
 | Qdrant gRPC (optional) | 6334 | Qdrant gRPC API |
@@ -511,7 +519,7 @@ bash scripts/embed.sh knowledge_base test-check '{"test":"true"}' < /dev/null 2>
 - Added Ollama backend support to JimboMesh embed.sh
 - Configured dual-backend system (Ollama + OpenRouter)
 - Fixed Docker entrypoint issues (line endings, path, shell compatibility)
-- Updated model from llama3.2:3b to llama3.1:8b
+- Updated default chat model guidance over time as releases evolved
 - Created Qdrant collections with 768d vectors
 - Generated Qdrant API key for Windows server
 - Documented complete setup process

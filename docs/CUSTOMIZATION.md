@@ -236,7 +236,7 @@ In `app.js`, strings are accessed via the `t()` function with dot-separated keys
 
 ```javascript
 t('nav.dashboard')                          // → "Dashboard"
-t('models.detailsTitle', { name: 'llama3.1:8b' })  // → "Details: llama3.1:8b"
+t('models.detailsTitle', { name: 'llama3.2:1b' })  // → "Details: llama3.2:1b"
 t('activity.pageOf', { current: 1, total: 5 })     // → "Page 1 of 5"
 ```
 

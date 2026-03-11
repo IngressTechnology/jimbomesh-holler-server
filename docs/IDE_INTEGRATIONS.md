@@ -37,7 +37,7 @@ When you configure `apiKey` in IDE settings, most tools automatically send it as
 |-------|------|----------|
 | `codestral:22b` | 12 GB | Code generation, refactoring (best quality) |
 | `deepseek-coder-v2:16b` | 8.9 GB | Code completion, fast and accurate |
-| `llama3.1:8b` | 4.9 GB | General coding + chat (good all-rounder) |
+| `llama3.2:1b` | 1.3 GB | Default lightweight coding + chat |
 | `qwen2.5-coder:7b` | 4.7 GB | Strong coding, good at following instructions |
 | `codellama:7b` | 3.8 GB | Code-specific, smaller/faster |
 | `starcoder2:7b` | 4 GB | Code completion, multi-language |
@@ -80,7 +80,7 @@ Cursor natively supports custom OpenAI-compatible API endpoints.
 2. Navigate to **Models** section
 3. Under **OpenAI API Key**, enter your Holler API key
 4. Under **Override OpenAI Base URL**, enter: `http://localhost:1920/v1`
-5. Click **Add Model** and enter your model name (e.g., `llama3.1:8b`)
+5. Click **Add Model** and enter your model name (e.g., `llama3.2:1b`)
 6. Select your model as the default for Chat and/or Composer
 
 ### Configuration
@@ -89,13 +89,13 @@ Cursor natively supports custom OpenAI-compatible API endpoints.
 |---------|-------|
 | OpenAI API Key | `your-holler-api-key` |
 | Override OpenAI Base URL | `http://localhost:1920/v1` |
-| Model | `llama3.1:8b` (or any installed model) |
+| Model | `llama3.2:1b` (or any installed model) |
 
 ### Using Multiple Models
 
 Add multiple models for different tasks:
 - `qwen2.5-coder:7b` → Code generation (Composer)
-- `llama3.1:8b` → Chat and explanations
+- `llama3.2:1b` → Chat and explanations
 - `codestral:22b` → Complex refactoring (if you have the RAM)
 
 ### Tab Completion
@@ -132,7 +132,7 @@ Edit `~/.continue/config.json` (Continue creates this on first launch):
     {
       "title": "Holler — Llama 3.1 8B",
       "provider": "openai",
-      "model": "llama3.1:8b",
+      "model": "llama3.2:1b",
       "apiBase": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     },
@@ -173,7 +173,7 @@ Edit `~/.continue/config.json` (Continue creates this on first launch):
 
 ```json
 // Chat: smart, general purpose
-"models": [{"model": "llama3.1:8b", ...}],
+"models": [{"model": "llama3.2:1b", ...}],
 
 // Autocomplete: fast, code-focused
 "tabAutocompleteModel": {"model": "starcoder2:3b", ...},
@@ -218,7 +218,7 @@ If Cody adds full OpenAI-compatible provider support (check latest docs), config
   "cody.provider.config": {
     "endpoint": "http://localhost:1920/v1",
     "apiKey": "your-holler-api-key",
-    "model": "llama3.1:8b"
+    "model": "llama3.2:1b"
   }
 }
 ```
@@ -250,7 +250,7 @@ Edit `~/.continue/config.json` (same file as VS Code — shared config!):
     {
       "title": "Holler — Llama 3.1 8B",
       "provider": "openai",
-      "model": "llama3.1:8b",
+      "model": "llama3.2:1b",
       "apiBase": "http://localhost:1920/v1",
       "apiKey": "your-holler-api-key"
     }
@@ -301,7 +301,7 @@ AI-powered code suggestions and chat inside Neovim.
     provider = "openai",
     openai = {
       endpoint = "http://localhost:1920/v1",
-      model = "llama3.1:8b",
+      model = "llama3.2:1b",
       api_key_name = "HOLLER_API_KEY",  -- reads from env var
       timeout = 60000,
     },
@@ -334,7 +334,7 @@ More flexible, supports multiple providers and adapters.
           },
           schema = {
             model = {
-              default = "llama3.1:8b",
+              default = "llama3.2:1b",
             },
           },
         })
@@ -356,7 +356,7 @@ If you prefer the native Ollama API (not OpenAI-compatible):
 {
   "nomnivore/ollama.nvim",
   opts = {
-    model = "llama3.1:8b",
+    model = "llama3.2:1b",
     url = "http://localhost:1920",  -- Holler proxies to Ollama
   },
 }
@@ -382,8 +382,8 @@ Edit Zed settings (`Cmd+,` → JSON):
       "api_key": "your-holler-api-key",
       "available_models": [
         {
-          "name": "llama3.1:8b",
-          "display_name": "Holler — Llama 3.1 8B",
+          "name": "llama3.2:1b",
+          "display_name": "Holler — Llama 3.2 1B",
           "max_tokens": 8192
         },
         {
@@ -397,7 +397,7 @@ Edit Zed settings (`Cmd+,` → JSON):
   "assistant": {
     "default_model": {
       "provider": "openai",
-      "model": "llama3.1:8b"
+      "model": "llama3.2:1b"
     }
   }
 }
@@ -426,7 +426,7 @@ export OPENAI_API_BASE=http://localhost:1920/v1
 export OPENAI_API_KEY=your-holler-api-key
 
 # Start aider with your Holler
-aider --model openai/llama3.1:8b
+aider --model openai/llama3.2:1b
 ```
 
 ### Persistent Config
@@ -436,7 +436,7 @@ Create `~/.aider.conf.yml`:
 ```yaml
 openai-api-base: http://localhost:1920/v1
 openai-api-key: your-holler-api-key
-model: openai/llama3.1:8b
+model: openai/llama3.2:1b
 ```
 
 Or project-level `.aider.conf.yml` in your repo root.
@@ -445,7 +445,7 @@ Or project-level `.aider.conf.yml` in your repo root.
 
 | Task | Model | Why |
 |------|-------|-----|
-| General coding | `llama3.1:8b` | Good balance of speed and quality |
+| General coding | `llama3.2:1b` | Best compatibility and fastest startup |
 | Complex refactoring | `codestral:22b` | Best code quality (needs 16GB+ RAM) |
 | Quick edits | `qwen2.5-coder:7b` | Fast, code-focused |
 
@@ -468,7 +468,7 @@ Windsurf's custom model support varies by version. Check the latest documentatio
 **Settings → AI Provider → Custom:**
 - **API Base URL**: `http://localhost:1920/v1`
 - **API Key**: `your-holler-api-key`
-- **Model**: `llama3.1:8b`
+- **Model**: `llama3.2:1b`
 
 ### Current Limitations
 
@@ -532,7 +532,7 @@ Then install the model you need:
 curl -X POST http://localhost:1920/admin/api/models/pull \
   -H "X-API-Key: YOUR_KEY" \
   -H "Content-Type: application/json" \
-  -d '{"name": "llama3.1:8b"}'
+  -d '{"name": "llama3.2:1b"}'
 ```
 
 Or use the Holler admin panel → **Models** tab → **Marketplace**.
@@ -540,7 +540,7 @@ Or use the Holler admin panel → **Models** tab → **Marketplace**.
 ### Slow responses
 
 - Use **smaller models** for autocomplete (`starcoder2:3b`, `codellama:7b`)
-- Use **larger models** for chat/refactoring (`llama3.1:8b`, `codestral:22b`)
+- Use **larger models** for chat/refactoring (`qwen3.5:9b`, `codestral:22b`)
 - On Mac: ensure you're in **Performance Mode** (Metal GPU) — see [Mac Setup](MAC_WINDOWS_SETUP.md)
 - Check GPU utilization in the Holler admin dashboard
 

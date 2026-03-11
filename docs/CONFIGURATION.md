@@ -76,7 +76,7 @@ Optional — enables HTTPS on the gateway port. If neither variable is set, HTTP
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `HOLLER_MODELS` | `nomic-embed-text,llama3.1:8b` | Comma-separated models to pull on startup |
+| `HOLLER_MODELS` | `nomic-embed-text,llama3.2:1b` | Comma-separated models to pull on startup |
 | `OLLAMA_EMBED_MODEL` | `nomic-embed-text` | Primary embedding model (used by healthcheck) |
 | `EMBED_DIMENSIONS` | `768` | Vector dimensions (must match model) |
 | `OLLAMA_HOST_PORT` | `1920` | Host-to-container published port for the gateway. Keep this aligned with `GATEWAY_PORT` unless you intentionally remap ports |
@@ -235,7 +235,7 @@ This file is listed in `.gitignore` — do not commit it to version control.
 | Model | Type | Dimensions | Size | Purpose |
 |-------|------|-----------|------|---------|
 | `nomic-embed-text` | Embedding | 768 | ~274 MB | Text embeddings for Qdrant |
-| `llama3.1:8b` | LLM | — | ~4.9 GB | General-purpose local inference (128K context) |
+| `llama3.2:1b` | LLM | — | ~1.3 GB | Default lightweight local inference model |
 
 ### Alternative Embedding Models
 

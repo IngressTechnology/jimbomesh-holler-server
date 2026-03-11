@@ -124,7 +124,7 @@ See [NAMING.md](NAMING.md) for details on why this structure supports multiple s
 │  │  :9090 (health)      │   │  - client_research  │   │
 │  │  Models:             │   │                     │   │
 │  │  - nomic-embed-text  │   │                     │   │
-│  │  - llama3.1:8b       │   │                     │   │
+│  │  - llama3.2:1b       │   │                     │   │
 │  │                      │   │                     │   │
 │  │  SQLite (holler.db)  │   │                     │   │
 │  │  /data/ volume       │   │                     │   │
@@ -172,7 +172,7 @@ All request logs, runtime settings, and aggregated statistics are stored in a SQ
 | Model | Type | Dimensions | Size | Purpose |
 |-------|------|-----------|------|---------|
 | `nomic-embed-text` | Embedding | 768 | ~274 MB | Text embeddings for Qdrant |
-| `llama3.1:8b` | LLM | — | ~4.9 GB | General-purpose inference (128K context) |
+| `llama3.2:1b` | LLM | — | ~1.3 GB | Default lightweight chat/generation model |
 
 See [docs/CONFIGURATION.md](docs/CONFIGURATION.md#alternative-embedding-models) for alternative models.
 
@@ -210,6 +210,24 @@ curl -H "X-API-Key: your_api_key_here" \
 ```
 
 Returns OpenAI-format response with `object`, `data[].embedding`, `model`, and `usage`. Supports batch (array of strings) natively.
+
+### Core Endpoints at a Glance
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /health` | Gateway liveness probe (port `1920`) |
+| `GET /readyz` | Gateway readiness probe (port `1920`) |
+| `GET /api/tags` | List installed Ollama models |
+| `GET /api/ps` | List loaded/running models |
+| `POST /api/embed` | Embeddings (native Ollama format) |
+| `POST /api/chat` | Chat completions (native Ollama format) |
+| `POST /api/generate` | Text generation (native Ollama format) |
+| `POST /v1/embeddings` | Embeddings (OpenAI-compatible) |
+| `GET /v1/models` | Model list (OpenAI-compatible) |
+| `POST /v1/chat/completions` | Chat completions (OpenAI-compatible) |
+| `POST /v1/documents/search` | Public semantic search across indexed docs |
+| `POST /v1/documents/ask` | Public RAG Q&A across indexed docs |
+| `GET /docs` | Swagger UI (interactive OpenAPI docs) |
 
 **Authentication Errors:**
 - `401 Unauthorized` — Missing API key
@@ -278,6 +296,7 @@ When `JIMBOMESH_API_KEY` is set, this Holler can connect to the JimboMesh coordi
 - **Fallback mode**: HTTP polling for jobs when WebRTC is unavailable or disabled
 - **Auto-connect control**: `JIMBOMESH_AUTO_CONNECT` (default `true`)
 - **WebRTC capacity**: `MAX_PEER_CONNECTIONS` (default `10`, set `0` to force HTTP-only)
+- **Version check endpoint**: `GET /admin/api/mesh/latest-version` (returns current/latest when connected)
 
 Key Mesh environment variables:
 

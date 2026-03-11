@@ -135,14 +135,14 @@ Error: pull model manifest: file does not exist
 
 **Examples**:
 - `llama3.2:8b-instruct` ❌ (doesn't exist - Llama 3.2 only comes in 1B and 3B)
-- `llama3.1:8b-instruct` ❌ (should be `llama3.1:8b`)
-- `llama3.1:8b` ✅ (correct)
+- `llama3.2:1b-instruct` ❌ (should be `llama3.2:1b`)
+- `llama3.2:1b` ✅ (correct)
 
 **Solution**:
 1. Check available models: https://ollama.com/library
 2. Update `.env`:
    ```bash
-   HOLLER_MODELS=nomic-embed-text,llama3.1:8b
+   HOLLER_MODELS=nomic-embed-text,llama3.2:1b
    ```
 3. Restart:
    ```bash
@@ -159,7 +159,7 @@ Error: pull model manifest: file does not exist
 docker logs jimbomesh-still -f
 
 # Manual pull inside container
-docker exec jimbomesh-still ollama pull llama3.1:8b
+docker exec jimbomesh-still ollama pull llama3.2:1b
 
 # Increase timeout if needed
 docker compose down
@@ -914,10 +914,9 @@ docker stats jimbomesh-still
    OLLAMA_NUM_PARALLEL=2  # Default: 4
    ```
 
-3. **Use smaller model**:
+3. **Use the smallest default chat model**:
    ```bash
-   # Instead of llama3.1:8b (4.9GB)
-   HOLLER_MODELS=nomic-embed-text,llama3.2:3b  # ~2.0GB, smaller but capable
+   HOLLER_MODELS=nomic-embed-text,llama3.2:1b  # ~1.3GB, best for low-memory systems
    ```
 
 ---

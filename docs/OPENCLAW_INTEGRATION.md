@@ -93,7 +93,7 @@ curl -X POST http://YOUR_HOLLER_IP:1920/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_KEY" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "messages": [{"role": "user", "content": "Say hello"}],
     "stream": false
   }'
@@ -103,7 +103,7 @@ curl -X POST http://YOUR_HOLLER_IP:1920/v1/chat/completions \
   -H "Content-Type: application/json" \
   -H "X-API-Key: YOUR_KEY" \
   -d '{
-    "model": "llama3.1:8b",
+    "model": "llama3.2:1b",
     "messages": [{"role": "user", "content": "Tell me a joke"}],
     "stream": true
   }'
@@ -252,7 +252,7 @@ Reference format is `<provider-key>/<model-id>`.
 Examples:
 
 - `jimbomesh/llama3.2:1b`
-- `jimbomesh/llama3.1:8b`
+- `jimbomesh/llama3.2:1b`
 - `jimbomesh/qwen3.5:35b-a3b`
 
 ```bash
@@ -262,12 +262,12 @@ Examples:
 
 ```yaml
 # Cron jobs (zero API-cost scheduled tasks)
-model: "jimbomesh/llama3.1:8b"
+model: "jimbomesh/llama3.2:1b"
 ```
 
 ```yaml
 # Sub-agents
-model: "jimbomesh/llama3.1:8b"
+model: "jimbomesh/llama3.2:1b"
 ```
 
 ## Recommended Models
@@ -275,7 +275,7 @@ model: "jimbomesh/llama3.1:8b"
 | Model | Size | VRAM | Best For | Speed |
 |-------|------|------|----------|-------|
 | `llama3.2:1b` | 1.3 GB | 2 GB | Quick tasks, testing | Very fast |
-| `llama3.1:8b` | 4.9 GB | 6 GB | General assistant, coding | Fast |
+| `llama3.2:1b` | 1.3 GB | 2 GB | Default assistant, broad compatibility | Very fast |
 | `qwen3.5:9b` | 5.4 GB | 8 GB | Coding, multilingual | Fast |
 | `qwen3.5:35b-a3b` | 20 GB | 8 GB | Best coding-per-VRAM (MoE, 3B active) | Fast |
 | `qwen3.5:27b` | 16 GB | 20 GB | Strong reasoning, dense | Medium |
@@ -319,8 +319,8 @@ Configure multiple Holler providers for model specialization or load split:
         "api": "openai-completions",
         "models": [
           {
-            "id": "llama3.1:8b",
-            "name": "CPU Holler 8B",
+            "id": "llama3.2:1b",
+            "name": "CPU Holler 1B",
             "contextWindow": 8192,
             "maxTokens": 4096
           }
@@ -331,7 +331,7 @@ Configure multiple Holler providers for model specialization or load split:
 }
 ```
 
-Use `holler-gpu/llama3.1:70b` for heavy reasoning and `holler-cpu/llama3.1:8b` for lower-latency tasks.
+Use `holler-gpu/llama3.1:70b` for heavy reasoning and `holler-cpu/llama3.2:1b` for lower-latency tasks.
 
 ## Via JimboMesh SaaS
 
@@ -406,13 +406,13 @@ Use SaaS as the OpenAI-compatible backend when you want hosted routing:
   curl -X POST http://HOLLER_IP:1920/admin/api/models/pull \
     -H "X-API-Key: YOUR_KEY" \
     -H "Content-Type: application/json" \
-    -d '{"name":"llama3.1:8b"}'
+    -d '{"name":"llama3.2:1b"}'
   ```
 
 ### Slow responses
 
 - Check model size versus available VRAM
-- Start with `llama3.2:1b`, `llama3.1:8b`, or `qwen3.5:9b`
+- Start with `llama3.2:1b`, then move up to `qwen3.5:9b` as needed
 - On macOS, use Performance Mode (Metal) when available; see [MAC_WINDOWS_SETUP.md](MAC_WINDOWS_SETUP.md)
 
 ### Streaming not working
@@ -423,7 +423,7 @@ Use SaaS as the OpenAI-compatible backend when you want hosted routing:
   curl -N -X POST http://HOLLER_IP:1920/v1/chat/completions \
     -H "Content-Type: application/json" \
     -H "Authorization: Bearer YOUR_KEY" \
-    -d '{"model":"llama3.1:8b","messages":[{"role":"user","content":"stream test"}],"stream":true}'
+    -d '{"model":"llama3.2:1b","messages":[{"role":"user","content":"stream test"}],"stream":true}'
   ```
 - Inspect service logs: `docker compose logs -f jimbomesh-still`
 
