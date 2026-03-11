@@ -2001,7 +2001,11 @@
             const fit = fitBadge(v.vram_gb);
             const isMoe = typeof v.params === 'string' && v.params.indexOf('MoE') !== -1;
             const moeBadge = isMoe
-              ? '<span class="badge badge-info" title="' + esc(t('marketplace.moeTooltip')) + '">⚡ ' + esc(t('marketplace.moeLabel')) + '</span> '
+              ? '<span class="badge badge-info" title="' +
+                esc(t('marketplace.moeTooltip')) +
+                '">⚡ ' +
+                esc(t('marketplace.moeLabel')) +
+                '</span> '
               : '';
             const recommendedBadge = v.recommended
               ? '<span class="badge badge-success">⭐ ' + esc(t('marketplace.recommended')) + '</span> '
@@ -2054,7 +2058,8 @@
           }
           if (bestVariant) badges += '<span class="badge-best">' + esc(t('marketplace.bestForHardware')) + '</span> ';
         }
-        if (m.tier === 'premium') badges += '<span class="badge badge-warning">👑 ' + esc(t('marketplace.premium')) + '</span> ';
+        if (m.tier === 'premium')
+          badges += '<span class="badge badge-warning">👑 ' + esc(t('marketplace.premium')) + '</span> ';
 
         return (
           '<div class="model-card model-card-expand" data-card="' +
