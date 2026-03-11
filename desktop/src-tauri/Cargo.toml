@@ -1,6 +1,6 @@
 [package]
 name = "jimbomesh-holler"
-version = "0.3.16"
+version = "0.3.17"
 description = "JimboMesh Holler — one-click local AI inference"
 authors = ["Ingress Technology"]
 license = "MIT"
