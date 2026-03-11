@@ -1999,6 +1999,13 @@
             const fullName = v.tag === 'latest' ? m.name : m.name + ':' + v.tag;
             const installed = m.installed_tags && m.installed_tags.indexOf(v.tag) !== -1;
             const fit = fitBadge(v.vram_gb);
+            const isMoe = typeof v.params === 'string' && v.params.indexOf('MoE') !== -1;
+            const moeBadge = isMoe
+              ? '<span class="badge badge-info" title="' + esc(t('marketplace.moeTooltip')) + '">⚡ ' + esc(t('marketplace.moeLabel')) + '</span> '
+              : '';
+            const recommendedBadge = v.recommended
+              ? '<span class="badge badge-success">⭐ ' + esc(t('marketplace.recommended')) + '</span> '
+              : '';
             if (installed) {
               return (
                 '<div class="variant-row">' +
@@ -2006,7 +2013,10 @@
                 esc(v.params) +
                 ' (' +
                 v.size_gb +
-                ' GB)</span>' +
+                ' GB) ' +
+                moeBadge +
+                recommendedBadge +
+                '</span>' +
                 '<button class="btn btn-sm btn-danger" data-remove-name="' +
                 esc(fullName) +
                 '">' +
@@ -2024,6 +2034,8 @@
               ' (' +
               v.size_gb +
               ' GB) ' +
+              moeBadge +
+              recommendedBadge +
               fit +
               '</button>' +
               '</div>'
@@ -2042,6 +2054,7 @@
           }
           if (bestVariant) badges += '<span class="badge-best">' + esc(t('marketplace.bestForHardware')) + '</span> ';
         }
+        if (m.tier === 'premium') badges += '<span class="badge badge-warning">👑 ' + esc(t('marketplace.premium')) + '</span> ';
 
         return (
           '<div class="model-card model-card-expand" data-card="' +
@@ -2057,6 +2070,7 @@
           '</div>' +
           '<div class="model-card-body">' +
           esc(m.description) +
+          (m.notes ? '<div class="text-muted text-sm mt-1">⚠️ ' + esc(m.notes) + '</div>' : '') +
           '</div>' +
           '<div class="model-card-meta">' +
           taskTags +

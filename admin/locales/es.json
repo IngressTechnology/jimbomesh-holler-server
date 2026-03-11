@@ -333,7 +333,11 @@
     "remove": "Eliminar",
     "removing": "Eliminando...",
     "removeSuccess": "Modelo {name} eliminado",
-    "removeError": "Error al eliminar modelo"
+    "removeError": "Error al eliminar modelo",
+    "recommended": "Recomendado",
+    "premium": "Premium",
+    "moeLabel": "MoE",
+    "moeTooltip": "Mezcla de Expertos — solo una fracción de los parámetros están activos por token"
   },
   "enhancedSecurity": {
     "title": "Seguridad Avanzada",

@@ -333,7 +333,11 @@
     "remove": "Remove",
     "removing": "Removing...",
     "removeSuccess": "Model {name} removed",
-    "removeError": "Failed to remove model"
+    "removeError": "Failed to remove model",
+    "recommended": "Recommended",
+    "premium": "Premium",
+    "moeLabel": "MoE",
+    "moeTooltip": "Mixture of Experts — only a fraction of parameters are active per token, requiring less VRAM than the total parameter count suggests"
   },
   "enhancedSecurity": {
     "title": "Enhanced Security",

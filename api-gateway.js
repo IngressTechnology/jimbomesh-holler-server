@@ -847,17 +847,51 @@ function createRequestHandler() {
             return;
           }
         } else {
-          // Unrecognized bearer token format
-          recordActivity({
-            timestamp: new Date().toISOString(),
-            method: req.method,
-            path: req.url,
-            status: 401,
-            ip: clientIp,
-            duration_ms: Date.now() - reqStart,
-          });
-          sendError(res, 401, 'auth_invalid', 'Unrecognized bearer token format');
-          return;
+          // Tier 1 fallback: Try matching raw API key via Bearer header
+          // This enables OpenAI-compatible clients (Cursor, Continue, LiteLLM,
+          // OpenClaw, Open WebUI) that only send Authorization: Bearer <key>
+          const isInferenceKey = safeCompare(bearerToken, currentApiKey);
+          const isAdminKey = ADMIN_API_KEY && safeCompare(bearerToken, ADMIN_API_KEY);
+
+          if (isInferenceKey || isAdminKey) {
+            authResult = { keyType: isAdminKey ? 'admin-key' : 'inference-key' };
+
+            // IP-based rate limiting (same as X-API-Key path)
+            const rateResult = checkRateLimit(clientIp);
+            if (!rateResult.allowed) {
+              console.log(`[api-gateway] ${clientIp} - 429 Rate limit exceeded`);
+              recordActivity({
+                timestamp: new Date().toISOString(),
+                method: req.method,
+                path: req.url,
+                status: 429,
+                ip: clientIp,
+                duration_ms: Date.now() - reqStart,
+                auth_type: authResult.keyType,
+              });
+              sendError(
+                res,
+                429,
+                'rate_limited',
+                `Rate limit exceeded. Try again in ${rateResult.retryAfterSec} seconds.`,
+                { retry_after: rateResult.retryAfterSec }
+              );
+              return;
+            }
+          } else {
+            // Genuinely unrecognized token
+            console.log(`[api-gateway] ${clientIp} - 401 Unrecognized bearer token`);
+            recordActivity({
+              timestamp: new Date().toISOString(),
+              method: req.method,
+              path: req.url,
+              status: 401,
+              ip: clientIp,
+              duration_ms: Date.now() - reqStart,
+            });
+            sendError(res, 401, 'auth_invalid', 'Invalid API key or unrecognized bearer token format');
+            return;
+          }
         }
       } else if (xApiKey) {
         // Tier 1: X-API-Key header (existing behavior)

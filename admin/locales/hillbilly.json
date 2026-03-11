@@ -333,7 +333,11 @@
     "remove": "Toss It",
     "removing": "Tossin'...",
     "removeSuccess": "Model {name} tossed out",
-    "removeError": "Well shoot, couldn't toss that"
+    "removeError": "Well shoot, couldn't toss that",
+    "recommended": "Best Pick",
+    "premium": "Top Shelf",
+    "moeLabel": "MoE",
+    "moeTooltip": "Fancy split-brain setup — uses less GPU juice than you'd reckon from the big number"
   },
   "enhancedSecurity": {
     "title": "Fancy Locks",

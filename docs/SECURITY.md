@@ -57,6 +57,15 @@ Without a valid credential, the gateway returns `401 Unauthorized` for missing/i
 
 Tier 1 is the default and simplest auth path. The gateway refuses to start if `JIMBOMESH_HOLLER_API_KEY` is missing.
 
+The Holler accepts your API key via two methods:
+
+1. **`X-API-Key` header** (traditional): `X-API-Key: your-key`
+2. **`Authorization: Bearer` header** (OpenAI-compatible): `Authorization: Bearer your-key`
+
+Both methods are equivalent and use the same rate limiting. The Bearer method
+is recommended for compatibility with OpenAI-compatible clients like Cursor,
+Continue, LiteLLM, and OpenClaw.
+
 **Key generation:**
 
 ```bash
