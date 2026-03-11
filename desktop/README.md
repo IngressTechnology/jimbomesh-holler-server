@@ -44,6 +44,11 @@ Outputs platform-specific installers:
 - **Windows**: `.exe` (NSIS) in `src-tauri/target/release/bundle/nsis/`
 - **Linux**: `.AppImage` in `src-tauri/target/release/bundle/appimage/`
 
+> **Windows upgrade note**
+> NSIS upgrades rely on the preinstall hook in `desktop/src-tauri/nsis/installer-hooks.nsh`.
+> Before files are replaced, it silently terminates `JimboMesh Holler.exe` and matching `node.exe` Holler server processes, waits briefly for file handles to release, and removes `%LOCALAPPDATA%\ai.jimbomesh.holler\server` so the new server bundle is extracted cleanly.
+> This cleanup is intentionally scoped to `server/` and does not remove `%LOCALAPPDATA%\ai.jimbomesh.holler\data`.
+
 ## Icons
 
 Placeholder teal icons are included. To generate proper icons from the JimboMesh logo:

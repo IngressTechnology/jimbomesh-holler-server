@@ -27,7 +27,9 @@
       "minimumSystemVersion": "10.15"
     },
     "windows": {
-      "nsis": null
+      "nsis": {
+        "installerHooks": "nsis/installer-hooks.nsh"
+      }
     }
   },
   "plugins": {

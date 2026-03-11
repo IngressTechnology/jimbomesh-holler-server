@@ -233,6 +233,31 @@ The desktop app supports:
 - Attach mode: connect to an already running Holler on port `1920`
 - Standalone mode: install or start local dependencies and manage its own Holler instance
 
+### Desktop Upgrade Regression Checklist
+
+Run this checklist before cutting desktop releases to validate server bundle upgrades.
+
+1. Install an older desktop build (for example `v0.3.13`) and launch once in standalone mode.
+2. Confirm Admin UI version matches the old build and note the current API key from Configuration.
+3. Install the new desktop build (for example `v0.3.16`) over the existing install.
+4. Relaunch the desktop app and watch first-run/setup status:
+   - Expected: Holler Server step shows `Upgrading to new version...` before startup.
+5. Confirm Admin UI version now matches the new build.
+6. Confirm `.env` was preserved:
+   - `JIMBOMESH_HOLLER_API_KEY` is unchanged (no forced key regeneration)
+   - Existing model and custom env settings are still present
+7. Confirm runtime data was preserved:
+   - Existing activity/history and settings remain
+   - Existing documents/collections (if used) still work
+8. Confirm no repeated upgrade loop:
+   - Quit and relaunch desktop app again
+   - Expected: setup does not re-download/re-extract the server bundle when versions already match
+
+Notes:
+- Desktop compares bundled server `package.json` version with desktop `CARGO_PKG_VERSION`.
+- Version sync is also enforced in CI (`Verify version sync` step in `.github/workflows/ci.yml`).
+- Do not delete or reset `data/` during this test; it contains persisted SQLite data.
+
 ## Mesh Development
 
 Mesh-connected mode is optional and activated by `JIMBOMESH_API_KEY`.
