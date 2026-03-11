@@ -20,6 +20,14 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci --ignore-scripts
+      - name: Verify version sync
+        run: |
+          SERVER_VERSION=$(jq -r .version package.json)
+          DESKTOP_VERSION=$(grep '^version' desktop/src-tauri/Cargo.toml | head -1 | sed 's/.*"\(.*\)"/\1/')
+          if [ "$SERVER_VERSION" != "$DESKTOP_VERSION" ]; then
+            echo "::error::Version mismatch: package.json=$SERVER_VERSION Cargo.toml=$DESKTOP_VERSION"
+            exit 1
+          fi
       - run: npm run lint
       - run: npm run format:check
 

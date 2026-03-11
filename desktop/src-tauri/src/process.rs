@@ -180,7 +180,31 @@ pub async fn install_ollama(app: &tauri::AppHandle) -> Result<String, String> {
 
 pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, String> {
     if let Some(existing) = find_holler_server_dir(app) {
-        return Ok(existing);
+        if is_server_bundle_current(&existing) {
+            return Ok(existing);
+        }
+
+        let paths = runtime_paths(app)?;
+        if existing == paths.server_dir {
+            eprintln!(
+                "[holler-desktop] Removing stale server bundle at {}",
+                existing.display()
+            );
+
+            let env_backup_path = paths.root_dir.join(".env.upgrade-backup");
+            if paths.env_file.exists() {
+                fs::copy(&paths.env_file, &env_backup_path)
+                    .map_err(|e| format!("Cannot backup .env before upgrade: {e}"))?;
+            }
+
+            fs::remove_dir_all(&existing)
+                .map_err(|e| format!("Cannot remove stale server bundle: {e}"))?;
+        } else {
+            eprintln!(
+                "[holler-desktop] Stale server bundle detected at {}, using managed runtime server path for upgrade",
+                existing.display()
+            );
+        }
     }
 
     let paths = runtime_paths(app)?;
@@ -199,6 +223,16 @@ pub async fn ensure_server_bundle(app: &tauri::AppHandle) -> Result<PathBuf, Str
 
     if !paths.server_dir.join("api-gateway.js").is_file() {
         return Err("Downloaded Holler server bundle did not contain `api-gateway.js`.".into());
+    }
+
+    let env_backup = paths.root_dir.join(".env.upgrade-backup");
+    if env_backup.exists() {
+        let target = paths.server_dir.join(".env");
+        if let Err(e) = fs::rename(&env_backup, &target) {
+            eprintln!("[holler-desktop] Warning: could not restore .env backup: {e}");
+        } else {
+            eprintln!("[holler-desktop] Restored .env from pre-upgrade backup");
+        }
     }
 
     Ok(paths.server_dir)
@@ -243,6 +277,49 @@ pub fn find_holler_server_dir(app: &tauri::AppHandle) -> Option<PathBuf> {
     }
 
     None
+}
+
+/// Check if the installed server bundle version matches the desktop app version.
+/// Returns `true` if versions match, `false` if stale or unreadable.
+pub fn is_server_bundle_current(server_dir: &Path) -> bool {
+    let pkg_path = server_dir.join("package.json");
+    let app_version = env!("CARGO_PKG_VERSION");
+
+    let contents = match fs::read_to_string(&pkg_path) {
+        Ok(c) => c,
+        Err(_) => {
+            eprintln!(
+                "[holler-desktop] Cannot read {}, treating as stale",
+                pkg_path.display()
+            );
+            return false;
+        }
+    };
+
+    let parsed: serde_json::Value = match serde_json::from_str(&contents) {
+        Ok(v) => v,
+        Err(_) => {
+            eprintln!(
+                "[holler-desktop] Cannot parse {}, treating as stale",
+                pkg_path.display()
+            );
+            return false;
+        }
+    };
+
+    let server_version = parsed["version"].as_str().unwrap_or("0.0.0");
+
+    if server_version == app_version {
+        eprintln!(
+            "[holler-desktop] Server bundle version {server_version} matches app version"
+        );
+        true
+    } else {
+        eprintln!(
+            "[holler-desktop] Server bundle STALE: bundle={server_version} app={app_version} -- will re-extract"
+        );
+        false
+    }
 }
 
 fn which_ollama() -> Option<std::path::PathBuf> {

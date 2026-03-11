@@ -85,7 +85,27 @@ desktop/
 
 ## Auto-Update
 
-The updater checks GitHub releases for new versions. Configure signing keys before enabling in production — see [Tauri Updater docs](https://v2.tauri.app/plugin/updater/).
+The app uses `tauri-plugin-updater` for in-app update checks, download, signature verification, and install.
+
+### Signing key setup (one-time)
+
+```bash
+# Generate signing keypair (one-time):
+npx @tauri-apps/cli signer generate -w ~/.tauri/jimbomesh.key
+
+# This creates:
+# ~/.tauri/jimbomesh.key          (PRIVATE — add to GitHub secrets)
+# ~/.tauri/jimbomesh.key.pub      (PUBLIC — put in tauri.conf.json pubkey field)
+```
+
+Add GitHub repository secrets:
+
+- `TAURI_SIGNING_PRIVATE_KEY` = contents of `~/.tauri/jimbomesh.key`
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` = password chosen during key generation
+
+Then update `desktop/src-tauri/tauri.conf.json`:
+
+- Set `plugins.updater.pubkey` to the contents of `~/.tauri/jimbomesh.key.pub`
 
 ## CI/CD
 

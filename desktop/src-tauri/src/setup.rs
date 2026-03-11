@@ -417,7 +417,22 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     wizard.server = StepDisplay::working("Holler Server", "Checking bundle...");
     render_setup_wizard(app, &wizard);
     let server_dir = if let Some(dir) = process::find_holler_server_dir(app) {
-        dir
+        if process::is_server_bundle_current(&dir) {
+            dir
+        } else {
+            wizard.server = StepDisplay::working("Holler Server", "Upgrading to new version...");
+            render_setup_wizard(app, &wizard);
+            match process::ensure_server_bundle(app).await {
+                Ok(dir) => dir,
+                Err(err) => {
+                    wizard.server = StepDisplay::failed("Holler Server", "Upgrade failed");
+                    wizard.detail = err.clone();
+                    render_setup_wizard(app, &wizard);
+                    prompt_missing_holler_server(app).await;
+                    return Err(err);
+                }
+            }
+        }
     } else {
         wizard.server = StepDisplay::working("Holler Server", "Downloading bundle...");
         render_setup_wizard(app, &wizard);
@@ -577,7 +592,8 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     );
     render_setup_wizard(app, &wizard);
     process::start_holler(app, port).await?;
-    wizard.server = StepDisplay::done("Holler Server", "Running");
+    let app_version = env!("CARGO_PKG_VERSION");
+    wizard.server = StepDisplay::done("Holler Server", format!("Running (v{app_version})"));
     wizard.detail = SETUP_COMPLETE_MESSAGE.into();
     render_setup_wizard(app, &wizard);
     {

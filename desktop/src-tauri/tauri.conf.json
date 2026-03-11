@@ -33,8 +33,8 @@
   "plugins": {
     "updater": {
       "active": true,
-      "dialog": true,
-      "endpoints": ["https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest/download/latest.json"]
+      "endpoints": ["https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest/download/latest.json"],
+      "pubkey": "REPLACE_WITH_PUBLIC_KEY"
     }
   }
 }

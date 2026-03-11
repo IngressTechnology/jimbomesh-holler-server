@@ -14,16 +14,9 @@ use tauri::{
 };
 use tauri_plugin_autostart::ManagerExt as AutostartExt;
 use tauri_plugin_notification::NotificationExt;
+use tauri_plugin_updater::UpdaterExt;
 
-const RELEASES_API_URL: &str =
-    "https://api.github.com/repos/IngressTechnology/jimbomesh-holler-server/releases/latest";
 const RUN_ON_STARTUP_KEY: &str = "run_on_startup";
-
-#[derive(Debug, serde::Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    html_url: String,
-}
 
 pub struct AppState {
     pub holler_process: Mutex<Option<tokio::process::Child>>,
@@ -46,6 +39,7 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(AppState {
             holler_process: Mutex::new(None),
             ollama_process: Mutex::new(None),
@@ -422,52 +416,6 @@ fn display_version(raw: &str) -> String {
     }
 }
 
-fn parse_version_parts(raw: &str) -> Vec<u32> {
-    raw.trim_start_matches('v')
-        .split(|c: char| !c.is_ascii_digit())
-        .filter(|part| !part.is_empty())
-        .filter_map(|part| part.parse::<u32>().ok())
-        .collect()
-}
-
-fn is_newer_version(latest: &str, current: &str) -> bool {
-    let latest_parts = parse_version_parts(latest);
-    let current_parts = parse_version_parts(current);
-    let width = latest_parts.len().max(current_parts.len());
-
-    for idx in 0..width {
-        let latest_part = *latest_parts.get(idx).unwrap_or(&0);
-        let current_part = *current_parts.get(idx).unwrap_or(&0);
-        if latest_part != current_part {
-            return latest_part > current_part;
-        }
-    }
-
-    false
-}
-
-async fn fetch_latest_release() -> Result<GitHubRelease, String> {
-    let client = reqwest::Client::builder()
-        .timeout(Duration::from_secs(10))
-        .build()
-        .map_err(|e| format!("Failed to build update client: {e}"))?;
-
-    client
-        .get(RELEASES_API_URL)
-        .header(
-            reqwest::header::USER_AGENT,
-            format!("JimboMesh-Holler-Desktop/{}", env!("CARGO_PKG_VERSION")),
-        )
-        .send()
-        .await
-        .map_err(|e| format!("Failed to query GitHub releases: {e}"))?
-        .error_for_status()
-        .map_err(|e| format!("GitHub release check failed: {e}"))?
-        .json::<GitHubRelease>()
-        .await
-        .map_err(|e| format!("Failed to parse GitHub release payload: {e}"))
-}
-
 fn show_notification(app: &tauri::AppHandle, title: &str, body: &str) {
     if let Err(err) = app
         .notification()
@@ -483,28 +431,80 @@ fn show_notification(app: &tauri::AppHandle, title: &str, body: &str) {
 async fn check_for_updates(
     app: &tauri::AppHandle,
     silent_when_current: bool,
-    open_release_page_when_available: bool,
+    _open_release_page_when_available: bool,
 ) -> Result<(), String> {
-    let current_version = app.package_info().version.to_string();
-    let latest = fetch_latest_release().await?;
-    let current_display = display_version(&current_version);
-    let latest_display = display_version(&latest.tag_name);
+    let updater = app
+        .updater()
+        .map_err(|e| format!("Updater not available: {e}"))?;
+    let update = updater
+        .check()
+        .await
+        .map_err(|e| format!("Update check failed: {e}"))?;
 
-    if is_newer_version(&latest.tag_name, &current_version) {
-        show_notification(
-            app,
-            "Update Available",
-            &format!("JimboMesh {latest_display} available! Click to download."),
-        );
-        if open_release_page_when_available {
-            let _ = open::that(&latest.html_url);
+    match update {
+        Some(update) => {
+            let current = app.package_info().version.to_string();
+            let latest = update.version.to_string();
+
+            show_notification(
+                app,
+                "Update Available",
+                &format!(
+                    "JimboMesh Holler {} is available (you have {}). Downloading...",
+                    display_version(&latest),
+                    display_version(&current)
+                ),
+            );
+
+            let mut downloaded: u64 = 0;
+            let result = update
+                .download_and_install(
+                    |chunk_length, content_length| {
+                        downloaded = downloaded.saturating_add(chunk_length as u64);
+                        if let Some(total) = content_length {
+                            if total > 0 {
+                                let pct = ((downloaded as f64 / total as f64) * 100.0) as u32;
+                                if pct % 25 == 0 {
+                                    eprintln!("[holler-desktop] Download progress: {pct}%");
+                                }
+                            }
+                        }
+                    },
+                    || {
+                        eprintln!("[holler-desktop] Download complete, installing...");
+                    },
+                )
+                .await;
+
+            match result {
+                Ok(_) => {
+                    show_notification(
+                        app,
+                        "Update Installed",
+                        &format!(
+                            "JimboMesh Holler {} installed. Restart to apply.",
+                            display_version(&latest)
+                        ),
+                    );
+                }
+                Err(e) => {
+                    let err_msg = format!("Update install failed: {e}");
+                    eprintln!("[holler-desktop] {err_msg}");
+                    show_notification(app, "Update Failed", &err_msg);
+                    return Err(err_msg);
+                }
+            }
         }
-    } else if !silent_when_current {
-        show_notification(
-            app,
-            "JimboMesh Holler",
-            &format!("You're on the latest version ({current_display})"),
-        );
+        None => {
+            if !silent_when_current {
+                let current = app.package_info().version.to_string();
+                show_notification(
+                    app,
+                    "JimboMesh Holler",
+                    &format!("You're on the latest version ({})", display_version(&current)),
+                );
+            }
+        }
     }
 
     Ok(())
