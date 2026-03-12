@@ -5,11 +5,12 @@
   "identifier": "ai.jimbomesh.holler",
   "build": {
     "devUrl": "http://localhost:1920/admin",
-    "frontendDist": "http://localhost:1920/admin"
+    "frontendDist": "html"
   },
   "app": {
     "windows": [
       {
+        "url": "loading.html",
         "title": "JimboMesh Holler",
         "width": 1200,
         "height": 800,
