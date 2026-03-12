@@ -395,21 +395,27 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     wizard.detail = "Checking local dependencies and downloading anything missing.".into();
     render_setup_wizard(app, &wizard);
 
-    wizard.node = StepDisplay::working("Node.js", "Checking...");
-    render_setup_wizard(app, &wizard);
-    let node_version = match process::node_version().await {
-        Ok(version) => version,
-        Err(_) => {
-            wizard.node = StepDisplay::working("Node.js", "Downloading and installing...");
-            render_setup_wizard(app, &wizard);
-            match process::install_node(app).await {
-                Ok(version) => version,
-                Err(err) => {
-                    wizard.node = StepDisplay::failed("Node.js", "Install failed");
-                    wizard.detail = err.clone();
-                    render_setup_wizard(app, &wizard);
-                    prompt_install_node(app, &err).await;
-                    return Err(err);
+    let node_version = loop {
+        wizard.node = StepDisplay::working("Node.js", "Checking...");
+        render_setup_wizard(app, &wizard);
+
+        match process::node_version().await {
+            Ok(version) => break version,
+            Err(_) => {
+                wizard.node = StepDisplay::working("Node.js", "Downloading and installing...");
+                render_setup_wizard(app, &wizard);
+                match process::install_node(app).await {
+                    Ok(version) => break version,
+                    Err(err) => {
+                        wizard.node = StepDisplay::failed("Node.js", "Install failed");
+                        wizard.detail = err.clone();
+                        render_setup_wizard(app, &wizard);
+                        prompt_install_node(app, &err).await;
+                        wizard.detail =
+                            "Waiting for Node.js. Install it, then close the dialog to retry."
+                                .into();
+                        render_setup_wizard(app, &wizard);
+                    }
                 }
             }
         }
@@ -473,22 +479,28 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     wizard.detail = "Checking local dependencies and downloading anything missing.".into();
     render_setup_wizard(app, &wizard);
 
-    wizard.ollama = StepDisplay::working("Ollama", "Checking...");
-    render_setup_wizard(app, &wizard);
-    let ollama_was_running = process::is_ollama_running().await;
-    let ollama_version = match process::ollama_version().await {
-        Ok(version) => version,
-        Err(_) => {
-            wizard.ollama = StepDisplay::working("Ollama", "Downloading and installing...");
-            render_setup_wizard(app, &wizard);
-            match process::install_ollama(app).await {
-                Ok(version) => version,
-                Err(err) => {
-                    wizard.ollama = StepDisplay::failed("Ollama", "Install failed");
-                    wizard.detail = err.clone();
-                    render_setup_wizard(app, &wizard);
-                    prompt_install_ollama(app, &err).await;
-                    return Err(err);
+    let (ollama_version, ollama_was_running) = loop {
+        wizard.ollama = StepDisplay::working("Ollama", "Checking...");
+        render_setup_wizard(app, &wizard);
+        let was_running = process::is_ollama_running().await;
+
+        match process::ollama_version().await {
+            Ok(version) => break (version, was_running),
+            Err(_) => {
+                wizard.ollama = StepDisplay::working("Ollama", "Downloading and installing...");
+                render_setup_wizard(app, &wizard);
+                match process::install_ollama(app).await {
+                    Ok(version) => break (version, was_running),
+                    Err(err) => {
+                        wizard.ollama = StepDisplay::failed("Ollama", "Install failed");
+                        wizard.detail = err.clone();
+                        render_setup_wizard(app, &wizard);
+                        prompt_install_ollama(app, &err).await;
+                        wizard.detail =
+                            "Waiting for Ollama. Install it, then close the dialog to retry."
+                                .into();
+                        render_setup_wizard(app, &wizard);
+                    }
                 }
             }
         }
@@ -503,14 +515,21 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
     };
     render_setup_wizard(app, &wizard);
 
-    wizard.ollama = StepDisplay::working("Ollama", "Starting service...");
-    render_setup_wizard(app, &wizard);
-    if let Err(err) = process::start_ollama(app).await {
-        wizard.ollama = StepDisplay::failed("Ollama", "Start failed");
-        wizard.detail = err.clone();
+    loop {
+        wizard.ollama = StepDisplay::working("Ollama", "Starting service...");
         render_setup_wizard(app, &wizard);
-        prompt_install_ollama(app, &err).await;
-        return Err(err);
+        if let Err(err) = process::start_ollama(app).await {
+            wizard.ollama = StepDisplay::failed("Ollama", "Start failed");
+            wizard.detail = err.clone();
+            render_setup_wizard(app, &wizard);
+            prompt_install_ollama(app, &err).await;
+            wizard.detail =
+                "Waiting for Ollama service. Start/install it, then close the dialog to retry."
+                    .into();
+            render_setup_wizard(app, &wizard);
+            continue;
+        }
+        break;
     }
     wizard.ollama = StepDisplay::done("Ollama", format!("Running ({ollama_version})"));
     render_setup_wizard(app, &wizard);
@@ -863,7 +882,7 @@ async fn prompt_install_ollama(app: &tauri::AppHandle, details: &str) {
         app,
         "Ollama Required",
         &format!(
-            "JimboMesh Holler standalone mode requires Ollama.\n\n{details}\n\nInstall Ollama and relaunch this app."
+            "JimboMesh Holler standalone mode requires Ollama.\n\n{details}\n\nInstall Ollama, then close this dialog to retry setup."
         ),
         "Open Ollama",
         "Close",
@@ -882,7 +901,7 @@ async fn prompt_install_node(app: &tauri::AppHandle, details: &str) {
         app,
         "Node.js Required",
         &format!(
-            "JimboMesh Holler standalone mode requires Node.js.\n\n{details}\n\nInstall Node.js and relaunch this app."
+            "JimboMesh Holler standalone mode requires Node.js.\n\n{details}\n\nInstall Node.js, then close this dialog to retry setup."
         ),
         "Open Node.js",
         "Close",
