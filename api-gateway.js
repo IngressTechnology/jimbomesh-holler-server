@@ -2049,7 +2049,7 @@ function createRequestHandler() {
         path: req.url,
         method: req.method,
         headers: proxyHeaders,
-        timeout: isPullProxyRequest ? 5000 : proxyTimeoutMs,
+        timeout: isPullProxyRequest ? 0 : proxyTimeoutMs,
       };
       const nativeInference =
         req.method === 'POST' &&

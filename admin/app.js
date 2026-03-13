@@ -1715,9 +1715,12 @@
             const lines = buffer.split('\n');
             buffer = lines.pop();
             lines.forEach(function (line) {
-              if (!line.startsWith('data: ')) return;
+              line = line.trim();
+              if (!line) return;
               try {
-                const data = JSON.parse(line.slice(6));
+                // Support both SSE (`data: {...}`) and raw NDJSON (`{...}`) streams.
+                const raw = line.startsWith('data: ') ? line.slice(6) : line;
+                const data = JSON.parse(raw);
                 if (data.error) lastError = data.error;
                 onData(data);
               } catch (_e) {
