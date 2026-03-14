@@ -344,8 +344,9 @@ class MeshConnector {
       const HollerPeerHandler = require('./mesh-webrtc').HollerPeerHandler;
       this.peerHandler = new HollerPeerHandler(this);
       this._addLog('info', 'WebRTC peer handler initialized');
-    } catch (_err) {
-      this._addLog('warning', 'WebRTC not available (wrtc not installed)');
+      this._addLog('info', 'WebRTC peer handler ready — will attempt P2P for incoming jobs');
+    } catch (err) {
+      this._addLog('warning', 'WebRTC not available (wrtc not installed): ' + err.message);
     }
   }
 

@@ -41,7 +41,7 @@ class HollerPeerHandler {
     if (this._initialized) return !!this._wrtc;
     this._initialized = true;
     try {
-      this._wrtc = require('wrtc');
+      this._wrtc = require('@roamhq/wrtc');
       log('wrtc module loaded');
       return true;
     } catch (err) {
@@ -153,10 +153,11 @@ class PeerSession {
 
     // Send ICE candidates to buyer via signaling
     this.pc.onicecandidate = function (event) {
+      if (!self.pc) return;
       if (event.candidate && self.signalingWs && self.signalingWs.readyState === WebSocket.OPEN) {
         self.signalingWs.send(
           JSON.stringify({
-            type: 'ice_candidate',
+            type: 'ice-candidate',
             candidate: event.candidate,
           })
         );
@@ -187,6 +188,7 @@ class PeerSession {
     };
 
     this.pc.onconnectionstatechange = function () {
+      if (!self.pc) return;
       const connState = self.pc.connectionState;
       if (connState === 'failed' || connState === 'disconnected') {
         log('Job ' + self.jobId + ': connection ' + connState);
@@ -260,6 +262,7 @@ class PeerSession {
       }
 
       case 'ice_candidate':
+      case 'ice-candidate':
         if (msg.candidate) {
           await this.pc.addIceCandidate(msg.candidate);
         }
