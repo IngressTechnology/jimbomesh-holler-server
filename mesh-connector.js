@@ -1188,8 +1188,19 @@ class MeshConnector {
           ? effectiveGpuInfo.vram_total_mb
           : effectiveGpuInfo.vramTotalMb
         : undefined,
-      gpuType: effectiveGpuInfo ? effectiveGpuInfo.type : undefined,
+      gpuType: effectiveGpuInfo ? effectiveGpuInfo.type || effectiveGpuInfo.name : undefined,
     };
+
+    // Mac Metal override: heartbeat runs inside Docker where memory can be container-limited.
+    // If this is not NVIDIA and setup provided HOST_TOTAL_MEMORY_MB, use host memory for VRAM total.
+    const hostMem = process.env.HOST_TOTAL_MEMORY_MB;
+    const isNvidia = typeof body.gpuType === 'string' && body.gpuType.toLowerCase() === 'nvidia';
+    if (hostMem && !isNvidia) {
+      const parsedHostMem = parseInt(hostMem, 10);
+      if (Number.isFinite(parsedHostMem)) {
+        body.gpuMemoryTotalMb = parsedHostMem;
+      }
+    }
 
     const result = await this._meshFetch('POST', '/api/hollers/heartbeat', body);
     if (result.status !== 200) {
