@@ -31,6 +31,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Improved management socket timer cleanup and restart safety for reusable mesh connector instances.
 - Reduced stale/disconnected management WS states via heartbeat safety checks and reconnect guards.
+- Prevented duplicate mesh execution for the same job by skipping SSE fallback inference when a WebRTC P2P session is already active (`webrtc_active` skip signal).
 
 ## [0.3.0] - 2026-03-09
 

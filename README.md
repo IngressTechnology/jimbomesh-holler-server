@@ -293,7 +293,7 @@ When `JIMBOMESH_API_KEY` is set, this Holler can connect to the JimboMesh coordi
 - **Key separation**: `JIMBOMESH_HOLLER_API_KEY` is local gateway/admin auth and is never replaced by mesh operations
 - **Connection states**: `disconnected`, `connecting`, `connected`, `error`, `reconnecting`
 - **WebRTC peer mode**: direct Holler <-> Buyer data channels when signaling info is available
-- **Fallback mode**: HTTP polling for jobs when WebRTC is unavailable or disabled
+- **Fallback mode**: HTTP polling for jobs when WebRTC is unavailable or disabled; if WebRTC is already active for the same job, fallback inference is skipped (`fallback_complete` with `skipped=true`, reason `webrtc_active`)
 - **Auto-connect control**: `JIMBOMESH_AUTO_CONNECT` (default `true`)
 - **WebRTC capacity**: `MAX_PEER_CONNECTIONS` (default `10`, set `0` to force HTTP-only)
 - **Version check endpoint**: `GET /admin/api/mesh/latest-version` (returns current/latest when connected)

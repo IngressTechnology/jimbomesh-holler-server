@@ -138,6 +138,9 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │        ├─ 2. if ICE fails → SSE fallback:
 │        │     SaaS sends fallback_inference via mgmt WS
 │        │     Holler streams Ollama → fallback_token/done
+│        │     if P2P already active for same job, fallback is
+│        │     skipped and fallback_complete is sent with
+│        │     { skipped: true, reason: "webrtc_active" }
 │        │
 │        └─ 3. HTTP polling execution (belt-and-suspenders)
 └───────────────────────────────────────┘
