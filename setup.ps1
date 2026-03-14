@@ -766,6 +766,15 @@ if (-not (Get-EnvVar $envFile "ADMIN_ENABLED")) { Set-EnvVar $envFile "ADMIN_ENA
 if (-not (Get-EnvVar $envFile "JIMBOMESH_HOLLER_NAME")) {
     Set-EnvVar $envFile "JIMBOMESH_HOLLER_NAME" $env:COMPUTERNAME
 }
+try {
+    $hostMemMb = [math]::Round((Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory / 1MB)
+    if ($hostMemMb -gt 0) {
+        Set-EnvVar $envFile "HOST_TOTAL_MEMORY_MB" $hostMemMb
+        Write-Success "Host memory detected: $hostMemMb MB"
+    }
+} catch {
+    Write-Warn "Could not detect host memory; HOST_TOTAL_MEMORY_MB not set"
+}
 
 # Persist compose selection even when -NoStart is used.
 if ($WithGpu) {

@@ -658,7 +658,14 @@ async function detectGpuInfo(ollamaUrl) {
     'gpu-info',
     async () => {
       const mode = detectConfiguredMode();
-      const system = { total_mb: Math.round(os.totalmem() / 1048576), free_mb: Math.round(os.freemem() / 1048576) };
+      const hostMemEnv = process.env.HOST_TOTAL_MEMORY_MB;
+      const parsedHostTotalMb = hostMemEnv ? parseInt(hostMemEnv, 10) : NaN;
+      const hostTotalMb = Number.isFinite(parsedHostTotalMb) && parsedHostTotalMb > 0 ? parsedHostTotalMb : null;
+      const containerTotalMb = Math.round(os.totalmem() / 1048576);
+      const containerFreeMb = Math.round(os.freemem() / 1048576);
+      const totalMb = hostTotalMb && hostTotalMb > containerTotalMb ? hostTotalMb : containerTotalMb;
+      const freeMb = Math.min(containerFreeMb, totalMb);
+      const system = { total_mb: totalMb, free_mb: freeMb };
       const result = { gpu: null, system, mode };
 
       const nvidiaGpu = await detectNvidiaGpu();
@@ -691,7 +698,7 @@ async function detectGpuInfo(ollamaUrl) {
           name: 'Apple Silicon (Metal)',
           type: 'metal',
           vram_total_mb: system.total_mb,
-          vram_used_mb: system.total_mb - system.free_mb,
+          vram_used_mb: Math.max(0, system.total_mb - system.free_mb),
           vram_free_mb: system.free_mb,
         };
         if (og && og.running_models > 0 && og.gpu_offload_pct > 0) {

@@ -17,6 +17,8 @@ services:
     environment:
       # Route gateway requests to host's native Ollama (Metal GPU)
       - OLLAMA_EXTERNAL_URL=http://host.docker.internal:11434
+      # Host total memory (MB) for accurate Metal/unified memory reporting
+      - HOST_TOTAL_MEMORY_MB=${HOST_TOTAL_MEMORY_MB:-}
       # Container gateway still listens on 1920 internally.
       - GATEWAY_PORT=1920
     extra_hosts:

@@ -478,6 +478,8 @@ services:
     environment:
       # Route gateway requests to host's native Ollama (Metal GPU)
       - OLLAMA_EXTERNAL_URL=http://host.docker.internal:11434
+      # Host total memory (MB) for accurate Metal/unified memory reporting
+      - HOST_TOTAL_MEMORY_MB=${HOST_TOTAL_MEMORY_MB:-}
       # Container gateway still listens on 1920 internally.
       - GATEWAY_PORT=1920
     extra_hosts:
@@ -1183,6 +1185,16 @@ fi
 
 if [ "$OLLAMA_MODE" = "native" ]; then
     set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "true"
+    if [ "$(uname -s)" = "Darwin" ]; then
+        HOST_MEM_BYTES=$(sysctl -n hw.memsize 2>/dev/null || echo "0")
+        if [ "$HOST_MEM_BYTES" -gt 0 ] 2>/dev/null; then
+            HOST_TOTAL_MEMORY_MB=$((HOST_MEM_BYTES / 1048576))
+            set_env_var "$SCRIPT_DIR/.env" "HOST_TOTAL_MEMORY_MB" "$HOST_TOTAL_MEMORY_MB"
+            log_success "Host memory detected: ${HOST_TOTAL_MEMORY_MB} MB"
+        else
+            log_warning "Could not detect host memory via sysctl; falling back to container memory"
+        fi
+    fi
 else
     set_env_var "$SCRIPT_DIR/.env" "HOLLER_PERFORMANCE_MODE" "false"
 fi
