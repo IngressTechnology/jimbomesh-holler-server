@@ -11,6 +11,12 @@ async function openChatPlayground(page) {
   await expect(page.locator('#chat-input').first()).toBeVisible({ timeout: 10000 });
 }
 
+async function skipIfChatInputDisabled(page) {
+  const input = page.locator('#chat-input').first();
+  const disabled = await input.isDisabled();
+  test.skip(disabled, 'Chat input disabled in this environment (likely no chat model loaded)');
+}
+
 test.describe('Playground Deep Interactions', () => {
   test.beforeAll(async () => {
     await requireServer();
@@ -35,6 +41,7 @@ test.describe('Playground Deep Interactions', () => {
 
   test('typing in prompt input enables send button', async ({ page }) => {
     await openChatPlayground(page);
+    await skipIfChatInputDisabled(page);
     const input = page.locator('#chat-input').first();
     const send = page.locator('#chat-send').first();
     const beforeCount = await page.locator('#chat-messages .chat-message').count();
@@ -50,6 +57,7 @@ test.describe('Playground Deep Interactions', () => {
 
   test('clearing prompt input returns send button to disabled state', async ({ page }) => {
     await openChatPlayground(page);
+    await skipIfChatInputDisabled(page);
     const input = page.locator('#chat-input').first();
     const send = page.locator('#chat-send').first();
     const beforeCount = await page.locator('#chat-messages .chat-message').count();
@@ -66,6 +74,7 @@ test.describe('Playground Deep Interactions', () => {
 
   test('quick prompt buttons populate chat input', async ({ page }) => {
     await openChatPlayground(page);
+    await skipIfChatInputDisabled(page);
     const preset = page.locator('.chat-preset-btn').first();
     test.skip((await preset.count()) === 0, 'No quick prompt buttons visible');
 
@@ -126,6 +135,7 @@ test.describe('Playground Deep Interactions', () => {
 
   test('playground input state across tab switch is documented and stable', async ({ page }) => {
     await openChatPlayground(page);
+    await skipIfChatInputDisabled(page);
     const input = page.locator('#chat-input').first();
     const seed = 'draft message stays or clears';
     await input.fill(seed);

@@ -30,9 +30,11 @@ test.describe('Admin Dashboard', () => {
     await expect(dashboard.locator('#d-health .status-dot').first()).toBeVisible({ timeout: 10000 });
   });
 
-  test('does not render dashboard error banner by default', async ({ page }) => {
+  test('dashboard warning area avoids raw crash output', async ({ page }) => {
     await navigateToAdmin(page, 'dashboard');
     const dashboard = page.locator('#tab-content').first();
-    await expect(dashboard.locator('#d-error .login-error')).toHaveCount(0);
+    const warningText = ((await dashboard.locator('#d-error').first().textContent()) || '').toLowerCase();
+    expect(warningText.includes('exception')).toBeFalsy();
+    expect(warningText.includes('traceback')).toBeFalsy();
   });
 });

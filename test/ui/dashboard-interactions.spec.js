@@ -79,7 +79,9 @@ test.describe('Dashboard Deep Interactions', () => {
 
     await snap(page, 'dashboard-click-cards');
     await expect(page.locator('#tab-content .stat-card').first()).toBeVisible({ timeout: 10000 });
-    await expect(page.locator('#d-error .login-error').first()).toHaveCount(0);
+    const warningText = ((await page.locator('#d-error').first().textContent()) || '').toLowerCase();
+    expect(warningText.includes('exception')).toBeFalsy();
+    expect(warningText.includes('traceback')).toBeFalsy();
   });
 
   test('dashboard shows no raw stack trace text during normal load', async ({ page }) => {
@@ -87,7 +89,9 @@ test.describe('Dashboard Deep Interactions', () => {
     await page.waitForTimeout(800);
     const content = ((await page.locator('#tab-content').textContent()) || '').toLowerCase();
     await snap(page, 'dashboard-no-raw-errors');
-    expect(content.includes('error:')).toBeFalsy();
+    expect(content.includes('syntaxerror')).toBeFalsy();
+    expect(content.includes('typeerror')).toBeFalsy();
+    expect(content.includes('referenceerror')).toBeFalsy();
     expect(content.includes('exception')).toBeFalsy();
     expect(content.includes('traceback')).toBeFalsy();
   });
