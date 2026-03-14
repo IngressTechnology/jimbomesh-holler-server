@@ -78,7 +78,7 @@ desktop/
 1. **Start Ollama** — detects if running, finds the binary, launches `ollama serve`
 2. **First-run setup** — generates `.env` with random API key, pulls `llama3.2:1b`
 3. **Start Holler** — launches `node api-gateway.js` with the generated config
-4. **System tray** — Show/Hide, status indicator, Quit
+4. **System tray** — Show/Hide, status indicator, open Mesh/Portal links, switch mode, check updates, Quit
 5. **Graceful shutdown** — kills child processes when the app exits
 6. **Minimize to tray** — closing the window hides it instead of quitting
 

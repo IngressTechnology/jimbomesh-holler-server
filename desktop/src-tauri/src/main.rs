@@ -172,6 +172,13 @@ fn make_tray_menu(
         true,
         None::<&str>,
     )?;
+    let mesh_connect = MenuItem::with_id(
+        app,
+        "mesh_connect",
+        "\u{1F310}  Connect to Mesh\u{2026}",
+        true,
+        None::<&str>,
+    )?;
     let switch = MenuItem::with_id(
         app,
         "switch_mode",
@@ -209,6 +216,7 @@ fn make_tray_menu(
         .item(&restart)
         .item(&sep3)
         .item(&portal)
+        .item(&mesh_connect)
         .item(&switch)
         .item(&check_update)
         .item(&sep4)
@@ -258,6 +266,14 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
         }
         "open_portal" => {
             let _ = open::that("https://app.jimbomesh.ai");
+        }
+        "mesh_connect" => {
+            let port = {
+                let state = app.state::<AppState>();
+                *state.port.lock().unwrap()
+            };
+            let url = format!("http://localhost:{}/#mesh", port);
+            let _ = open::that(&url);
         }
         "switch_mode" => {
             let handle = app.clone();

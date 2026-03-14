@@ -273,9 +273,9 @@ navigate to `http://localhost:1920/admin` and enter the key manually.
 |-----|-------------|
 | Dashboard | Server health, Ollama latency, model count, uptime (auto-refresh 10s) |
 | Models | List, pull (with streaming progress), delete, view details |
-| Mesh | Connect/disconnect/cancel Mesh sessions, set coordinator URL and Holler name, view live Mesh connection log and mode |
+| Mesh | Connect/disconnect/cancel Mesh sessions, set coordinator URL and Holler name, view live connection state with status indicator, earnings stats, and logs |
 | Playground | Test embeddings, chat (streaming), generate (streaming) |
-| Configuration | Editable runtime settings, API/Qdrant key management, enhanced security token controls, mesh auth status, and restart utilities |
+| Configuration | Editable runtime settings, API/Qdrant key management, enhanced security token controls, and restart utilities |
 | Activity | Last 200 requests with method, path, status, IP, duration (auto-refresh 5s + manual Refresh button) |
 | Documents | Upload files (.pdf, .md, .txt, .csv, .docx), browse/search documents, RAG Q&A with streaming answers |
 | Feedback | Bug reports and feature requests — creates GitHub issues (requires `GITHUB_TOKEN`) |

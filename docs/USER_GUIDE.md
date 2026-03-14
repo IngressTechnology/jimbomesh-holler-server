@@ -68,6 +68,7 @@ The admin UI uses a top tab bar, not a sidebar. Depending on your version and fe
 
 - `Dashboard`
 - `Models`
+- `Mesh`
 - `Playground`
 - `Statistics`
 - `Configuration`
@@ -141,7 +142,6 @@ You can manage:
 - Runtime settings and limits
 - API keys
 - Security options
-- Mesh settings
 - Restart actions
 
 If you only remember one secret, remember this one:
@@ -149,6 +149,17 @@ If you only remember one secret, remember this one:
 - `JIMBOMESH_HOLLER_API_KEY` protects your local Holler
 
 Do not post that key publicly.
+
+### Mesh
+
+This is where you connect your Holler to the JimboMesh marketplace.
+
+You can:
+
+- Connect, disconnect, cancel, reconnect, or forget a stored mesh key
+- Set coordinator URL, Holler name, and auto-connect behavior
+- Watch live connection state and status changes
+- Track mesh stats, job activity, and connection logs
 
 ### System
 

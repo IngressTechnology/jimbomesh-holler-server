@@ -290,6 +290,56 @@ select {
   margin-right: 8px;
 }
 
+/* Moonshine branded icon assets */
+.msh-icon {
+  display: inline-block;
+  width: 1em;
+  height: 1em;
+  vertical-align: -0.1em;
+  background-image: url('/admin/assets/moonshine/moonshine-icon-flat.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.msh-icon-sm {
+  width: 16px;
+  height: 16px;
+}
+
+.msh-icon-md {
+  width: 24px;
+  height: 24px;
+}
+
+.msh-icon-lg {
+  width: 32px;
+  height: 32px;
+}
+
+.msh-icon-card {
+  display: inline-block;
+  width: 32px;
+  height: 32px;
+  vertical-align: middle;
+  margin-right: 0.4rem;
+  background-image: url('/admin/assets/moonshine/moonshine-icon-jar-64.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
+.msh-icon-token {
+  display: inline-block;
+  width: 48px;
+  height: 48px;
+  vertical-align: middle;
+  background-image: url('/admin/assets/moonshine/moonshine-token-coin.png');
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center;
+}
+
 .header-actions {
   display: flex;
   align-items: center;
@@ -2195,6 +2245,95 @@ tr:hover td {
 
 .mesh-toggle input[type='checkbox'] {
   accent-color: var(--accent);
+}
+
+/* ── Mesh Tab ────────────────────────────────── */
+.mesh-tab-container {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.mesh-hero {
+  text-align: center;
+  padding: 2rem;
+  background: linear-gradient(135deg, var(--bg-card) 0%, var(--bg-elevated, var(--bg-card)) 100%);
+  border: 1px solid var(--border);
+}
+
+.mesh-hero h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.5rem;
+}
+
+.mesh-subtitle {
+  color: var(--text-muted);
+  font-size: 0.9375rem;
+  margin: 0;
+}
+
+.mesh-benefits {
+  padding: 1.5rem;
+}
+
+.mesh-benefits-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+  margin: 1rem 0;
+}
+
+.mesh-benefit {
+  padding: 0.75rem;
+  background: var(--bg);
+  border-radius: 6px;
+  font-size: 0.875rem;
+}
+
+.mesh-cta {
+  text-align: center;
+  margin-top: 1rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border);
+}
+
+.mesh-cta h4 {
+  margin: 0 0 0.5rem;
+  font-size: 1rem;
+}
+
+.mesh-cta p {
+  margin: 0 0 0.75rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.mesh-tab-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  margin-left: 4px;
+  vertical-align: middle;
+}
+
+.mesh-dot-connected {
+  background: var(--success, #22c55e);
+}
+
+.mesh-dot-connecting,
+.mesh-dot-reconnecting {
+  background: var(--warning, #eab308);
+}
+
+.mesh-dot-disconnected,
+.mesh-dot-error {
+  background: var(--error, #ef4444);
+}
+
+@media (max-width: 600px) {
+  .mesh-benefits-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 /* ── Token Create / Edit Form ──────────────────────────────── */

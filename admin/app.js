@@ -438,6 +438,7 @@
       attachShellEvents();
       attachLangEvents();
       renderTab();
+      refreshMeshTabDot();
     }
   }
 
@@ -517,6 +518,7 @@
 
   const TAB_KEYS = [
     'dashboard',
+    'mesh',
     'models',
     'playground',
     'statistics',
@@ -528,6 +530,7 @@
   ];
   const TAB_LANG_KEYS = {
     dashboard: 'nav.dashboard',
+    mesh: 'nav.mesh',
     models: 'nav.models',
     playground: 'nav.playground',
     statistics: 'nav.statistics',
@@ -541,6 +544,11 @@
   function shellHTML() {
     const tabBtns = TAB_KEYS.map(function (key) {
       const isActive = state.tab === key;
+      var meshDot = '';
+      if (key === 'mesh') {
+        // Updated by refreshMeshTabDot() after status is loaded.
+        meshDot = '<span class="mesh-tab-dot" id="mesh-tab-dot"></span>';
+      }
       return (
         '<button class="tab-btn' +
         (isActive ? ' active' : '') +
@@ -551,6 +559,7 @@
         '"' +
         ' aria-controls="tab-content">' +
         esc(t(TAB_LANG_KEYS[key])) +
+        meshDot +
         '</button>'
       );
     }).join('');
@@ -700,6 +709,9 @@
     switch (state.tab) {
       case 'dashboard':
         initDashboard(ct);
+        break;
+      case 'mesh':
+        renderMeshTab(ct);
         break;
       case 'models':
         initModels(ct);
@@ -3530,8 +3542,6 @@
         // SaaS Connection section (Tier 3 Auth0 JWT) — rendered below
         const saasHTML = '<div id="saas-connection-card"></div>';
 
-        // Mesh Connection section — rendered below
-        const meshHTML = '<div id="mesh-connection-card"></div>';
         const pricingHTML = '<div id="model-pricing-card"></div>';
 
         const utilitiesHTML =
@@ -3557,7 +3567,6 @@
           securityHTML +
           enhancedSecHTML +
           saasHTML +
-          meshHTML +
           pricingHTML +
           utilitiesHTML +
           '</div>' +
@@ -3615,8 +3624,6 @@
         // Load auth status (triggers loadBearerTokens when enabled)
         loadAuthStatus();
 
-        // Load mesh connection status
-        loadMeshStatus();
         loadModelPricingEditor();
 
         // Restart buttons
@@ -3715,9 +3722,9 @@
 
         card.innerHTML =
           '<div class="card config-group">' +
-          '<h3>Moonshine Pricing (per model)</h3>' +
+          '<h3><span class="msh-icon-card" aria-hidden="true"></span>Moonshine Pricing (per model)</h3>' +
           '<div class="table-wrapper"><table>' +
-          '<thead><tr><th>Model</th><th>Input (\uD83E\uDD43 / 1K)</th><th>Output (\uD83E\uDD43 / 1K)</th><th>Action</th></tr></thead>' +
+          '<thead><tr><th>Model</th><th>Input (<span class="msh-icon msh-icon-sm" aria-hidden="true"></span> / 1K)</th><th>Output (<span class="msh-icon msh-icon-sm" aria-hidden="true"></span> / 1K)</th><th>Action</th></tr></thead>' +
           '<tbody>' +
           (rows || '<tr><td colspan="4" class="text-muted">No models available</td></tr>') +
           '</tbody>' +
@@ -4303,13 +4310,93 @@
     return String(last.time || '') + '|' + String(last.type || '') + '|' + String(last.message || '');
   }
 
+  function refreshMeshTabDot() {
+    var dot = $('#mesh-tab-dot');
+    if (!dot) return;
+    apiJSON('/mesh/status')
+      .then(function (data) {
+        var stateVal = data.state || 'disconnected';
+        dot.className = 'mesh-tab-dot mesh-dot-' + stateVal;
+      })
+      .catch(function () {
+        dot.className = 'mesh-tab-dot mesh-dot-disconnected';
+      });
+  }
+
+  function renderMeshTab(ct) {
+    let html = '<div class="mesh-tab-container">';
+
+    html +=
+      '<div class="card mesh-hero">' +
+      '<h2>' +
+      esc(t('mesh.tabTitle')) +
+      '</h2>' +
+      '<p class="mesh-subtitle">' +
+      esc(t('mesh.tabSubtitle')) +
+      '</p>' +
+      '</div>';
+
+    html += '<div id="mesh-benefits-card"></div>';
+    html += '<h3>' + esc(t('mesh.statsTitle')) + '</h3>';
+    html += '<div id="mesh-connection-card"></div>';
+    html += '<div id="mesh-log-container"></div>';
+    html += '</div>';
+    ct.innerHTML = html;
+
+    loadMeshStatus();
+
+    apiJSON('/mesh/status')
+      .then(function (data) {
+        var stateVal = data.state || (data.connected ? 'connected' : 'disconnected');
+        var benefitsCard = $('#mesh-benefits-card');
+        if (benefitsCard && stateVal === 'disconnected') {
+          benefitsCard.innerHTML =
+            '<div class="card mesh-benefits">' +
+            '<h3>' +
+            esc(t('mesh.benefitsTitle')) +
+            '</h3>' +
+            '<div class="mesh-benefits-grid">' +
+            '<div class="mesh-benefit">' +
+            esc(t('mesh.benefit1')) +
+            '</div>' +
+            '<div class="mesh-benefit">' +
+            esc(t('mesh.benefit2')) +
+            '</div>' +
+            '<div class="mesh-benefit">' +
+            esc(t('mesh.benefit3')) +
+            '</div>' +
+            '<div class="mesh-benefit">' +
+            esc(t('mesh.benefit4')) +
+            '</div>' +
+            '</div>' +
+            '<div class="mesh-cta">' +
+            '<h4>' +
+            esc(t('mesh.getStarted')) +
+            '</h4>' +
+            '<p>' +
+            esc(t('mesh.getStartedText')) +
+            '</p>' +
+            '<a href="https://app.jimbomesh.ai" target="_blank" class="btn btn-primary">' +
+            esc(t('mesh.createAccount')) +
+            ' \u2192</a>' +
+            '</div>' +
+            '</div>';
+        } else if (benefitsCard) {
+          benefitsCard.innerHTML = '';
+        }
+      })
+      .catch(function () {});
+  }
+
   function loadMeshStatus() {
     apiJSON('/mesh/status')
       .then(function (data) {
         renderMeshCard(data);
+        refreshMeshTabDot();
       })
       .catch(function () {
         renderMeshCard({ state: 'disconnected', connected: false, connecting: false, mode: 'off-grid', log: [] });
+        refreshMeshTabDot();
       });
   }
 
@@ -4443,7 +4530,7 @@
       html +=
         '<div class="mesh-portal-banner">' +
         '<div>' +
-        '<div class="mesh-portal-banner-title">\uD83E\uDD43 ' +
+        '<div class="mesh-portal-banner-title"><span class="msh-icon msh-icon-sm" aria-hidden="true"></span> ' +
         esc(t('mesh.portalTitle')) +
         '</div>' +
         '<div class="mesh-portal-banner-text">' +
@@ -4576,6 +4663,7 @@
         esc(t('mesh.moonshineEarned')) +
         '</span>' +
         '<span class="value">' +
+        '<span class="msh-icon msh-icon-sm" aria-hidden="true"></span> ' +
         (data.moonshineEarned || 0) +
         '</span>' +
         '</div>';
@@ -4929,7 +5017,7 @@
 
     // ── Start polling ──
     meshRefreshInterval = setInterval(function () {
-      if (state.tab !== 'config') {
+      if (state.tab !== 'mesh') {
         clearInterval(meshRefreshInterval);
         meshRefreshInterval = null;
         return;
@@ -4982,8 +5070,11 @@
           if (attemptEl) {
             attemptEl.textContent = String(d.reconnectAttempt || 0);
           }
+          refreshMeshTabDot();
         })
-        .catch(function () {});
+        .catch(function () {
+          refreshMeshTabDot();
+        });
     }, 5000);
     activeIntervals.push(meshRefreshInterval);
   }
@@ -5800,8 +5891,10 @@
             '</div>' +
             '<div class="text-sm">Moonshine Pricing: Input ' +
             (inputPrice != null ? inputPrice : '\u2014') +
-            ' \uD83E\uDD43 /1K' +
-            (outputPrice != null ? ' | Output ' + outputPrice + ' \uD83E\uDD43 /1K' : '') +
+            ' <span class="msh-icon msh-icon-sm" aria-hidden="true"></span> /1K' +
+            (outputPrice != null
+              ? ' | Output ' + outputPrice + ' <span class="msh-icon msh-icon-sm" aria-hidden="true"></span> /1K'
+              : '') +
             '</div>' +
             '</div>'
           );
