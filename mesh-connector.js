@@ -1498,12 +1498,19 @@ class MeshConnector {
       /* nvidia-smi not available */
     }
 
-    // Check for Apple Metal
+    // Check for Apple Metal (Performance Mode — native Ollama, Docker container for Node.js)
     if (process.platform === 'darwin' || process.env.OLLAMA_EXTERNAL_URL) {
+      // HOST_TOTAL_MEMORY_MB is set by setup.sh for Mac Performance Mode installs.
+      // os.totalmem() returns Docker container memory, NOT the host's actual RAM.
+      const hostMemEnv = process.env.HOST_TOTAL_MEMORY_MB;
+      const hostTotalMb = hostMemEnv ? parseInt(hostMemEnv, 10) : null;
+      const containerTotalMb = Math.round(os.totalmem() / 1048576);
+      const totalMb = hostTotalMb && hostTotalMb > containerTotalMb ? hostTotalMb : containerTotalMb;
+
       return {
         name: 'Apple Silicon (Metal)',
         type: 'metal',
-        vram_total_mb: Math.round(os.totalmem() / 1048576),
+        vram_total_mb: totalMb,
         vram_used_mb: Math.round((os.totalmem() - os.freemem()) / 1048576),
         utilization_percent: null,
       };
