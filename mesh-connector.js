@@ -1130,13 +1130,13 @@ class MeshConnector {
     if (this._stopped || this._state !== 'connected') return;
     try {
       const hbStart = Date.now();
-      await this._sendHeartbeat();
+      const gpuInfo = await this._getGpuInfo();
+      await this._sendHeartbeat(gpuInfo);
       const latencyMs = Date.now() - hbStart;
       this.lastHeartbeat = Date.now();
       this.heartbeatFailures = 0;
 
       const models = await this._getOllamaModels();
-      const gpuInfo = await this._getGpuInfo();
       const gpuUtil = gpuInfo && gpuInfo.utilization_percent != null ? gpuInfo.utilization_percent + '%' : 'N/A';
       this._addLog(
         'info',
@@ -1169,17 +1169,26 @@ class MeshConnector {
     }
   }
 
-  async _sendHeartbeat() {
+  async _sendHeartbeat(gpuInfo) {
     const models = await this._getOllamaModels();
     const concurrency = this.getConcurrencyStats ? this.getConcurrencyStats() : {};
+    const effectiveGpuInfo = gpuInfo === undefined ? await this._getGpuInfo() : gpuInfo;
     const body = {
       hollerId: this.hollerId,
-      currentLoad: await this._getCurrentLoad(),
+      currentLoad: await this._getCurrentLoad(effectiveGpuInfo),
       models: mapModelsForSaas(models),
       maxConcurrentRequests: concurrency.maxConcurrentRequests != null ? concurrency.maxConcurrentRequests : 1,
       activeRequests: concurrency.activeRequests != null ? concurrency.activeRequests : 0,
       queueDepth: concurrency.queueDepth != null ? concurrency.queueDepth : 0,
       gpuCount: concurrency.gpuCount != null ? concurrency.gpuCount : 0,
+      // GPU specs — SaaS updates Holler record if changed
+      gpuName: effectiveGpuInfo ? effectiveGpuInfo.name : undefined,
+      gpuMemoryTotalMb: effectiveGpuInfo
+        ? effectiveGpuInfo.vram_total_mb != null
+          ? effectiveGpuInfo.vram_total_mb
+          : effectiveGpuInfo.vramTotalMb
+        : undefined,
+      gpuType: effectiveGpuInfo ? effectiveGpuInfo.type : undefined,
     };
 
     const result = await this._meshFetch('POST', '/api/hollers/heartbeat', body);
@@ -1479,6 +1488,7 @@ class MeshConnector {
       if (parts.length >= 4) {
         return {
           name: parts[0],
+          type: 'nvidia',
           vram_total_mb: parseInt(parts[1]) || 0,
           vram_used_mb: parseInt(parts[2]) || 0,
           utilization_percent: parseInt(parts[3]) || 0,
@@ -1492,6 +1502,7 @@ class MeshConnector {
     if (process.platform === 'darwin' || process.env.OLLAMA_EXTERNAL_URL) {
       return {
         name: 'Apple Silicon (Metal)',
+        type: 'metal',
         vram_total_mb: Math.round(os.totalmem() / 1048576),
         vram_used_mb: Math.round((os.totalmem() - os.freemem()) / 1048576),
         utilization_percent: null,
@@ -1527,11 +1538,14 @@ class MeshConnector {
     };
   }
 
-  async _getCurrentLoad() {
-    const [systemInfo, gpuInfo] = await Promise.all([this._getSystemInfo(), this._getGpuInfo()]);
+  async _getCurrentLoad(gpuInfo) {
+    const [systemInfo, resolvedGpuInfo] = await Promise.all([
+      this._getSystemInfo(),
+      gpuInfo === undefined ? this._getGpuInfo() : Promise.resolve(gpuInfo),
+    ]);
     const memoryLoad =
       systemInfo.memory_total_mb > 0 ? Math.round((systemInfo.memory_used_mb / systemInfo.memory_total_mb) * 100) : 0;
-    const gpuLoad = gpuInfo && gpuInfo.utilization_percent != null ? gpuInfo.utilization_percent : 0;
+    const gpuLoad = resolvedGpuInfo && resolvedGpuInfo.utilization_percent != null ? resolvedGpuInfo.utilization_percent : 0;
     return Math.max(systemInfo.cpu_percent || 0, memoryLoad || 0, gpuLoad || 0);
   }
 
