@@ -607,6 +607,23 @@ class MeshConnector {
    */
   async _handleFallbackInference(msg) {
     const jobId = msg.job_id || msg.jobId;
+
+    // Skip fallback if WebRTC P2P is already handling this job
+    if (this.peerHandler && this.peerHandler.activeConnections.has(jobId)) {
+      this._addLog('info', 'Skipping fallback — WebRTC P2P active for job ' + (jobId || '').slice(0, 8));
+      try {
+        this._sendMgmtMessage({
+          type: 'fallback_complete',
+          job_id: jobId,
+          skipped: true,
+          reason: 'webrtc_active',
+        });
+      } catch (_) {
+        /* best effort */
+      }
+      return;
+    }
+
     const requestStart = Date.now();
     let tracking = null;
     let statsFinalized = false;
