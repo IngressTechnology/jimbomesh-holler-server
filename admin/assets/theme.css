@@ -54,3 +54,9 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
+
+.footer-logo {
+  vertical-align: middle;
+  margin-top: -2px;
+}
+
