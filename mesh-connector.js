@@ -997,8 +997,8 @@ class MeshConnector {
     const model = job.model || 'unknown';
     const startTime = Date.now();
     try {
-      // Try WebRTC first.
-      if (job.signaling_url && job.ice_servers && this.peerHandler) {
+      // Try WebRTC first — only if the handler reports capability
+      if (job.signaling_url && job.ice_servers && this.peerHandler && this.peerHandler.canAttemptWebRTC()) {
         const result = await this.peerHandler.handleJobAssignment(job);
         if (result && result.success) {
           this.jobsProcessed++;
@@ -1007,7 +1007,8 @@ class MeshConnector {
         }
         this._addLog(
           'warning',
-          'WebRTC failed (' + ((result && result.reason) || 'unknown') + ') — falling back to HTTP processing'
+          'WebRTC failed (' + ((result && result.reason) || 'unknown') +
+            ', failures: ' + this.peerHandler.failureCount + ') — falling back to HTTP processing'
         );
       }
 
@@ -1219,6 +1220,9 @@ class MeshConnector {
           : effectiveGpuInfo.vramTotalMb
         : undefined,
       gpuType: effectiveGpuInfo ? effectiveGpuInfo.type || effectiveGpuInfo.name : undefined,
+      // WebRTC capability — lets SaaS skip signaling for Hollers that can't do P2P
+      webrtcCapable: this.peerHandler ? this.peerHandler.canAttemptWebRTC() : false,
+      webrtcFailures: this.peerHandler ? this.peerHandler.failureCount : 0,
     };
 
     // Mac Metal override: heartbeat runs inside Docker where memory can be container-limited.

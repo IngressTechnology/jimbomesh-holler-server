@@ -15,14 +15,40 @@ const { inferMeshRequestPath } = require('./mesh-utils');
 
 const MAX_PEER_CONNECTIONS = parseInt(process.env.MAX_PEER_CONNECTIONS || '10', 10);
 const SIGNALING_TIMEOUT_MS = 30000;
-const NEGOTIATION_TIMEOUT_MS = 30000;
+const NEGOTIATION_TIMEOUT_MS = parseInt(process.env.NEGOTIATION_TIMEOUT_MS || '10000', 10);
 const OLLAMA_TIMEOUT_MS = parseInt(process.env.OLLAMA_TIMEOUT_MS || '120000', 10);
+const MAX_CONSECUTIVE_FAILURES = parseInt(process.env.WEBRTC_MAX_FAILURES || '3', 10);
 
 // ── Logging ─────────────────────────────────────────────────────
 
 function log(msg) {
   console.log('[webrtc] ' + msg);
 }
+
+// ── Module-level diagnostics ────────────────────────────────────
+// Probe @roamhq/wrtc at require time so the Holler logs show whether
+// the native binary loaded before any job arrives.
+
+let _wrtcProbeResult = null;
+
+(function probeWrtc() {
+  try {
+    const wrtc = require('@roamhq/wrtc');
+    const hasPC = !!wrtc.RTCPeerConnection;
+    const hasSDP = !!wrtc.RTCSessionDescription;
+    const hasNS = !!wrtc.nonstandard;
+    _wrtcProbeResult = { ok: hasPC && hasSDP, hasPC, hasSDP, hasNS, error: null };
+    log('@roamhq/wrtc loaded: RTCPeerConnection=' + hasPC +
+      ', RTCSessionDescription=' + hasSDP +
+      ', nonstandard=' + hasNS);
+  } catch (err) {
+    _wrtcProbeResult = { ok: false, hasPC: false, hasSDP: false, hasNS: false, error: err.message };
+    console.error('[webrtc] @roamhq/wrtc FAILED TO LOAD: ' + err.message);
+    console.error('[webrtc] Platform: ' + process.platform +
+      ', Arch: ' + process.arch +
+      ', Node: ' + process.version);
+  }
+})();
 
 // ── HollerPeerHandler ───────────────────────────────────────────
 
@@ -32,6 +58,9 @@ class HollerPeerHandler {
     this.activeConnections = new Map(); // jobId -> PeerSession
     this._wrtc = null;
     this._initialized = false;
+    this.enabled = false;
+    this.failureCount = 0;
+    this._disabledReason = null;
   }
 
   /**
@@ -42,12 +71,33 @@ class HollerPeerHandler {
     this._initialized = true;
     try {
       this._wrtc = require('@roamhq/wrtc');
-      log('wrtc module loaded');
-      return true;
+      if (this._wrtc.RTCPeerConnection) {
+        this.enabled = true;
+        log('Module loaded successfully — WebRTC P2P enabled');
+      } else {
+        this._disabledReason = 'RTCPeerConnection missing from module';
+        log('Module loaded but RTCPeerConnection missing — WebRTC disabled');
+      }
+      return this.enabled;
     } catch (err) {
-      log('wrtc module not available: ' + err.message + ' — WebRTC disabled');
+      this._disabledReason = err.message;
+      log('Native module not available (' + err.message + ') — WebRTC disabled, SSE only');
       return false;
     }
+  }
+
+  /**
+   * Check if WebRTC should be attempted for the next job.
+   * Returns false if the module didn't load, or too many consecutive failures.
+   */
+  canAttemptWebRTC() {
+    if (!this._ensureWrtc()) return false;
+    if (!this.enabled) return false;
+    if (this.failureCount >= MAX_CONSECUTIVE_FAILURES) {
+      log('Disabled for session after ' + this.failureCount + ' consecutive failures');
+      return false;
+    }
+    return true;
   }
 
   /**
@@ -55,8 +105,9 @@ class HollerPeerHandler {
    * Creates a PeerSession, negotiates WebRTC with the Buyer.
    */
   async handleJobAssignment(assignment) {
-    if (!this._ensureWrtc()) {
-      return { success: false, reason: 'wrtc_unavailable' };
+    if (!this.canAttemptWebRTC()) {
+      const reason = !this.enabled ? 'wrtc_unavailable' : 'disabled_consecutive_failures';
+      return { success: false, reason: reason };
     }
 
     if (this.activeConnections.size >= MAX_PEER_CONNECTIONS) {
@@ -74,11 +125,17 @@ class HollerPeerHandler {
       await session.connectSignaling(signaling_url);
       await session.negotiate();
       log('Job ' + job_id + ': peer-to-peer connected');
+      this.failureCount = 0;
       return { success: true, jobId: job_id };
     } catch (err) {
       log('Job ' + job_id + ': negotiation failed — ' + err.message);
       this.activeConnections.delete(job_id);
       session.cleanup();
+      this.failureCount++;
+      if (this.failureCount >= MAX_CONSECUTIVE_FAILURES) {
+        console.warn('[webrtc] ' + this.failureCount +
+          ' consecutive failures — disabling WebRTC for this session. SSE fallback only.');
+      }
       return { success: false, reason: 'negotiation_failed', error: err.message };
     }
   }
@@ -158,21 +215,46 @@ class PeerSession {
       };
     });
 
-    this.pc = new RTCPeerConnection({ iceServers: normalizedIce });
+    const iceConfig = { iceServers: normalizedIce };
+    log('Job ' + jobId + ': ICE servers config: ' + JSON.stringify(normalizedIce));
+    this.pc = new RTCPeerConnection(iceConfig);
 
     const self = this;
 
-    // Send ICE candidates to buyer via signaling
+    // ── Diagnostic: track ICE candidate gathering ──
     this.pc.onicecandidate = function (event) {
       if (!self.pc) return;
-      if (event.candidate && self.signalingWs && self.signalingWs.readyState === WebSocket.OPEN) {
-        self.signalingWs.send(
-          JSON.stringify({
-            type: 'ice-candidate',
-            candidate: event.candidate,
-          })
-        );
+      if (event.candidate) {
+        const c = event.candidate;
+        log('Job ' + self.jobId + ': ICE candidate: ' +
+          (c.type || '?') + ' ' + (c.protocol || '?') + ' ' +
+          (c.address || '?') + ':' + (c.port || '?'));
+        if (self.signalingWs && self.signalingWs.readyState === WebSocket.OPEN) {
+          self.signalingWs.send(
+            JSON.stringify({
+              type: 'ice-candidate',
+              candidate: event.candidate,
+            })
+          );
+        }
+      } else {
+        log('Job ' + self.jobId + ': ICE gathering complete');
       }
+    };
+
+    this.pc.onicegatheringstatechange = function () {
+      if (!self.pc) return;
+      log('Job ' + self.jobId + ': ICE gathering state: ' + self.pc.iceGatheringState);
+    };
+
+    this.pc.oniceconnectionstatechange = function () {
+      if (!self.pc) return;
+      log('Job ' + self.jobId + ': ICE connection state: ' + self.pc.iceConnectionState);
+    };
+
+    this.pc.onsignalingstatechange = function () {
+      if (!self.pc) return;
+      log('Job ' + self.jobId + ': signaling state: ' + self.pc.signalingState);
     };
 
     // Handle incoming data channel from buyer
@@ -201,8 +283,8 @@ class PeerSession {
     this.pc.onconnectionstatechange = function () {
       if (!self.pc) return;
       const connState = self.pc.connectionState;
+      log('Job ' + self.jobId + ': connection state: ' + connState);
       if (connState === 'failed' || connState === 'disconnected') {
-        log('Job ' + self.jobId + ': connection ' + connState);
         self.cleanup();
       }
     };
