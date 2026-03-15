@@ -349,15 +349,26 @@ async function handleDelete(ollamaUrl, name, res) {
       console.warn(`[models] Could not unload ${name}: ${unloadErr.message}`);
     }
 
-    const result = await ollamaFetch(ollamaUrl, 'DELETE', '/api/delete', { name });
-    const statusCode = result.status || 502;
+    const deleteResponse = await fetch(new URL('/api/delete', ollamaUrl), {
+      method: 'DELETE',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: name }),
+    });
+    const deleteText = await deleteResponse.text();
+    let deleteData = '';
+    try {
+      deleteData = deleteText ? JSON.parse(deleteText) : '';
+    } catch {
+      deleteData = deleteText;
+    }
+    const statusCode = deleteResponse.status || 502;
 
     if (statusCode >= 200 && statusCode < 300) {
       json(res, 200, { success: true, message: `Model ${name} deleted successfully` });
       return;
     }
 
-    const errorMessage = getOllamaErrorMessage(result.data);
+    const errorMessage = getOllamaErrorMessage(deleteData);
     json(res, statusCode, {
       success: false,
       error: statusCode === 404 ? 'model_not_found' : 'delete_failed',
