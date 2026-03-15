@@ -340,6 +340,32 @@ select {
   background-position: center;
 }
 
+.mesh-moonshine-label-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.mesh-moonshine-value-icon {
+  width: 16px;
+  height: 16px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
+.mesh-moonshine-unit {
+  opacity: 0.6;
+  font-size: 0.85em;
+}
+
+.mesh-tab-icon {
+  width: 18px;
+  height: 18px;
+  vertical-align: middle;
+  margin-right: 4px;
+}
+
 .header-actions {
   display: flex;
   align-items: center;

@@ -9,6 +9,8 @@
         return k;
       };
   const ADMIN_BOOTSTRAP = window.__HOLLER_ADMIN_BOOTSTRAP__ || {};
+  const MOONSHINE_TOKEN_COIN_ASSET = 'assets/moonshine/moonshine-token-coin.png';
+  const MOONSHINE_JAR_FLAT_ASSET = '/admin/assets/moonshine/moonshine-icon-flat.png';
 
   // ── Utilities ─────────────────────────────────────────────────
 
@@ -545,8 +547,10 @@
     const tabBtns = TAB_KEYS.map(function (key) {
       const isActive = state.tab === key;
       var meshDot = '';
+      var tabIcon = '';
       if (key === 'mesh') {
         // Updated by refreshMeshTabDot() after status is loaded.
+        tabIcon = '<img src="' + MOONSHINE_JAR_FLAT_ASSET + '" alt="" class="mesh-tab-icon" aria-hidden="true">';
         meshDot = '<span class="mesh-tab-dot" id="mesh-tab-dot"></span>';
       }
       return (
@@ -558,6 +562,7 @@
         isActive +
         '"' +
         ' aria-controls="tab-content">' +
+        tabIcon +
         esc(t(TAB_LANG_KEYS[key])) +
         meshDot +
         '</button>'
@@ -4742,18 +4747,20 @@
         '<span class="key">' +
         esc(t('mesh.jobsProcessed')) +
         '</span>' +
-        '<span class="value">' +
+        '<span class="value" id="mesh-jobs-processed">' +
         (data.jobsProcessed || 0) +
         '</span>' +
         '</div>';
       html +=
         '<div class="config-item">' +
         '<span class="key">' +
+        '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="Moonshine" class="mesh-moonshine-label-icon">' +
         esc(t('mesh.moonshineEarned')) +
         '</span>' +
-        '<span class="value">' +
-        '<span class="msh-icon msh-icon-sm" aria-hidden="true"></span> ' +
-        (data.moonshineEarned || 0) +
+        '<span class="value" id="mesh-moonshine-earned">' +
+        '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="MSH" class="mesh-moonshine-value-icon">' +
+        (typeof data.moonshineEarned === 'number' ? data.moonshineEarned.toFixed(2) : (data.moonshineEarned || 0)) +
+        ' <span class="mesh-moonshine-unit">MSH</span>' +
         '</span>' +
         '</div>';
       html +=
@@ -5149,6 +5156,22 @@
                 ? t('mesh.secondsAgo', { seconds: sAgo })
                 : t('mesh.minutesAgo', { minutes: Math.round(sAgo / 60) });
           }
+
+          // Update jobs processed counter
+          var jobsEl = document.getElementById('mesh-jobs-processed');
+          if (jobsEl && d.jobsProcessed != null) {
+            jobsEl.textContent = d.jobsProcessed;
+          }
+
+          // Update moonshine earned counter
+          var mshEl = document.getElementById('mesh-moonshine-earned');
+          if (mshEl && d.moonshineEarned != null) {
+            mshEl.innerHTML =
+              '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="MSH" class="mesh-moonshine-value-icon">' +
+              (typeof d.moonshineEarned === 'number' ? d.moonshineEarned.toFixed(2) : d.moonshineEarned) +
+              ' <span class="mesh-moonshine-unit">MSH</span>';
+          }
+
           const retryEl = $('#mesh-next-retry');
           if (retryEl) {
             if (d.nextReconnectAt) {

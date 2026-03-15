@@ -6,7 +6,7 @@
   },
   "nav": {
     "dashboard": "The Porch",
-    "mesh": "🌐 Mesh",
+    "mesh": "JimboMesh",
     "models": "Stills",
     "playground": "The Holler",
     "configuration": "Moonshine Recipe",
@@ -523,8 +523,8 @@
     }
   },
   "mesh": {
-    "title": "Mesh Hookup",
-    "tabTitle": "Mesh Hookup",
+    "title": "JimboMesh Hookup",
+    "tabTitle": "JimboMesh Hookup",
     "tabSubtitle": "Hook your Holler to the JimboMesh marketplace and earn Moonshine by sharing your GPU compute.",
     "benefitsTitle": "Why Hook Up?",
     "benefit1": "🪙 Earn Moonshine fer every inference job your GPU runs",
