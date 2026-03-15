@@ -2104,11 +2104,15 @@ tr:hover td {
 
 /* ── Mesh Connection Log ──────────────────────────────────── */
 
+.mesh-log-container {
+  position: relative;
+}
+
 .mesh-log {
   background: #0c0c0c;
   border: 1px solid var(--border);
   border-radius: var(--radius);
-  padding: 0.5rem 0.75rem;
+  padding: 2rem 0.75rem 0.5rem;
   font-family: var(--font-mono);
   font-size: 0.75rem;
   line-height: 1.6;
@@ -2116,6 +2120,56 @@ tr:hover td {
   overflow-y: auto;
   scroll-behavior: smooth;
   margin: 0.75rem 0;
+}
+
+.mesh-log-copy-btn {
+  position: absolute;
+  top: 1.25rem;
+  right: 0.75rem;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 4px 6px;
+  cursor: pointer;
+  color: #94a3b8;
+  transition: all 0.2s;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mesh-log-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #e2e8f0;
+}
+
+.mesh-log-new-indicator {
+  position: absolute;
+  right: 0.75rem;
+  bottom: 1rem;
+  border: 1px solid rgba(148, 163, 184, 0.45);
+  background: rgba(15, 23, 42, 0.92);
+  color: #cbd5e1;
+  border-radius: 999px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  padding: 0.15rem 0.45rem;
+  cursor: pointer;
+  opacity: 0;
+  transform: translateY(4px);
+  transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease;
+  pointer-events: none;
+}
+
+.mesh-log-new-indicator.is-visible {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+
+.mesh-log-new-indicator:hover {
+  background: rgba(30, 41, 59, 0.95);
 }
 
 .mesh-log::-webkit-scrollbar {

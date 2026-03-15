@@ -4400,73 +4400,162 @@
       });
   }
 
-  function renderMeshLog(entries) {
-    if (!entries || entries.length === 0) {
-      return '<div class="mesh-log"><div class="mesh-log-empty">' + esc(t('mesh.logEmpty')) + '</div></div>';
-    }
+  const MAX_MESH_LOG_LINES = 500;
+  const MESH_LOG_AUTO_SCROLL_THRESHOLD_PX = 50;
+  const MESH_LOG_COPY_ICON_SVG =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>';
+  const MESH_LOG_COPIED_ICON_SVG =
+    '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#4ade80" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>';
+
+  function renderMeshLog() {
     return (
-      '<div class="mesh-log" id="mesh-log">' +
-      entries
-        .map(function (entry) {
-          const d = new Date(entry.time);
-          const time =
-            ('0' + d.getHours()).slice(-2) +
-            ':' +
-            ('0' + d.getMinutes()).slice(-2) +
-            ':' +
-            ('0' + d.getSeconds()).slice(-2);
-          return (
-            '<div class="mesh-log-entry">' +
-            '<span class="mesh-log-time">[' +
-            time +
-            ']</span>' +
-            '<span class="mesh-log-' +
-            (entry.type || 'info') +
-            '">' +
-            esc(entry.message) +
-            '</span>' +
-            '</div>'
-          );
-        })
-        .join('') +
+      '<div class="mesh-log-container">' +
+      '<button class="mesh-log-copy-btn" id="mesh-log-copy-btn" title="Copy log to clipboard" aria-label="Copy log to clipboard">' +
+      MESH_LOG_COPY_ICON_SVG +
+      '</button>' +
+      '<button class="mesh-log-new-indicator" id="mesh-log-new-indicator" type="button" aria-label="No new log lines"></button>' +
+      '<div class="mesh-log" id="mesh-log"><div class="mesh-log-empty">' +
+      esc(t('mesh.logEmpty')) +
+      '</div></div>' +
       '</div>'
     );
   }
 
-  function meshScrollLog() {
-    const logEl = $('#mesh-log');
-    if (logEl) logEl.scrollTop = logEl.scrollHeight;
+  function meshFormatLogTime(entryTime) {
+    const d = new Date(entryTime);
+    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+  }
+
+  function meshIsNearBottom(logEl) {
+    return logEl.scrollHeight - logEl.scrollTop - logEl.clientHeight < MESH_LOG_AUTO_SCROLL_THRESHOLD_PX;
+  }
+
+  function meshHideNewLogIndicator() {
+    const indicatorEl = $('#mesh-log-new-indicator');
+    if (!indicatorEl) return;
+    indicatorEl.classList.remove('is-visible');
+    indicatorEl.textContent = '';
+    indicatorEl.setAttribute('aria-label', 'No new log lines');
+    indicatorEl.dataset.newCount = '0';
+  }
+
+  function meshShowNewLogIndicator(newCount) {
+    const indicatorEl = $('#mesh-log-new-indicator');
+    if (!indicatorEl || !newCount) return;
+    const currentCount = Number(indicatorEl.dataset.newCount || '0');
+    const nextCount = currentCount + newCount;
+    indicatorEl.dataset.newCount = String(nextCount);
+    indicatorEl.textContent = '+' + nextCount + ' new';
+    indicatorEl.setAttribute('aria-label', nextCount + ' new log lines. Click to jump to bottom.');
+    indicatorEl.classList.add('is-visible');
+  }
+
+  function meshCreateLogEntryElement(entry) {
+    const div = document.createElement('div');
+    div.className = 'mesh-log-entry';
+
+    const time = document.createElement('span');
+    time.className = 'mesh-log-time';
+    time.textContent = '[' + meshFormatLogTime(entry.time) + ']';
+
+    const message = document.createElement('span');
+    message.className = 'mesh-log-' + (entry.type || 'info');
+    message.textContent = entry.message || '';
+
+    div.appendChild(time);
+    div.appendChild(message);
+    return div;
   }
 
   function meshAppendLogEntries(entries, fromIndex) {
     const logEl = $('#mesh-log');
     if (!logEl) return;
-    // Remove empty placeholder if present
+
+    const startIndex = Math.max(0, fromIndex || 0);
+    if (!entries || entries.length <= startIndex) return;
+
+    // Check if user is near the bottom before adding new entries.
+    const isNearBottom = meshIsNearBottom(logEl);
+
+    // Remove empty placeholder if present.
     const empty = logEl.querySelector('.mesh-log-empty');
     if (empty) empty.remove();
-    for (let i = fromIndex; i < entries.length; i++) {
-      const entry = entries[i];
-      const d = new Date(entry.time);
-      const time =
-        ('0' + d.getHours()).slice(-2) +
-        ':' +
-        ('0' + d.getMinutes()).slice(-2) +
-        ':' +
-        ('0' + d.getSeconds()).slice(-2);
-      const div = document.createElement('div');
-      div.className = 'mesh-log-entry';
-      div.innerHTML =
-        '<span class="mesh-log-time">[' +
-        time +
-        ']</span>' +
-        '<span class="mesh-log-' +
-        (entry.type || 'info') +
-        '">' +
-        esc(entry.message) +
-        '</span>';
-      logEl.appendChild(div);
+
+    for (let i = startIndex; i < entries.length; i++) {
+      logEl.appendChild(meshCreateLogEntryElement(entries[i]));
     }
-    logEl.scrollTop = logEl.scrollHeight;
+
+    // Keep DOM size bounded for long-running sessions.
+    while (logEl.children.length > MAX_MESH_LOG_LINES) {
+      logEl.removeChild(logEl.firstElementChild);
+    }
+
+    if (isNearBottom) {
+      logEl.scrollTop = logEl.scrollHeight;
+      meshHideNewLogIndicator();
+    } else {
+      meshShowNewLogIndicator(entries.length - startIndex);
+    }
+  }
+
+  function bindMeshLogScrollIndicator() {
+    const indicatorEl = $('#mesh-log-new-indicator');
+    const meshLogEl = $('#mesh-log');
+    if (!indicatorEl || !meshLogEl) return;
+
+    indicatorEl.addEventListener('click', function () {
+      meshLogEl.scrollTop = meshLogEl.scrollHeight;
+      meshHideNewLogIndicator();
+    });
+
+    meshLogEl.addEventListener('scroll', function () {
+      if (meshIsNearBottom(meshLogEl)) meshHideNewLogIndicator();
+    });
+  }
+
+  function bindMeshLogCopyButton() {
+    const copyLogBtn = $('#mesh-log-copy-btn');
+    const meshLogEl = $('#mesh-log');
+    if (!copyLogBtn || !meshLogEl) return;
+
+    let resetTimer = null;
+
+    copyLogBtn.addEventListener('click', async function () {
+      const logText = Array.from(meshLogEl.querySelectorAll('.mesh-log-entry'))
+        .map(function (el) {
+          return el.textContent;
+        })
+        .join('\n');
+
+      try {
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          await navigator.clipboard.writeText(logText);
+        } else {
+          throw new Error('clipboard-api-unavailable');
+        }
+      } catch (error) {
+        const textarea = document.createElement('textarea');
+        textarea.value = logText;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      }
+
+      copyLogBtn.innerHTML = MESH_LOG_COPIED_ICON_SVG;
+      copyLogBtn.title = 'Copied!';
+      copyLogBtn.setAttribute('aria-label', 'Copied!');
+
+      if (resetTimer) clearTimeout(resetTimer);
+      resetTimer = setTimeout(function () {
+        copyLogBtn.innerHTML = MESH_LOG_COPY_ICON_SVG;
+        copyLogBtn.title = 'Copy log to clipboard';
+        copyLogBtn.setAttribute('aria-label', 'Copy log to clipboard');
+      }, 2000);
+    });
   }
 
   function meshGetStateBadge(meshState) {
@@ -4776,7 +4865,7 @@
     }
 
     // ── Status Log ──
-    html += renderMeshLog(logEntries);
+    html += renderMeshLog();
 
     // ── Action Buttons ──
     html += '<div class="mesh-actions">';
@@ -4826,7 +4915,10 @@
     html += '</div>'; // .card
 
     card.innerHTML = html;
-    meshScrollLog();
+    meshAppendLogEntries(logEntries, 0);
+    meshHideNewLogIndicator();
+    bindMeshLogScrollIndicator();
+    bindMeshLogCopyButton();
 
     // ── Wire up event handlers ──
 
