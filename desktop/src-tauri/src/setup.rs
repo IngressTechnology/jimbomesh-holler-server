@@ -4,6 +4,14 @@ use std::collections::HashMap;
 use tauri::{Manager, WebviewUrl, WebviewWindowBuilder};
 use tauri_plugin_dialog::{DialogExt, MessageDialogButtons, MessageDialogKind};
 
+fn base64_encode_png(data: &[u8]) -> String {
+    use base64::Engine;
+    format!(
+        "data:image/png;base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(data)
+    )
+}
+
 const NODEJS_DOWNLOAD_URL: &str = "https://nodejs.org";
 const OLLAMA_DOWNLOAD_URL: &str = "https://ollama.com/download";
 const HOLLER_SERVER_INSTALL_URL: &str =
@@ -978,6 +986,8 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
         String::new()
     };
 
+    let moonshine_icon = base64_encode_png(include_bytes!("../../../admin/assets/moonshine/moonshine-icon-flat.png"));
+
     let html = format!(
         r#"<!doctype html>
 <html lang="en">
@@ -1075,7 +1085,7 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
 </head>
 <body>
   <main class="shell">
-    <h1>🥃 JimboMesh Holler — First Run Setup</h1>
+    <h1><img src="{moonshine_icon}" alt="" style="width:36px;height:36px;vertical-align:middle;margin-right:8px;margin-top:-4px;">JimboMesh Holler — First Run Setup</h1>
     <p>{headline}</p>
     <p style="margin-top:8px">{detail}</p>
     <section class="steps">{steps}</section>
@@ -1084,6 +1094,7 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
   {redirect_script}
 </body>
 </html>"#,
+        moonshine_icon = moonshine_icon,
         headline = html_escape(&wizard.headline),
         detail = html_escape(&wizard.detail),
         steps = render_setup_steps(wizard),
