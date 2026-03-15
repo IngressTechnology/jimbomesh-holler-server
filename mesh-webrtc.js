@@ -505,10 +505,25 @@ class PeerSession {
 
       if (response.ok) {
         const result = await response.json();
-        if (result.moonshine_earned != null) {
-          this.meshConnector.moonshineEarned += result.moonshine_earned;
-          log('Job ' + this.jobId + ': earned ' + result.moonshine_earned + ' Moonshine');
+        // SaaS returns camelCase (moonshineEarned), handle all casing variants
+        const earned = result.moonshineEarned ?? result.moonshine_earned ?? result.MoonshineEarned ?? 0;
+        if (earned > 0) {
+          this.meshConnector.moonshineEarned += earned;
+          log(
+            'Job ' +
+              this.jobId +
+              ': earned ' +
+              earned +
+              ' Moonshine (total: ' +
+              this.meshConnector.moonshineEarned.toFixed(2) +
+              ')'
+          );
         }
+      } else {
+        const errText = await response.text().catch(function () {
+          return 'unknown';
+        });
+        log('Job ' + this.jobId + ': usage report failed (HTTP ' + response.status + '): ' + errText);
       }
     } catch (err) {
       log('Job ' + this.jobId + ': usage report failed — ' + err.message);

@@ -1391,9 +1391,12 @@ class MeshConnector {
       result
     );
 
-    // Track Moonshine from SaaS response
-    if (response.data && response.data.moonshine_earned != null) {
-      this.moonshineEarned = this.moonshineEarned - 1 + response.data.moonshine_earned;
+    // Track Moonshine from SaaS response (supports camelCase/snake_case variants)
+    const earned = response.data
+      ? response.data.moonshineEarned ?? response.data.moonshine_earned ?? response.data.MoonshineEarned
+      : null;
+    if (earned != null) {
+      this.moonshineEarned = this.moonshineEarned - 1 + earned;
     }
 
     return response;
