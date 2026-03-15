@@ -750,7 +750,7 @@
 
   function initDashboard(ct) {
     ct.innerHTML =
-      '<div class="stats-grid">' +
+      '<div class="stats-grid" id="d-stats-grid">' +
       statCard(
         'd-health',
         t('dashboard.serverHealth'),
@@ -761,20 +761,18 @@
       statCard('d-running', t('dashboard.runningModels'), '\u2014') +
       statCard('d-uptime', t('dashboard.uptime'), '\u2014') +
       statCard('d-requests', t('dashboard.totalRequests'), '\u2014') +
-      '<div class="stat-card">' +
-      '<div class="stat-label">' +
-      '<img src="/admin/assets/moonshine/moonshine-token-coin.png" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">' +
-      'MOONSHINE EARNED</div>' +
-      '<div class="stat-value" id="d-moonshine">0.00 <span style="opacity:0.6;font-size:0.6em;">MSH</span></div>' +
-      '</div>' +
-      '</div>' +
-      '<div class="stats-grid" id="d-persistent-stats">' +
       statCard('d-today', t('dashboard.today'), '\u2014') +
-      statCard('d-embeds', t('dashboard.embedRequests'), '\u2014') +
       statCard('d-chats', t('dashboard.chatRequests'), '\u2014') +
+      statCard('d-embeds', t('dashboard.embedRequests'), '\u2014') +
       statCard('d-errors', t('dashboard.errors'), '\u2014') +
       statCard('d-avg-latency', t('dashboard.avgDuration'), '\u2014') +
       statCard('d-db-size', t('dashboard.dbSize'), '\u2014') +
+      '<div class="stat-card">' +
+      '<div class="stat-label"><img src="/admin/assets/moonshine/moonshine-token-coin.png" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">' +
+      esc(t('dashboard.moonshineEarned')) +
+      '</div>' +
+      '<div class="stat-value" id="d-moonshine">\u2014</div>' +
+      '</div>' +
       '</div>' +
       '<div id="d-error"></div>' +
       '<p class="text-muted text-sm">' +
@@ -853,11 +851,11 @@
         setText('#d-chats', allTime.chat_requests != null ? allTime.chat_requests : '\u2014');
         setText('#d-errors', allTime.error_count != null ? allTime.error_count : '\u2014');
         setText('#d-avg-latency', allTime.avg_duration_ms != null ? allTime.avg_duration_ms + ' ms' : '\u2014');
-        const moonshineLifetime = data.summary.moonshine_earned_lifetime;
-        const moonshineValue = typeof moonshineLifetime === 'number' ? moonshineLifetime.toFixed(2) : '0.00';
-        const moonshineEl = document.getElementById('d-moonshine');
-        if (moonshineEl) {
-          moonshineEl.innerHTML = moonshineValue + ' <span style="opacity:0.6;font-size:0.6em;">MSH</span>';
+        var mshEl = document.getElementById('d-moonshine');
+        if (mshEl && data.summary && data.summary.moonshine_earned_lifetime != null) {
+          var val = data.summary.moonshine_earned_lifetime;
+          mshEl.innerHTML = (typeof val === 'number' ? val.toFixed(2) : val) +
+            ' <span style="opacity:0.6;font-size:0.6em;">MSH</span>';
         }
       })
       .catch(function () {});
@@ -7176,6 +7174,19 @@
       '</h3>' +
       '</div>' +
       '<div style="padding: 24px; display: flex; flex-direction: column; gap: 24px; max-width: 600px;">' +
+      // Contact Jimbo
+      '<div>' +
+      '<h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #e2e8f0;">' +
+      esc(t('feedback.contactTitle')) +
+      '</h4>' +
+      '<a href="https://jimbomesh.ai/Contact" target="_blank" rel="noopener noreferrer" class="btn" style="width: 100%; margin: 8px 0; padding: 12px 24px; background: #FC6806; border-color: #FC6806; color: white; display: flex; align-items: center; justify-content: center; gap: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; font-weight: 500; transition: filter 0.2s; text-decoration: none;">' +
+      '\uD83E\uDD43 Contact Jimbo' +
+      '</a>' +
+      '<p style="margin: 4px 0 0 0; font-size: 13px; color: #8b949e;">' +
+      esc(t('feedback.contactDescription')) +
+      '</p>' +
+      '</div>' +
+      '<hr style="border: none; border-top: 1px solid rgba(100, 116, 139, 0.2); margin: 8px 0;">' +
       // Bug Report
       '<div>' +
       '<h4 style="margin: 0 0 4px 0; font-size: 14px; font-weight: 600; color: #e2e8f0;">Found a bug?</h4>' +

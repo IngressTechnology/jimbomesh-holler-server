@@ -41,6 +41,7 @@
     "errors": "Errors",
     "avgDuration": "Avg Duration",
     "dbSize": "DB Size",
+    "moonshineEarned": "Moonshine Earned",
     "healthy": "Healthy",
     "unhealthy": "Unhealthy",
     "autoRefresh": "Auto-refreshes every 10 seconds. Stats persist across restarts.",
@@ -195,6 +196,8 @@
   "feedback": {
     "title": "Holler Back",
     "subtitle": "Found a critter in the still or got a bright idea? Holler at us on GitHub!",
+    "contactTitle": "Wanna jaw a spell?",
+    "contactDescription": "Questions, partnerships, or just wanna jaw about Moonshine",
     "bugReport": "Critter Report",
     "featureRequest": "Bright Idea",
     "reportBugButton": "Report Critter on GitHub",

@@ -41,6 +41,7 @@
     "errors": "Errores",
     "avgDuration": "Duración promedio",
     "dbSize": "Tamaño de BD",
+    "moonshineEarned": "Moonshine ganado",
     "healthy": "Saludable",
     "unhealthy": "No saludable",
     "autoRefresh": "Se actualiza cada 10 segundos. Las estadísticas persisten entre reinicios.",
@@ -195,6 +196,8 @@
   "feedback": {
     "title": "Comentarios",
     "subtitle": "Reporta errores o solicita funciones en GitHub. ¡Tus comentarios ayudan a mejorar Holler para todos!",
+    "contactTitle": "¿Quieres hablar?",
+    "contactDescription": "Preguntas, alianzas o simplemente hablar de Moonshine",
     "bugReport": "Reporte de error",
     "featureRequest": "Solicitud de función",
     "reportBugButton": "Reportar error en GitHub",

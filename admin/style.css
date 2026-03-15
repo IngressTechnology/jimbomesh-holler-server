@@ -567,10 +567,15 @@ select {
 /* ── Stats Grid ─────────────────────────────────────────────── */
 
 .stats-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  display: flex;
+  flex-wrap: wrap;
   gap: 1rem;
   margin-bottom: 1rem;
+}
+
+.stats-grid .stat-card {
+  flex: 1 1 180px;
+  min-width: 180px;
 }
 
 .stat-card {
@@ -1138,9 +1143,6 @@ tr:hover td {
 /* ── Responsive ─────────────────────────────────────────────── */
 
 @media (max-width: 768px) {
-  .stats-grid {
-    grid-template-columns: repeat(2, 1fr);
-  }
   .playground-grid {
     grid-template-columns: 1fr;
   }
@@ -1158,10 +1160,19 @@ tr:hover td {
   }
 }
 
-@media (max-width: 480px) {
-  .stats-grid {
-    grid-template-columns: 1fr;
+@media (max-width: 1024px) {
+  .stats-grid .stat-card {
+    flex: 1 1 calc(50% - 0.5rem);
   }
+}
+
+@media (max-width: 768px) {
+  .stats-grid .stat-card {
+    flex: 1 1 100%;
+  }
+}
+
+@media (max-width: 480px) {
   .app-header {
     height: auto;
     min-height: 56px;
