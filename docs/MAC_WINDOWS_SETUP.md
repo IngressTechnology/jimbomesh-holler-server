@@ -503,8 +503,8 @@ bash scripts/embed.sh knowledge_base test-check '{"test":"true"}' < /dev/null 2>
 - [Ollama Documentation](https://github.com/ollama/ollama/blob/main/docs/api.md)
 - [nomic-embed-text Model Card](https://ollama.com/library/nomic-embed-text)
 - [Qdrant Documentation](https://qdrant.tech/documentation/)
-- [jimbomesh-holler-server ARCHITECTURE.md](ARCHITECTURE.md)
-- [jimbomesh-holler-server DEPLOYMENT.md](DEPLOYMENT.md)
+- [Architecture](ARCHITECTURE.md)
+- [Deployment](DEPLOYMENT.md)
 
 ### Changelog
 

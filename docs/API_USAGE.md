@@ -470,7 +470,7 @@ curl $BASE_URL/admin/api/mesh/status \
 }
 ```
 
-`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect.
+`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect. Mesh registration/heartbeat model metadata is sourced from `GET /api/tags` with a short cache and falls back to `HOLLER_MODELS` when tags are temporarily unavailable.
 
 ### Get latest published Mesh version
 
@@ -482,8 +482,8 @@ curl $BASE_URL/admin/api/mesh/latest-version \
 ```json
 {
   "connected": true,
-  "currentVersion": "0.3.14",
-  "latestVersion": "0.3.14",
+  "currentVersion": "0.3.37",
+  "latestVersion": "0.3.37",
   "updateAvailable": false,
   "source": "https://api.jimbomesh.ai/api/holler/version"
 }

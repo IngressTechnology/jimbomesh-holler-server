@@ -2,7 +2,7 @@
 
 Welcome to JimboMesh Holler, your own local AI compute node. It lets you run models on your own hardware, keep prompts and responses close to home, and optionally connect to the JimboMesh mesh when you want to share compute.
 
-If you want the fastest install path, start with [QUICK_START.md](../QUICK_START.md). If you want API examples or IDE setup details, the best follow-up docs are [docs/API_USAGE.md](API_USAGE.md) and [docs/IDE_INTEGRATIONS.md](IDE_INTEGRATIONS.md).
+If you want the fastest install path, start with [Quick Start](../QUICK_START.md). If you want API examples or IDE setup details, the best follow-up docs are [API Usage](API_USAGE.md) and [IDE Integrations](IDE_INTEGRATIONS.md).
 
 ## Three Ways To Run Holler
 
@@ -208,7 +208,7 @@ Use:
 - Embeddings endpoint: `http://localhost:1920/v1/embeddings`
 - API key: your `JIMBOMESH_HOLLER_API_KEY`
 
-That works with tools like Cursor, Continue, JetBrains plugins, Aider, and other OpenAI-compatible clients. The full setup walkthroughs live in [docs/IDE_INTEGRATIONS.md](IDE_INTEGRATIONS.md).
+That works with tools like Cursor, Continue, JetBrains plugins, Aider, and other OpenAI-compatible clients. The full setup walkthroughs live in [IDE Integrations](IDE_INTEGRATIONS.md).
 
 ## Connecting To The Mesh
 
@@ -334,7 +334,7 @@ These are practical starting points, not hard walls.
 
 ## Where To Go Next
 
-- Use [QUICK_START.md](../QUICK_START.md) if you want the shortest install path
-- Use [docs/API_USAGE.md](API_USAGE.md) if you want curl and Postman examples
-- Use [docs/IDE_INTEGRATIONS.md](IDE_INTEGRATIONS.md) if you want to hook Holler into your editor
-- Use [docs/TROUBLESHOOTING.md](TROUBLESHOOTING.md) if something feels busted
+- Use [Quick Start](../QUICK_START.md) if you want the shortest install path
+- Use [API Usage](API_USAGE.md) if you want curl and Postman examples
+- Use [IDE Integrations](IDE_INTEGRATIONS.md) if you want to hook Holler into your editor
+- Use [Troubleshooting](TROUBLESHOOTING.md) if something feels busted

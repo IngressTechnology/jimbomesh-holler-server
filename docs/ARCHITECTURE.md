@@ -124,10 +124,11 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │ - register()                          │◄──────►│ - Holler registration    │
 │ - heartbeat() (safety-net WS check)  │        │ - Job assignment         │
 │ - poll jobs                           │        │ - Signaling + billing    │
-│ - reconnect backoff (2/5/10/30/60s)  │        └──────────────────────────┘
+│ - reconnect backoff (5/10/30/60/300s)│        └──────────────────────────┘
 │ - state/log buffer                    │
 │ - mgmt WS: ping/pong (25s/10s)      │
 │ - full re-register if WS down >5min │
+│ - model list cache (30s) + env fallback │
 │        │                              │
 │        ├─ 1. if signaling_url + ice_servers:
 │        │     mesh-webrtc.js (PeerSession)
@@ -150,9 +151,10 @@ Connection state machine: `disconnected -> connecting -> connected -> reconnecti
 
 Management WebSocket resilience:
 - Ping every 25s with 10s pong timeout; missed pong tears down and reconnects.
-- Stepped backoff on close: 2s → 5s → 10s → 30s → 60s.
+- Stepped backoff on close: 5s → 10s → 30s → 60s → 300s.
 - If WS disconnected >5 minutes, triggers full re-registration (not just WS reconnect).
 - Each heartbeat checks WS health and reconnects if dead.
+- Mesh model metadata comes from `GET /api/tags` with a shared 30s cache; if unavailable, `HOLLER_MODELS` is used as a fallback source.
 
 Mesh auth model:
 - All coordinator requests use `X-API-Key` with the configured `JIMBOMESH_API_KEY`.

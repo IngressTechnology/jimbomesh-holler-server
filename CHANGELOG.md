@@ -5,6 +5,19 @@ All notable changes to the JimboMesh Holler Server project will be documented in
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.3.37] - 2026-03-14
+
+### Added
+
+- **Mesh model availability hardening**
+  - Mesh registration, heartbeats, and job model checks now use a shared 30-second cached model list.
+  - Added fallback to `HOLLER_MODELS` when `GET /api/tags` is temporarily unavailable.
+
+### Changed
+
+- Mesh model validation now checks for model availability instead of requiring a currently loaded model.
+- Documentation sweep across `README.md`, `docs/ARCHITECTURE.md`, and `docs/API_USAGE.md` to align mesh behavior, reconnect timing, and examples with current implementation.
+
 ## [0.3.21] - 2026-03-11
 
 ### Added
@@ -135,6 +148,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Model management (pull, delete, list)
 - Port 1920 (Prohibition era signature)
 
+[0.3.37]: https://github.com/IngressTechnology/jimbomesh-holler-server/compare/v0.3.21...v0.3.37
 [0.3.21]: https://github.com/IngressTechnology/jimbomesh-holler-server/compare/v0.3.0...v0.3.21
 [0.3.0]: https://github.com/IngressTechnology/jimbomesh-holler-server/compare/v0.2.11...v0.3.0
 [0.2.11]: https://github.com/IngressTechnology/jimbomesh-holler-server/compare/v0.2.10...v0.2.11

@@ -110,6 +110,10 @@ function mapModelsForSaas(models) {
 }
 
 const BACKOFF_SCHEDULE = [5000, 10000, 30000, 60000, 300000]; // 5s → 5min
+
+// Cached Ollama model list — shared across all connector instances
+let _modelCache = { models: [], timestamp: 0 };
+const MODEL_CACHE_TTL = 30000; // 30s
 const MGMT_WS_BASE_DELAY_MS = 1000;
 const MGMT_WS_MAX_DELAY_MS = 60000;
 const MGMT_WS_STABLE_MS = 300000;
@@ -1057,7 +1061,7 @@ class MeshConnector {
 
   async _register() {
     // Collect system info for registration
-    const [models, gpuInfo] = await Promise.all([this._getOllamaModels(), this._getGpuInfo()]);
+    const [models, gpuInfo] = await Promise.all([this._getAvailableModels(), this._getGpuInfo()]);
 
     const serverName =
       this.hollerName ||
@@ -1155,7 +1159,7 @@ class MeshConnector {
       this.lastHeartbeat = Date.now();
       this.heartbeatFailures = 0;
 
-      const models = await this._getOllamaModels();
+      const models = await this._getAvailableModels();
       const gpuUtil = gpuInfo && gpuInfo.utilization_percent != null ? gpuInfo.utilization_percent + '%' : 'N/A';
       this._addLog(
         'info',
@@ -1189,7 +1193,7 @@ class MeshConnector {
   }
 
   async _sendHeartbeat(gpuInfo) {
-    const models = await this._getOllamaModels();
+    const models = await this._getAvailableModels();
     const concurrency = this.getConcurrencyStats ? this.getConcurrencyStats() : {};
     const effectiveGpuInfo = gpuInfo === undefined ? await this._getGpuInfo() : gpuInfo;
     const body = {
@@ -1359,19 +1363,25 @@ class MeshConnector {
 
   async _assertModelLoaded(model) {
     if (!model) throw new Error('Job missing model');
-    const loadedModels = await this._getLoadedOllamaModelNames();
-    if (loadedModels.length === 0) {
-      throw new Error('No loaded Ollama models available; cannot run model "' + model + '"');
+    const available = await this._getAvailableModels();
+    const modelNames = available
+      .map(function (m) {
+        return m.name || m.model || '';
+      })
+      .filter(Boolean);
+
+    if (modelNames.length === 0) {
+      throw new Error('No Ollama models available; cannot run model "' + model + '"');
     }
 
     const target = String(model).toLowerCase();
-    const found = loadedModels.some(function (name) {
+    const found = modelNames.some(function (name) {
       const n = String(name || '').toLowerCase();
       return n === target || n.startsWith(target + ':') || target.startsWith(n + ':');
     });
 
     if (!found) {
-      throw new Error('Model "' + model + '" is not currently loaded in Ollama');
+      throw new Error('Model "' + model + '" is not available in Ollama');
     }
   }
 
@@ -1470,6 +1480,55 @@ class MeshConnector {
     } catch {
       return [];
     }
+  }
+
+  /**
+   * Get available Ollama models with 30s cache and HOLLER_MODELS env var fallback.
+   * Preferred over _getOllamaModels() for mesh registration, heartbeat, and model checks.
+   */
+  async _getAvailableModels() {
+    const now = Date.now();
+    if (_modelCache.models.length > 0 && now - _modelCache.timestamp < MODEL_CACHE_TTL) {
+      return _modelCache.models;
+    }
+
+    try {
+      const result = await this._ollamaFetch('GET', '/api/tags');
+      if (result && result.models && result.models.length > 0) {
+        const models = result.models.map(function (m) {
+          return {
+            name: m.name || m.model || '',
+            model: m.model || m.name || '',
+            size: m.size || 0,
+            parameter_size: m.parameter_size || (m.details && m.details.parameter_size),
+            details: m.details || {},
+          };
+        });
+        _modelCache = { models: models, timestamp: now };
+        log('Discovered ' + models.length + ' models from Ollama');
+        return models;
+      }
+    } catch (err) {
+      log('Could not query Ollama for models: ' + ((err && err.message) || err));
+    }
+
+    // Fallback to HOLLER_MODELS env var
+    const envModels = (process.env.HOLLER_MODELS || '')
+      .split(',')
+      .map(function (m) {
+        return m.trim();
+      })
+      .filter(Boolean);
+    if (envModels.length > 0) {
+      log('Using HOLLER_MODELS fallback: ' + envModels.join(', '));
+      const models = envModels.map(function (name) {
+        return { name: name, model: name, size: 0, parameter_size: null, details: {} };
+      });
+      _modelCache = { models: models, timestamp: now };
+      return models;
+    }
+
+    return [];
   }
 
   _ollamaFetch(method, reqPath) {

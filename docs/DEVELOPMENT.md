@@ -2,7 +2,7 @@
 
 This guide is for people who want to contribute to, debug, or modify `jimbomesh-holler-server`.
 
-If you are trying to install and use Holler rather than change the codebase, start with the root [README.md](../README.md) and [QUICK_START.md](../QUICK_START.md). For contribution norms and PR expectations, also read [CONTRIBUTING.md](../CONTRIBUTING.md).
+If you are trying to install and use Holler rather than change the codebase, start with the root [README](../README.md) and [Quick Start](../QUICK_START.md). For contribution norms and PR expectations, also read [Contributing](../CONTRIBUTING.md).
 
 ## Prerequisites
 
@@ -150,7 +150,7 @@ If your change affects setup scripts, admin workflows, mesh connectivity, Qdrant
 
 ## Configuration
 
-Most runtime configuration is driven by `.env`. See [docs/CONFIGURATION.md](CONFIGURATION.md) for the complete reference and [`.env.example`](../.env.example) for the latest defaults.
+Most runtime configuration is driven by `.env`. See [Configuration](CONFIGURATION.md) for the complete reference and [`.env.example`](../.env.example) for the latest defaults.
 
 ### Common Variables
 
@@ -182,10 +182,10 @@ The default port is `1920`, the year Prohibition started. That is intentional br
 
 Start here when you need deeper background:
 
-- [docs/ARCHITECTURE.md](ARCHITECTURE.md) for system design, trust boundaries, and data flow
-- [docs/DOCKERBUILD.md](DOCKERBUILD.md) for image and rebuild workflow
-- [docs/CURSOR_VS_CODE.md](CURSOR_VS_CODE.md) for contributor workflow in Cursor and VS Code
-- [docs/SECURITY.md](SECURITY.md) for auth tiers and hardening
+- [Architecture](ARCHITECTURE.md) for system design, trust boundaries, and data flow
+- [Docker Build Guide](DOCKERBUILD.md) for image and rebuild workflow
+- [Cursor / VS Code](CURSOR_VS_CODE.md) for contributor workflow in Cursor and VS Code
+- [Security](SECURITY.md) for auth tiers and hardening
 - [openapi.yaml](../openapi.yaml) for the served API contract behind `/docs`
 
 ## Desktop App Development
@@ -202,7 +202,7 @@ Linux desktop builds also need the system packages listed in [`desktop/README.md
 
 ### Run The Desktop App In Dev Mode
 
-Start the Holler server first from the repo root:
+Start the Holler Server first from the repo root:
 
 ```bash
 npm install
@@ -321,12 +321,12 @@ git checkout .
 
 If you change behavior, update the docs in the same PR. Common touch points:
 
-- [README.md](../README.md) for top-level behavior
-- [QUICK_START.md](../QUICK_START.md) for first-run and install flow
-- [docs/CONFIGURATION.md](CONFIGURATION.md) for env vars
-- [docs/API_USAGE.md](API_USAGE.md) for endpoints and examples
-- [docs/DEPLOYMENT.md](DEPLOYMENT.md) for operator-facing runbooks
-- [docs/IDE_INTEGRATIONS.md](IDE_INTEGRATIONS.md) for editor setup
+- [README](../README.md) for top-level behavior
+- [Quick Start](../QUICK_START.md) for first-run and install flow
+- [Configuration](CONFIGURATION.md) for env vars
+- [API Usage](API_USAGE.md) for endpoints and examples
+- [Deployment](DEPLOYMENT.md) for operator-facing runbooks
+- [IDE Integrations](IDE_INTEGRATIONS.md) for editor setup
 
 ## Helpful Commands
 

@@ -19,7 +19,7 @@ OpenClaw sends `apiKey` as `Authorization: Bearer <key>` when using `api: "opena
 
 ## Prerequisites
 
-1. **A running Holler server** (see [Quick Start](../QUICK_START.md))
+1. **A running Holler Server** (see [Quick Start](../QUICK_START.md))
 2. **An OpenClaw instance** (see [openclaw.ai](https://openclaw.ai))
 3. **Network reachability** between OpenClaw and Holler on port `1920`
 

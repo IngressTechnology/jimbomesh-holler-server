@@ -62,7 +62,8 @@ Start with the section that matches your role:
 
 - **Users**: [QUICK_START.md](QUICK_START.md), [docs/API_USAGE.md](docs/API_USAGE.md), [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md), [docs/INTEGRATION.md](docs/INTEGRATION.md)
 - **Admins / Operators**: [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md), [docs/CONFIGURATION.md](docs/CONFIGURATION.md), [docs/SECURITY.md](docs/SECURITY.md), [docs/MAC_WINDOWS_SETUP.md](docs/MAC_WINDOWS_SETUP.md)
-- **Contributors / Developers**: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CURSOR_VS_CODE.md](docs/CURSOR_VS_CODE.md), [docs/DOCKERBUILD.md](docs/DOCKERBUILD.md)
+- **Contributors / Developers**: [CONTRIBUTING.md](CONTRIBUTING.md), [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md), [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md), [docs/CURSOR_VS_CODE.md](docs/CURSOR_VS_CODE.md), [docs/DOCKERBUILD.md](docs/DOCKERBUILD.md)
+- **Everyone (guided walkthrough)**: [docs/USER_GUIDE.md](docs/USER_GUIDE.md)
 
 ## Testing
 
@@ -296,6 +297,7 @@ When `JIMBOMESH_API_KEY` is set, this Holler can connect to the JimboMesh coordi
 - **Fallback mode**: HTTP polling for jobs when WebRTC is unavailable or disabled; if WebRTC is already active for the same job, fallback inference is skipped (`fallback_complete` with `skipped=true`, reason `webrtc_active`)
 - **Auto-connect control**: `JIMBOMESH_AUTO_CONNECT` (default `true`)
 - **WebRTC capacity**: `MAX_PEER_CONNECTIONS` (default `10`, set `0` to force HTTP-only)
+- **Model availability source**: mesh registration/heartbeat/model checks use a shared 30s cache of `GET /api/tags` and fall back to `HOLLER_MODELS` if Ollama is temporarily unreachable
 - **Version check endpoint**: `GET /admin/api/mesh/latest-version` (returns current/latest when connected)
 
 Key Mesh environment variables:
