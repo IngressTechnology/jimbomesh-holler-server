@@ -495,11 +495,11 @@ class PeerSession {
           'X-API-Key': this.meshConnector.apiKey,
         },
         body: JSON.stringify({
-          job_id: this.jobId,
+          jobId: this.jobId,
           model: model,
-          input_tokens: inputTokens,
-          output_tokens: outputTokens,
-          processing_time_ms: processingMs,
+          inputTokens: inputTokens,
+          outputTokens: outputTokens,
+          processingTimeMs: processingMs,
         }),
       });
 
