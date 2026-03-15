@@ -9,7 +9,7 @@
         return k;
       };
   const ADMIN_BOOTSTRAP = window.__HOLLER_ADMIN_BOOTSTRAP__ || {};
-  const MOONSHINE_TOKEN_COIN_ASSET = 'assets/moonshine/moonshine-token-coin.png';
+  const MOONSHINE_TOKEN_COIN_ASSET = '/admin/assets/moonshine/moonshine-token-coin.png';
   const MOONSHINE_JAR_FLAT_ASSET = '/admin/assets/moonshine/moonshine-icon-flat.png';
 
   // ── Utilities ─────────────────────────────────────────────────
