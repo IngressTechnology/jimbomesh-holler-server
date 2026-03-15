@@ -618,9 +618,8 @@ class MeshConnector {
       this._addLog('info', 'Skipping fallback — WebRTC P2P active for job ' + (jobId || '').slice(0, 8));
       try {
         this._sendMgmtMessage({
-          type: 'fallback_complete',
+          type: 'fallback_skipped',
           job_id: jobId,
-          skipped: true,
           reason: 'webrtc_active',
         });
       } catch (_) {
