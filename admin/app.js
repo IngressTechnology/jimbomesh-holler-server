@@ -187,7 +187,43 @@
   function extractErrorMessage(data, fallback) {
     if (data && typeof data.error === 'string') return data.error;
     if (data && data.error && data.error.message) return data.error.message;
+    if (data && data.message) return data.message;
     return fallback || 'Request failed';
+  }
+
+  function parseResponseSafely(res, fallbackMessage) {
+    const contentType = (res.headers && res.headers.get('content-type')) || '';
+    const defaultMessage = fallbackMessage || 'Unknown response';
+    if (contentType.indexOf('application/json') !== -1) {
+      return res
+        .json()
+        .then(function (data) {
+          return { ok: res.ok, status: res.status, data: data || {} };
+        })
+        .catch(function () {
+          return {
+            ok: res.ok,
+            status: res.status,
+            data: { success: res.ok, message: 'Server returned invalid JSON' },
+          };
+        });
+    }
+    return res
+      .text()
+      .then(function (text) {
+        return {
+          ok: res.ok,
+          status: res.status,
+          data: { success: res.ok, message: text || defaultMessage },
+        };
+      })
+      .catch(function () {
+        return {
+          ok: res.ok,
+          status: res.status,
+          data: { success: res.ok, message: defaultMessage },
+        };
+      });
   }
 
   function api(path, opts) {
@@ -226,19 +262,11 @@
 
     return requestFn(path, fetchOpts)
       .then(function (res) {
-        return res.text().then(function (text) {
-          let data = {};
-          if (text) {
-            try {
-              data = JSON.parse(text);
-            } catch {
-              throw new Error('Server returned invalid JSON');
-            }
+        return parseResponseSafely(res, 'Request failed').then(function (parsed) {
+          if (!parsed.ok) {
+            throw new Error(extractErrorMessage(parsed.data, 'Request failed'));
           }
-          if (!res.ok) {
-            throw new Error(extractErrorMessage(data, 'Request failed'));
-          }
-          return data;
+          return parsed.data || {};
         });
       })
       .finally(function () {
@@ -1893,14 +1921,34 @@
         cbtn.innerHTML = '<span class="spinner"></span> ' + esc(t('models.deleting'));
       }
       api('/models/' + encodeURIComponent(name), { method: 'DELETE' })
-        .then(function () {
+        .then(function (res) {
+          return parseResponseSafely(res, t('marketplace.deleteError'));
+        })
+        .then(function (result) {
+          const data = result.data || {};
+          if (!result.ok || data.success === false) {
+            throw new Error(data.message || extractErrorMessage(data, t('marketplace.deleteError')));
+          }
+          modelsData.models = (modelsData.models || []).filter(function (m) {
+            return m.name !== name;
+          });
+          modelsData.running = (modelsData.running || []).filter(function (m) {
+            return m.name !== name;
+          });
+          renderModelTable();
           close();
           showToast(t('marketplace.deleteSuccess', { name: name }), 'success');
           refreshModels();
         })
-        .catch(function () {
-          close();
-          showToast(t('marketplace.deleteError'), 'error');
+        .catch(function (err) {
+          const message = err && err.message ? err.message : t('marketplace.deleteError');
+          showToast(message, 'error');
+        })
+        .finally(function () {
+          if (cbtn) {
+            cbtn.disabled = false;
+            cbtn.textContent = t('models.delete');
+          }
         });
     });
   }

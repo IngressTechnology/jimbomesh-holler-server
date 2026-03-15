@@ -109,6 +109,21 @@ function json(res, status, data) {
   res.end(JSON.stringify(data));
 }
 
+function getOllamaErrorMessage(data) {
+  if (!data) return 'Unknown error';
+  if (typeof data === 'string') {
+    const trimmed = data.trim();
+    return trimmed || 'Unknown error';
+  }
+  if (typeof data.error === 'string' && data.error.trim()) return data.error.trim();
+  if (typeof data.message === 'string' && data.message.trim()) return data.message.trim();
+  try {
+    return JSON.stringify(data);
+  } catch {
+    return 'Unknown error';
+  }
+}
+
 function createSseSession(req, res) {
   let closed = false;
   const cleaners = [];
@@ -319,38 +334,42 @@ function handlePull(ollamaUrl, req, res, sendError) {
   });
 }
 
-async function handleDelete(ollamaUrl, name, res, sendError) {
+async function handleDelete(ollamaUrl, name, res) {
   try {
-    const parsed = new URL(ollamaUrl);
-    const result = await new Promise((resolve, reject) => {
-      const req = http.request(
-        {
-          hostname: parsed.hostname,
-          port: parseInt(parsed.port) || 11435,
-          path: '/api/delete',
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json' },
-        },
-        (proxyRes) => {
-          let data = '';
-          proxyRes.on('data', (chunk) => (data += chunk));
-          proxyRes.on('end', () => resolve({ status: proxyRes.statusCode, data }));
-        }
-      );
-      req.on('error', reject);
-      req.write(JSON.stringify({ name }));
-      req.end();
-    });
-
-    if (result.status === 200) {
-      json(res, 200, { success: true, message: `Model ${name} deleted` });
-    } else if (result.status === 404) {
-      sendError(res, 404, 'model_not_found', `Model ${name} not found`);
-    } else {
-      sendError(res, 502, 'model_error', `Failed to delete model: ${result.data}`);
+    // Best-effort unload first: keep_alive=0 asks Ollama to release model memory.
+    try {
+      await ollamaFetch(ollamaUrl, 'POST', '/api/generate', {
+        model: name,
+        prompt: '',
+        keep_alive: 0,
+        stream: false,
+      });
+      await new Promise((resolve) => setTimeout(resolve, 500));
+    } catch (unloadErr) {
+      console.warn(`[models] Could not unload ${name}: ${unloadErr.message}`);
     }
+
+    const result = await ollamaFetch(ollamaUrl, 'DELETE', '/api/delete', { name });
+    const statusCode = result.status || 502;
+
+    if (statusCode >= 200 && statusCode < 300) {
+      json(res, 200, { success: true, message: `Model ${name} deleted successfully` });
+      return;
+    }
+
+    const errorMessage = getOllamaErrorMessage(result.data);
+    json(res, statusCode, {
+      success: false,
+      error: statusCode === 404 ? 'model_not_found' : 'delete_failed',
+      message: `Failed to delete ${name}: ${errorMessage}`,
+    });
   } catch (err) {
-    sendError(res, 502, 'model_error', `Failed to delete model: ${err.message}`);
+    console.error(`[models] Delete error for ${name}:`, err);
+    json(res, 500, {
+      success: false,
+      error: 'server_error',
+      message: `Error deleting model: ${err.message}`,
+    });
   }
 }
 
@@ -2816,7 +2835,7 @@ function createAdminRoutes(config) {
     } else if (req.method === 'POST' && route === '/models/pull') {
       handlePull(ollamaUrl, req, res, sendError);
     } else if (req.method === 'DELETE' && route.startsWith('/models/')) {
-      handleDelete(ollamaUrl, decodeURIComponent(route.slice('/models/'.length)), res, sendError);
+      handleDelete(ollamaUrl, decodeURIComponent(route.slice('/models/'.length)), res);
     } else if (req.method === 'POST' && route === '/models/show') {
       handleShow(ollamaUrl, req, res, sendError);
     } else if (req.method === 'GET' && route === '/models/running') {
