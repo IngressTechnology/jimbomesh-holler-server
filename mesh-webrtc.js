@@ -105,6 +105,17 @@ class HollerPeerHandler {
   }
 
   /**
+   * Check if a job has a confirmed, open data channel (not just attempting signaling).
+   * Returns true only when the WebRTC session is actively streaming or already complete —
+   * NOT during signaling/negotiation where it may still fail.
+   */
+  isStreamingOrComplete(jobId) {
+    const session = this.activeConnections.get(jobId);
+    if (!session) return false;
+    return session.state === 'streaming' || session.state === 'complete' || session.state === 'connected';
+  }
+
+  /**
    * Remove a completed/failed session from the active map.
    */
   _removeSession(jobId) {

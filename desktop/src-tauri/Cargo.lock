@@ -1899,7 +1899,7 @@ dependencies = [
 
 [[package]]
 name = "jimbomesh-holler"
-version = "0.3.37"
+version = "0.3.42"
 dependencies = [
  "base64 0.22.1",
  "dirs 5.0.1",

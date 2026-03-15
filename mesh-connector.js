@@ -613,9 +613,15 @@ class MeshConnector {
   async _handleFallbackInference(msg) {
     const jobId = msg.job_id || msg.jobId;
 
-    // Skip fallback if WebRTC P2P is already handling this job
-    if (this.peerHandler && this.peerHandler.activeConnections.has(jobId)) {
-      this._addLog('info', 'Skipping fallback — WebRTC P2P active for job ' + (jobId || '').slice(0, 8));
+    // Only skip fallback if WebRTC has a CONFIRMED open data channel
+    // (state is 'connected', 'streaming', or 'complete').
+    // activeConnections.has() alone is NOT sufficient — it returns true during
+    // signaling/negotiation, which may still fail (100% failure on Windows Tauri).
+    // Sending fallback_skipped prematurely kills the SSE channel with no recovery path.
+    const hasConfirmedP2P = this.peerHandler && this.peerHandler.isStreamingOrComplete(jobId);
+
+    if (hasConfirmedP2P) {
+      this._addLog('info', 'Skipping fallback — WebRTC P2P confirmed for job ' + (jobId || '').slice(0, 8));
       try {
         this._sendMgmtMessage({
           type: 'fallback_skipped',
@@ -627,6 +633,8 @@ class MeshConnector {
       }
       return;
     }
+
+    this._addLog('info', 'Processing fallback for job ' + (jobId || '').slice(0, 8) + ' (WebRTC not confirmed)');
 
     const requestStart = Date.now();
     let tracking = null;

@@ -14,7 +14,8 @@ use tauri::{
 };
 use tauri_plugin_autostart::ManagerExt as AutostartExt;
 use tauri_plugin_notification::NotificationExt;
-use tauri_plugin_updater::UpdaterExt;
+// tauri_plugin_updater is registered but not used for check_for_updates;
+// update checks use the GitHub Releases API (no signing key needed).
 
 const RUN_ON_STARTUP_KEY: &str = "run_on_startup";
 
@@ -448,80 +449,77 @@ fn show_notification(app: &tauri::AppHandle, title: &str, body: &str) {
 async fn check_for_updates(
     app: &tauri::AppHandle,
     silent_when_current: bool,
-    _open_release_page_when_available: bool,
+    open_release_page: bool,
 ) -> Result<(), String> {
-    let updater = app
-        .updater()
-        .map_err(|e| format!("Updater not available: {e}"))?;
-    let update = updater
-        .check()
+    let current_raw = app.package_info().version.to_string();
+    let current = current_raw.strip_prefix('v').unwrap_or(&current_raw);
+
+    let client = reqwest::Client::builder()
+        .timeout(Duration::from_secs(10))
+        .build()
+        .map_err(|e| format!("HTTP client error: {e}"))?;
+
+    let response = client
+        .get("https://api.github.com/repos/IngressTechnology/jimbomesh-holler-server/releases/latest")
+        .header("User-Agent", "JimboMesh-Holler")
+        .send()
         .await
-        .map_err(|e| format!("Update check failed: {e}"))?;
-
-    match update {
-        Some(update) => {
-            let current = app.package_info().version.to_string();
-            let latest = update.version.to_string();
-
+        .map_err(|e| {
             show_notification(
                 app,
-                "Update Available",
-                &format!(
-                    "JimboMesh Holler {} is available (you have {}). Downloading...",
-                    display_version(&latest),
-                    display_version(&current)
-                ),
+                "JimboMesh Holler",
+                "Could not check for updates. Check your internet connection.",
             );
+            format!("Network error: {e}")
+        })?;
 
-            let mut downloaded: u64 = 0;
-            let result = update
-                .download_and_install(
-                    |chunk_length, content_length| {
-                        downloaded = downloaded.saturating_add(chunk_length as u64);
-                        if let Some(total) = content_length {
-                            if total > 0 {
-                                let pct = ((downloaded as f64 / total as f64) * 100.0) as u32;
-                                if pct % 25 == 0 {
-                                    eprintln!("[holler-desktop] Download progress: {pct}%");
-                                }
-                            }
-                        }
-                    },
-                    || {
-                        eprintln!("[holler-desktop] Download complete, installing...");
-                    },
-                )
-                .await;
+    if !response.status().is_success() {
+        let status = response.status();
+        let msg = if status.as_u16() == 403 {
+            "Update check rate-limited. Try again in a few minutes."
+        } else {
+            "Could not reach update server. Try again later."
+        };
+        show_notification(app, "JimboMesh Holler", msg);
+        return Err(format!("GitHub API returned {status}"));
+    }
 
-            match result {
-                Ok(_) => {
-                    show_notification(
-                        app,
-                        "Update Installed",
-                        &format!(
-                            "JimboMesh Holler {} installed. Restart to apply.",
-                            display_version(&latest)
-                        ),
-                    );
-                }
-                Err(e) => {
-                    let err_msg = format!("Update install failed: {e}");
-                    eprintln!("[holler-desktop] {err_msg}");
-                    show_notification(app, "Update Failed", &err_msg);
-                    return Err(err_msg);
-                }
-            }
+    let release: serde_json::Value = response
+        .json()
+        .await
+        .map_err(|e| {
+            show_notification(app, "JimboMesh Holler", "Invalid response from update server.");
+            format!("JSON parse error: {e}")
+        })?;
+
+    let latest_tag = release["tag_name"].as_str().unwrap_or("unknown");
+    let latest = latest_tag.strip_prefix('v').unwrap_or(latest_tag);
+    let release_url = release["html_url"]
+        .as_str()
+        .unwrap_or("https://github.com/IngressTechnology/jimbomesh-holler-server/releases/latest");
+
+    if latest != "unknown" && latest != current {
+        show_notification(
+            app,
+            "Update Available",
+            &format!(
+                "JimboMesh Holler {} is available (you have {})",
+                display_version(latest_tag),
+                display_version(&current_raw)
+            ),
+        );
+        if open_release_page {
+            let _ = open::that(release_url);
         }
-        None => {
-            if !silent_when_current {
-                let current = app.package_info().version.to_string();
-                show_notification(
-                    app,
-                    "JimboMesh Holler",
-                    &format!("You're on the latest version ({})", display_version(&current)),
-                );
-            }
-        }
+    } else if !silent_when_current {
+        show_notification(
+            app,
+            "JimboMesh Holler",
+            &format!(
+                "You're on the latest version ({})",
+                display_version(&current_raw)
+            ),
+        );
     }
 
     Ok(())
