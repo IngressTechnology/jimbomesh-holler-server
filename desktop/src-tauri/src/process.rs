@@ -243,18 +243,26 @@ fn prepare_server_dir_for_upgrade(root_dir: &Path, server_dir: &Path) -> Result<
         return Ok(());
     }
 
-    // Delete is the fast path on Unix and when no handles are open.
-    for attempt in 1..=3 {
+    // Fast path: remove immediately when no stale process holds file handles.
+    if fs::remove_dir_all(server_dir).is_ok() {
+        eprintln!("[holler-desktop] Stale bundle deleted (initial attempt)");
+        return Ok(());
+    }
+
+    eprintln!(
+        "[holler-desktop] Initial delete failed, attempting to stop stale Holler processes..."
+    );
+    let _ = kill_stale_holler_processes(server_dir);
+
+    for attempt in 1..=5 {
+        std::thread::sleep(Duration::from_millis(500 * attempt as u64));
         match fs::remove_dir_all(server_dir) {
             Ok(_) => {
-                eprintln!("[holler-desktop] Stale bundle deleted (attempt {attempt})");
+                eprintln!("[holler-desktop] Stale bundle deleted after process cleanup (attempt {attempt}/5)");
                 return Ok(());
             }
             Err(e) => {
-                eprintln!(
-                    "[holler-desktop] Delete attempt {attempt}/3 failed: {e} — retrying in 2s"
-                );
-                std::thread::sleep(Duration::from_secs(2));
+                eprintln!("[holler-desktop] Delete retry {attempt}/5 failed: {e}");
             }
         }
     }
@@ -266,17 +274,55 @@ fn prepare_server_dir_for_upgrade(root_dir: &Path, server_dir: &Path) -> Result<
         .as_secs();
     let old_name = root_dir.join(format!("server.old.{timestamp}"));
 
-    fs::rename(server_dir, &old_name).map_err(|e| {
-        format!(
-            "Delete retries failed and rename fallback to {} also failed: {e}",
-            old_name.display()
-        )
-    })?;
+    fs::rename(server_dir, &old_name).map_err(|e| format!(
+        "Could not replace server files - a previous version of JimboMesh Holler may still be running. \
+Please close JimboMesh Holler completely and try again, or reboot your computer. \
+Delete retries failed and rename fallback to {} also failed: {e}",
+        old_name.display()
+    ))?;
 
     eprintln!(
         "[holler-desktop] Stale bundle renamed to {} (locked files workaround)",
         old_name.display()
     );
+    Ok(())
+}
+
+fn kill_stale_holler_processes(server_dir: &Path) -> Result<(), String> {
+    #[cfg(target_os = "windows")]
+    {
+        let server_hint = server_dir
+            .to_string_lossy()
+            .to_ascii_lowercase()
+            .replace('\\', "\\\\");
+
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/IM", "jimbomesh-holler.exe"])
+            .output();
+        let _ = std::process::Command::new("taskkill")
+            .args(["/F", "/IM", "JimboMesh Holler.exe"])
+            .output();
+        let _ = std::process::Command::new("cmd")
+            .args([
+                "/C",
+                &format!(
+                    "wmic process where \"name='node.exe' and commandline like '%{}%'\" call terminate",
+                    server_hint
+                ),
+            ])
+            .output();
+
+        std::thread::sleep(Duration::from_secs(2));
+    }
+
+    #[cfg(not(target_os = "windows"))]
+    {
+        let _ = std::process::Command::new("pkill")
+            .args(["-f", "ai.jimbomesh.holler"])
+            .output();
+        std::thread::sleep(Duration::from_secs(1));
+    }
+
     Ok(())
 }
 

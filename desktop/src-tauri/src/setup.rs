@@ -445,7 +445,16 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
                     wizard.server = StepDisplay::failed("Holler Server", "Upgrade failed");
                     wizard.detail = err.clone();
                     render_setup_wizard(app, &wizard);
-                    prompt_missing_holler_server(app).await;
+                    if is_bundle_lock_error(&err) {
+                        show_setup_error(
+                            app,
+                            "Previous Version Still Running",
+                            "Could not replace server files because a previous JimboMesh Holler process may still be running.\n\nOpen Task Manager (Ctrl+Shift+Esc), end JimboMesh Holler and related node.exe tasks, then retry.",
+                        )
+                        .await;
+                    } else {
+                        prompt_missing_holler_server(app).await;
+                    }
                     return Err(err);
                 }
             }
@@ -459,7 +468,16 @@ async fn do_standalone(app: &tauri::AppHandle, port: u16) -> Result<(), String> 
                 wizard.server = StepDisplay::failed("Holler Server", "Download failed");
                 wizard.detail = err.clone();
                 render_setup_wizard(app, &wizard);
-                prompt_missing_holler_server(app).await;
+                if is_bundle_lock_error(&err) {
+                    show_setup_error(
+                        app,
+                        "Previous Version Still Running",
+                        "Could not replace server files because a previous JimboMesh Holler process may still be running.\n\nOpen Task Manager (Ctrl+Shift+Esc), end JimboMesh Holler and related node.exe tasks, then retry.",
+                    )
+                    .await;
+                } else {
+                    prompt_missing_holler_server(app).await;
+                }
                 return Err(err);
             }
         }
@@ -987,6 +1005,18 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
     };
 
     let moonshine_icon = base64_encode_png(include_bytes!("../../../admin/assets/moonshine/moonshine-icon-flat.png"));
+    let file_lock_error_markup = if is_bundle_lock_error(&wizard.detail) {
+        r#"<div style="color:#ff6b6b;padding:16px;border:1px solid #ff6b6b;border-radius:8px;margin:16px 0;background:rgba(127,29,29,0.18);">
+      <h3 style="margin:0 0 8px;">⚠ Previous Version Still Running</h3>
+      <p style="margin:0 0 10px;color:#fecaca;">JimboMesh Holler from a previous install is still running and locking files.</p>
+      <p style="margin:0 0 10px;color:#fecaca;"><strong>Quick fix:</strong> Open Task Manager (Ctrl+Shift+Esc), find "JimboMesh Holler" or "node.exe", end task, then click Retry below.</p>
+      <p style="margin:0 0 12px;color:#fecaca;"><strong>Or:</strong> Reboot your computer and relaunch JimboMesh Holler.</p>
+      <button onclick="location.reload()" style="padding:8px 24px;background:#f79438;color:#1a1a2e;border:none;border-radius:4px;cursor:pointer;font-weight:bold;">Retry</button>
+    </div>"#
+            .to_string()
+    } else {
+        String::new()
+    };
 
     let html = format!(
         r#"<!doctype html>
@@ -1088,6 +1118,7 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
     <h1><img src="{moonshine_icon}" alt="" style="width:36px;height:36px;vertical-align:middle;margin-right:8px;margin-top:-4px;">JimboMesh Holler — First Run Setup</h1>
     <p>{headline}</p>
     <p style="margin-top:8px">{detail}</p>
+    {file_lock_error_markup}
     <section class="steps">{steps}</section>
     {progress_markup}
   </main>
@@ -1097,6 +1128,7 @@ fn render_setup_wizard(app: &tauri::AppHandle, wizard: &SetupWizard) {
         moonshine_icon = moonshine_icon,
         headline = html_escape(&wizard.headline),
         detail = html_escape(&wizard.detail),
+        file_lock_error_markup = file_lock_error_markup,
         steps = render_setup_steps(wizard),
         progress_markup = progress_markup,
         redirect_script = redirect_script
@@ -1133,6 +1165,14 @@ fn html_escape(input: &str) -> String {
         .replace('&', "&amp;")
         .replace('<', "&lt;")
         .replace('>', "&gt;")
+}
+
+fn is_bundle_lock_error(error: &str) -> bool {
+    let lower = error.to_ascii_lowercase();
+    lower.contains("os error 32")
+        || lower.contains("file in use")
+        || lower.contains("delete retries failed")
+        || lower.contains("could not replace server files")
 }
 
 fn admin_url_from_env(port: u16, env: &HashMap<String, String>) -> String {

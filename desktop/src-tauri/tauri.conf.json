@@ -32,7 +32,7 @@
       "nsis": {
         "installMode": "both",
         "displayLanguageSelector": false,
-        "installerHooks": "nsis/installer-hooks.nsh"
+        "installerHooks": "./nsis-hooks.nsi"
       }
     }
   },
