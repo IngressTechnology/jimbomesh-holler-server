@@ -455,7 +455,8 @@ function getStatsSummary() {
       FROM request_log
       WHERE timestamp >= date('now')
     `) || {};
-  return { all_time: allTime, today: today };
+  const moonshineLifetime = parseFloat(getSetting('moonshine_earned_lifetime') || '0');
+  return { all_time: allTime, today: today, moonshine_earned_lifetime: moonshineLifetime };
 }
 
 function pruneOldLogs(days) {

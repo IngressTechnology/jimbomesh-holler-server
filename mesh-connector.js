@@ -136,6 +136,7 @@ class MeshConnector {
     this.lastHeartbeat = null;
     this.jobsProcessed = 0;
     this.moonshineEarned = 0;
+    this.moonshineLifetime = parseFloat(db.getSetting('moonshine_earned_lifetime') || '0');
     this.heartbeatFailures = 0;
     this.startedAt = null;
 

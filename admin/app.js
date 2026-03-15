@@ -761,6 +761,12 @@
       statCard('d-running', t('dashboard.runningModels'), '\u2014') +
       statCard('d-uptime', t('dashboard.uptime'), '\u2014') +
       statCard('d-requests', t('dashboard.totalRequests'), '\u2014') +
+      '<div class="stat-card">' +
+      '<div class="stat-label">' +
+      '<img src="/admin/assets/moonshine/moonshine-token-coin.png" alt="" style="width:16px;height:16px;vertical-align:middle;margin-right:4px;">' +
+      'MOONSHINE EARNED</div>' +
+      '<div class="stat-value" id="d-moonshine">0.00 <span style="opacity:0.6;font-size:0.6em;">MSH</span></div>' +
+      '</div>' +
       '</div>' +
       '<div class="stats-grid" id="d-persistent-stats">' +
       statCard('d-today', t('dashboard.today'), '\u2014') +
@@ -847,6 +853,12 @@
         setText('#d-chats', allTime.chat_requests != null ? allTime.chat_requests : '\u2014');
         setText('#d-errors', allTime.error_count != null ? allTime.error_count : '\u2014');
         setText('#d-avg-latency', allTime.avg_duration_ms != null ? allTime.avg_duration_ms + ' ms' : '\u2014');
+        const moonshineLifetime = data.summary.moonshine_earned_lifetime;
+        const moonshineValue = typeof moonshineLifetime === 'number' ? moonshineLifetime.toFixed(2) : '0.00';
+        const moonshineEl = document.getElementById('d-moonshine');
+        if (moonshineEl) {
+          moonshineEl.innerHTML = moonshineValue + ' <span style="opacity:0.6;font-size:0.6em;">MSH</span>';
+        }
       })
       .catch(function () {});
   }

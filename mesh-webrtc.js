@@ -518,6 +518,13 @@ class PeerSession {
               this.meshConnector.moonshineEarned.toFixed(2) +
               ')'
           );
+          // Persist lifetime Moonshine to SQLite
+          try {
+            const currentLifetime = parseFloat(db.getSetting('moonshine_earned_lifetime') || '0');
+            db.setSetting('moonshine_earned_lifetime', String(currentLifetime + earned));
+          } catch (e) {
+            log('Job ' + this.jobId + ': failed to persist Moonshine to SQLite — ' + e.message);
+          }
         }
       } else {
         const errText = await response.text().catch(function () {
