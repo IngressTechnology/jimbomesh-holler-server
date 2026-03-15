@@ -30,12 +30,6 @@ pub fn save(app: &tauri::AppHandle, cfg: &DesktopConfig) -> Result<(), String> {
     std::fs::write(&path, json).map_err(|e| format!("Cannot write config.json: {e}"))
 }
 
-pub fn clear(app: &tauri::AppHandle) {
-    if let Ok(path) = config_path(app) {
-        let _ = std::fs::remove_file(&path);
-    }
-}
-
 fn config_path(app: &tauri::AppHandle) -> Result<std::path::PathBuf, String> {
     app.path()
         .app_local_data_dir()

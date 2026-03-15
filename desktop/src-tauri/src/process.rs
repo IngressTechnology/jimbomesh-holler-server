@@ -742,46 +742,6 @@ fn find_node() -> Result<std::path::PathBuf, String> {
         .map_err(|_| "Node.js not found. Install Node.js 22+ from https://nodejs.org".to_string())
 }
 
-fn find_npm() -> Result<std::path::PathBuf, String> {
-    let node = find_node()?;
-    let mut candidates = Vec::new();
-
-    if let Some(parent) = node.parent() {
-        #[cfg(target_os = "windows")]
-        {
-            candidates.push(parent.join("npm.cmd"));
-            candidates.push(parent.join("npm.exe"));
-        }
-
-        #[cfg(not(target_os = "windows"))]
-        {
-            candidates.push(parent.join("npm"));
-        }
-    }
-
-    #[cfg(target_os = "windows")]
-    {
-        if let Ok(path) = which::which("npm.cmd") {
-            candidates.push(path);
-        }
-        if let Ok(path) = which::which("npm") {
-            candidates.push(path);
-        }
-    }
-
-    #[cfg(not(target_os = "windows"))]
-    {
-        if let Ok(path) = which::which("npm") {
-            candidates.push(path);
-        }
-    }
-
-    candidates
-        .into_iter()
-        .find(|candidate| candidate.exists())
-        .ok_or_else(|| "npm not found. Install Node.js from https://nodejs.org".to_string())
-}
-
 fn holler_server_candidates(app: &tauri::AppHandle) -> Vec<PathBuf> {
     let mut candidates = Vec::new();
 

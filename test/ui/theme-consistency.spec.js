@@ -47,7 +47,18 @@ test.describe('Theme Consistency', () => {
   });
 
   test('pages avoid obvious unstyled white-background regressions', async ({ page }) => {
-    const tabs = ['dashboard', 'mesh', 'models', 'playground', 'statistics', 'config', 'system', 'activity', 'documents', 'feedback'];
+    const tabs = [
+      'dashboard',
+      'mesh',
+      'models',
+      'playground',
+      'statistics',
+      'config',
+      'system',
+      'activity',
+      'documents',
+      'feedback',
+    ];
     for (const tab of tabs) {
       await navigateToAdmin(page, tab);
       const styles = await page.evaluate(() => {

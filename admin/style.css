@@ -2195,7 +2195,10 @@ tr:hover td {
   cursor: pointer;
   opacity: 0;
   transform: translateY(4px);
-  transition: opacity 0.16s ease, transform 0.16s ease, background 0.16s ease;
+  transition:
+    opacity 0.16s ease,
+    transform 0.16s ease,
+    background 0.16s ease;
   pointer-events: none;
 }
 

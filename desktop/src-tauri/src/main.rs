@@ -270,7 +270,8 @@ fn handle_tray_event(app: &tauri::AppHandle, id: &str) {
         "mesh_connect" => {
             let port = {
                 let state = app.state::<AppState>();
-                *state.port.lock().unwrap()
+                let p = *state.port.lock().unwrap();
+                p
             };
             let url = format!("http://localhost:{}/#mesh", port);
             let _ = open::that(&url);

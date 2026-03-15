@@ -854,8 +854,8 @@
         var mshEl = document.getElementById('d-moonshine');
         if (mshEl && data.summary && data.summary.moonshine_earned_lifetime != null) {
           var val = data.summary.moonshine_earned_lifetime;
-          mshEl.innerHTML = (typeof val === 'number' ? val.toFixed(2) : val) +
-            ' <span style="opacity:0.6;font-size:0.6em;">MSH</span>';
+          mshEl.innerHTML =
+            (typeof val === 'number' ? val.toFixed(2) : val) + ' <span style="opacity:0.6;font-size:0.6em;">MSH</span>';
         }
       })
       .catch(function () {});
@@ -4439,7 +4439,9 @@
 
   function meshFormatLogTime(entryTime) {
     const d = new Date(entryTime);
-    return ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2);
+    return (
+      ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2) + ':' + ('0' + d.getSeconds()).slice(-2)
+    );
   }
 
   function meshIsNearBottom(logEl) {
@@ -4765,12 +4767,16 @@
       html +=
         '<div class="config-item">' +
         '<span class="key">' +
-        '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="Moonshine" class="mesh-moonshine-label-icon">' +
+        '<img src="' +
+        MOONSHINE_TOKEN_COIN_ASSET +
+        '" alt="Moonshine" class="mesh-moonshine-label-icon">' +
         esc(t('mesh.moonshineEarned')) +
         '</span>' +
         '<span class="value" id="mesh-moonshine-earned">' +
-        '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="MSH" class="mesh-moonshine-value-icon">' +
-        (typeof data.moonshineEarned === 'number' ? data.moonshineEarned.toFixed(2) : (data.moonshineEarned || 0)) +
+        '<img src="' +
+        MOONSHINE_TOKEN_COIN_ASSET +
+        '" alt="MSH" class="mesh-moonshine-value-icon">' +
+        (typeof data.moonshineEarned === 'number' ? data.moonshineEarned.toFixed(2) : data.moonshineEarned || 0) +
         ' <span class="mesh-moonshine-unit">MSH</span>' +
         '</span>' +
         '</div>';
@@ -5178,7 +5184,9 @@
           var mshEl = document.getElementById('mesh-moonshine-earned');
           if (mshEl && d.moonshineEarned != null) {
             mshEl.innerHTML =
-              '<img src="' + MOONSHINE_TOKEN_COIN_ASSET + '" alt="MSH" class="mesh-moonshine-value-icon">' +
+              '<img src="' +
+              MOONSHINE_TOKEN_COIN_ASSET +
+              '" alt="MSH" class="mesh-moonshine-value-icon">' +
               (typeof d.moonshineEarned === 'number' ? d.moonshineEarned.toFixed(2) : d.moonshineEarned) +
               ' <span class="mesh-moonshine-unit">MSH</span>';
           }

@@ -1394,7 +1394,7 @@ class MeshConnector {
 
     // Track Moonshine from SaaS response (supports camelCase/snake_case variants)
     const earned = response.data
-      ? response.data.moonshineEarned ?? response.data.moonshine_earned ?? response.data.MoonshineEarned
+      ? (response.data.moonshineEarned ?? response.data.moonshine_earned ?? response.data.MoonshineEarned)
       : null;
     if (earned != null) {
       this.moonshineEarned = this.moonshineEarned - 1 + earned;
@@ -1585,7 +1585,8 @@ class MeshConnector {
     ]);
     const memoryLoad =
       systemInfo.memory_total_mb > 0 ? Math.round((systemInfo.memory_used_mb / systemInfo.memory_total_mb) * 100) : 0;
-    const gpuLoad = resolvedGpuInfo && resolvedGpuInfo.utilization_percent != null ? resolvedGpuInfo.utilization_percent : 0;
+    const gpuLoad =
+      resolvedGpuInfo && resolvedGpuInfo.utilization_percent != null ? resolvedGpuInfo.utilization_percent : 0;
     return Math.max(systemInfo.cpu_percent || 0, memoryLoad || 0, gpuLoad || 0);
   }
 
