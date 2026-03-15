@@ -711,6 +711,7 @@
   function renderTab() {
     const ct = $('#tab-content');
     if (!ct) return;
+    ct.classList.toggle('jimbomesh-bg', state.tab === 'mesh');
     switch (state.tab) {
       case 'dashboard':
         initDashboard(ct);
