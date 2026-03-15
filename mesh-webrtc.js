@@ -277,11 +277,16 @@ class PeerSession {
     const self = this;
     return new Promise(function (resolve, reject) {
       const timeout = setTimeout(function () {
-        reject(new Error('WebRTC negotiation timeout'));
+        // If already streaming or complete, the negotiation succeeded — just late
+        if (self.state === 'streaming' || self.state === 'complete') {
+          resolve();
+        } else {
+          reject(new Error('WebRTC negotiation timeout'));
+        }
       }, NEGOTIATION_TIMEOUT_MS);
 
       const checkInterval = setInterval(function () {
-        if (self.state === 'connected') {
+        if (self.state === 'connected' || self.state === 'streaming' || self.state === 'complete') {
           clearTimeout(timeout);
           clearInterval(checkInterval);
           resolve();
