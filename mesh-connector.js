@@ -1007,8 +1007,11 @@ class MeshConnector {
         }
         this._addLog(
           'warning',
-          'WebRTC failed (' + ((result && result.reason) || 'unknown') +
-            ', failures: ' + this.peerHandler.failureCount + ') — falling back to HTTP processing'
+          'WebRTC failed (' +
+            ((result && result.reason) || 'unknown') +
+            ', failures: ' +
+            this.peerHandler.failureCount +
+            ') — falling back to HTTP processing'
         );
       }
 

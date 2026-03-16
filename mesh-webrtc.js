@@ -38,15 +38,13 @@ let _wrtcProbeResult = null;
     const hasSDP = !!wrtc.RTCSessionDescription;
     const hasNS = !!wrtc.nonstandard;
     _wrtcProbeResult = { ok: hasPC && hasSDP, hasPC, hasSDP, hasNS, error: null };
-    log('@roamhq/wrtc loaded: RTCPeerConnection=' + hasPC +
-      ', RTCSessionDescription=' + hasSDP +
-      ', nonstandard=' + hasNS);
+    log(
+      '@roamhq/wrtc loaded: RTCPeerConnection=' + hasPC + ', RTCSessionDescription=' + hasSDP + ', nonstandard=' + hasNS
+    );
   } catch (err) {
     _wrtcProbeResult = { ok: false, hasPC: false, hasSDP: false, hasNS: false, error: err.message };
     console.error('[webrtc] @roamhq/wrtc FAILED TO LOAD: ' + err.message);
-    console.error('[webrtc] Platform: ' + process.platform +
-      ', Arch: ' + process.arch +
-      ', Node: ' + process.version);
+    console.error('[webrtc] Platform: ' + process.platform + ', Arch: ' + process.arch + ', Node: ' + process.version);
   }
 })();
 
@@ -133,8 +131,11 @@ class HollerPeerHandler {
       session.cleanup();
       this.failureCount++;
       if (this.failureCount >= MAX_CONSECUTIVE_FAILURES) {
-        console.warn('[webrtc] ' + this.failureCount +
-          ' consecutive failures — disabling WebRTC for this session. SSE fallback only.');
+        console.warn(
+          '[webrtc] ' +
+            this.failureCount +
+            ' consecutive failures — disabling WebRTC for this session. SSE fallback only.'
+        );
       }
       return { success: false, reason: 'negotiation_failed', error: err.message };
     }
@@ -226,9 +227,18 @@ class PeerSession {
       if (!self.pc) return;
       if (event.candidate) {
         const c = event.candidate;
-        log('Job ' + self.jobId + ': ICE candidate: ' +
-          (c.type || '?') + ' ' + (c.protocol || '?') + ' ' +
-          (c.address || '?') + ':' + (c.port || '?'));
+        log(
+          'Job ' +
+            self.jobId +
+            ': ICE candidate: ' +
+            (c.type || '?') +
+            ' ' +
+            (c.protocol || '?') +
+            ' ' +
+            (c.address || '?') +
+            ':' +
+            (c.port || '?')
+        );
         if (self.signalingWs && self.signalingWs.readyState === WebSocket.OPEN) {
           self.signalingWs.send(
             JSON.stringify({
