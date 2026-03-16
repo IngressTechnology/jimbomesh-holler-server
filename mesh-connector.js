@@ -982,7 +982,7 @@ class MeshConnector {
 
   _buildSignalingUrl(jobId) {
     const meshUrl = this.meshUrl.replace(/\/+$/, '');
-    return meshUrl.replace(/^http/, 'ws') + '/ws/signal/' + jobId + '?token=' + encodeURIComponent(this.apiKey);
+    return meshUrl.replace(/^http/, 'ws') + '/ws/signal/' + jobId;
   }
 
   _trimProcessedJobs() {
