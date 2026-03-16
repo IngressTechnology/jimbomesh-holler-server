@@ -307,38 +307,87 @@ class PeerSession {
   connectSignaling(signalingUrl) {
     const self = this;
     return new Promise(function (resolve, reject) {
-      const url = signalingUrl + '?token=' + encodeURIComponent(self.meshConnector.apiKey) + '&role=holler';
+      // Use URL API to safely append query params (handles signaling URLs
+      // that already contain query strings from the SaaS)
+      var url;
+      try {
+        var parsed = new URL(signalingUrl);
+        parsed.searchParams.set('token', self.meshConnector.apiKey);
+        parsed.searchParams.set('role', 'holler');
+        url = parsed.toString();
+      } catch (_e) {
+        url =
+          signalingUrl +
+          (signalingUrl.indexOf('?') === -1 ? '?' : '&') +
+          'token=' +
+          encodeURIComponent(self.meshConnector.apiKey) +
+          '&role=holler';
+      }
       log('Job ' + self.jobId + ': connecting to signaling ' + signalingUrl.split('?')[0]);
 
       self.signalingWs = new WebSocket(url);
 
-      const timeout = setTimeout(function () {
-        reject(new Error('Signaling connection timeout'));
-        self.signalingWs.close();
+      var settled = false;
+      var timeout = setTimeout(function () {
+        if (!settled) {
+          settled = true;
+          reject(new Error('Signaling connection timeout'));
+          try {
+            self.signalingWs.close();
+          } catch (_) {
+            /* */
+          }
+        }
       }, SIGNALING_TIMEOUT_MS);
 
       self.signalingWs.addEventListener('open', function () {
+        if (settled) return;
+        settled = true;
         clearTimeout(timeout);
         log('Job ' + self.jobId + ': signaling connected');
+        self.signalingWs.send(JSON.stringify({ type: 'holler_ready', job_id: self.jobId }));
         resolve();
       });
 
       self.signalingWs.addEventListener('message', function (event) {
+        var raw = typeof event.data === 'string' ? event.data : String(event.data);
         try {
-          const msg = JSON.parse(event.data);
-          self.handleSignalingMessage(msg);
+          var msg = JSON.parse(raw);
+          log('Job ' + self.jobId + ': signaling message received: ' + msg.type);
+          self.handleSignalingMessage(msg).catch(function (err) {
+            log('Job ' + self.jobId + ': handleSignalingMessage error — ' + err.message);
+          });
         } catch (err) {
-          log('Job ' + self.jobId + ': invalid signaling message — ' + err.message);
+          log(
+            'Job ' +
+              self.jobId +
+              ': invalid signaling message — ' +
+              err.message +
+              ' (data type: ' +
+              typeof event.data +
+              ', length: ' +
+              raw.length +
+              ')'
+          );
         }
       });
 
-      self.signalingWs.addEventListener('error', function () {
-        clearTimeout(timeout);
-        reject(new Error('Signaling WebSocket error'));
+      self.signalingWs.addEventListener('error', function (e) {
+        log('Job ' + self.jobId + ': signaling WS error' + (e.message ? ': ' + e.message : ''));
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          reject(new Error('Signaling WebSocket error'));
+        }
       });
 
-      self.signalingWs.addEventListener('close', function () {
-        clearTimeout(timeout);
+      self.signalingWs.addEventListener('close', function (e) {
+        log('Job ' + self.jobId + ': signaling WS closed (code=' + e.code + ', reason=' + (e.reason || 'none') + ')');
+        if (!settled) {
+          settled = true;
+          clearTimeout(timeout);
+          reject(new Error('Signaling WebSocket closed before open (code=' + e.code + ')'));
+        }
       });
     });
   }

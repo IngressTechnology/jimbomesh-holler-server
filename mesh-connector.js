@@ -204,6 +204,11 @@ class MeshConnector {
     this._addLog('info', 'Coordinator: ' + this.meshUrl);
     this._addLog('info', 'Authenticating with API key (' + maskKey(this.apiKey) + ')');
 
+    // Initialize WebRTC peer handler BEFORE registration so the payload
+    // includes webrtcCapable — prevents the SaaS from omitting signaling_url
+    // for the first ~30s (before the first heartbeat reports capability).
+    this._initPeerHandler();
+
     try {
       await this._registerWithRetry();
     } catch (err) {
@@ -563,6 +568,12 @@ class MeshConnector {
 
         this._addLog('info', 'Job received via WebSocket: ' + jobId);
 
+        if (msg.signaling_url) {
+          log('Job ' + jobId + ': SaaS provided signaling_url');
+        } else {
+          log('Job ' + jobId + ': no signaling_url from SaaS — WebRTC will not be attempted');
+        }
+
         const jobData = {
           job_id: jobId,
           model: msg.model,
@@ -571,8 +582,8 @@ class MeshConnector {
             temperature: msg.temperature,
             max_tokens: msg.max_tokens,
           },
-          signaling_url: msg.signaling_url || this._buildSignalingUrl(jobId),
-          ice_servers: msg.ice_servers || [{ urls: 'stun:stun.l.google.com:19302' }],
+          signaling_url: msg.signaling_url || null,
+          ice_servers: msg.ice_servers || null,
         };
 
         await this._handleMeshJob(jobData, 'websocket');
@@ -1107,6 +1118,7 @@ class MeshConnector {
       ramMb: Math.round(os.totalmem() / 1048576),
       region: this._detectRegion(),
       models: saasModels,
+      webrtcCapable: this.peerHandler ? this.peerHandler.canAttemptWebRTC() : false,
     };
 
     const result = await this._meshFetch('POST', '/api/hollers/register', body);
