@@ -85,6 +85,19 @@ class HollerPeerHandler {
   }
 
   /**
+   * Reset failure state. Called on every registration so stale failures
+   * from a previous session don't permanently disable WebRTC.
+   */
+  resetFailures() {
+    const wasDisabled = this.failureCount >= MAX_CONSECUTIVE_FAILURES;
+    this.failureCount = 0;
+    if (wasDisabled) {
+      log('WebRTC re-enabled after failure reset (was disabled at ' + MAX_CONSECUTIVE_FAILURES + ' failures)');
+    }
+    log('WebRTC state reset: capable=' + this.enabled + ', failures=0');
+  }
+
+  /**
    * Check if WebRTC should be attempted for the next job.
    * Returns false if the module didn't load, or too many consecutive failures.
    */
@@ -307,23 +320,31 @@ class PeerSession {
   connectSignaling(signalingUrl) {
     const self = this;
     return new Promise(function (resolve, reject) {
-      // Use URL API to safely append query params (handles signaling URLs
-      // that already contain query strings from the SaaS)
+      // If the SaaS provided a signaling URL with an auth token baked in,
+      // use it EXACTLY as-is. Only append token/role for legacy URLs without one.
       var url;
       try {
         var parsed = new URL(signalingUrl);
-        parsed.searchParams.set('token', self.meshConnector.apiKey);
-        parsed.searchParams.set('role', 'holler');
-        url = parsed.toString();
+        if (parsed.searchParams.has('token')) {
+          url = signalingUrl;
+        } else {
+          parsed.searchParams.set('token', self.meshConnector.apiKey);
+          parsed.searchParams.set('role', 'holler');
+          url = parsed.toString();
+        }
       } catch (_e) {
-        url =
-          signalingUrl +
-          (signalingUrl.indexOf('?') === -1 ? '?' : '&') +
-          'token=' +
-          encodeURIComponent(self.meshConnector.apiKey) +
-          '&role=holler';
+        if (signalingUrl.indexOf('token=') !== -1) {
+          url = signalingUrl;
+        } else {
+          url =
+            signalingUrl +
+            (signalingUrl.indexOf('?') === -1 ? '?' : '&') +
+            'token=' +
+            encodeURIComponent(self.meshConnector.apiKey) +
+            '&role=holler';
+        }
       }
-      log('Job ' + self.jobId + ': connecting to signaling ' + signalingUrl.split('?')[0]);
+      log('Job ' + self.jobId + ': connecting to signaling relay...');
 
       self.signalingWs = new WebSocket(url);
 
@@ -344,7 +365,7 @@ class PeerSession {
         if (settled) return;
         settled = true;
         clearTimeout(timeout);
-        log('Job ' + self.jobId + ': signaling connected');
+        log('Job ' + self.jobId + ': signaling relay connected, sending holler_ready');
         self.signalingWs.send(JSON.stringify({ type: 'holler_ready', job_id: self.jobId }));
         resolve();
       });
@@ -353,7 +374,7 @@ class PeerSession {
         var raw = typeof event.data === 'string' ? event.data : String(event.data);
         try {
           var msg = JSON.parse(raw);
-          log('Job ' + self.jobId + ': signaling message received: ' + msg.type);
+          log('Job ' + self.jobId + ': signaling message type=' + msg.type);
           self.handleSignalingMessage(msg).catch(function (err) {
             log('Job ' + self.jobId + ': handleSignalingMessage error — ' + err.message);
           });

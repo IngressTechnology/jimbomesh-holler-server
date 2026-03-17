@@ -209,6 +209,12 @@ class MeshConnector {
     // for the first ~30s (before the first heartbeat reports capability).
     this._initPeerHandler();
 
+    // Reset WebRTC failure state on every registration (startup or reconnect).
+    // Prevents death spiral where stale failure count disables WebRTC permanently.
+    if (this.peerHandler) {
+      this.peerHandler.resetFailures();
+    }
+
     try {
       await this._registerWithRetry();
     } catch (err) {
@@ -568,11 +574,9 @@ class MeshConnector {
 
         this._addLog('info', 'Job received via WebSocket: ' + jobId);
 
-        if (msg.signaling_url) {
-          log('Job ' + jobId + ': SaaS provided signaling_url');
-        } else {
-          log('Job ' + jobId + ': no signaling_url from SaaS — WebRTC will not be attempted');
-        }
+        const signalingUrl = msg.signaling_url || msg.signalingUrl || null;
+        const iceServers = msg.ice_servers || msg.iceServers || null;
+        log('Job ' + jobId + ': signalingUrl=' + (signalingUrl ? 'present' : 'missing'));
 
         const jobData = {
           job_id: jobId,
@@ -582,8 +586,8 @@ class MeshConnector {
             temperature: msg.temperature,
             max_tokens: msg.max_tokens,
           },
-          signaling_url: msg.signaling_url || null,
-          ice_servers: msg.ice_servers || null,
+          signaling_url: signalingUrl,
+          ice_servers: iceServers,
         };
 
         await this._handleMeshJob(jobData, 'websocket');
@@ -1007,9 +1011,17 @@ class MeshConnector {
     const jobId = job.job_id || job.jobId || 'unknown';
     const model = job.model || 'unknown';
     const startTime = Date.now();
+
+    // Normalize signaling fields (SaaS may use camelCase or snake_case)
+    if (!job.signaling_url && job.signalingUrl) job.signaling_url = job.signalingUrl;
+    if (!job.ice_servers && job.iceServers) job.ice_servers = job.iceServers;
+
+    log('Job ' + jobId + ': signalingUrl=' + (job.signaling_url ? 'present' : 'missing'));
+
     try {
-      // Try WebRTC first — only if the handler reports capability
-      if (job.signaling_url && job.ice_servers && this.peerHandler && this.peerHandler.canAttemptWebRTC()) {
+      // Try WebRTC first — only requires a signaling URL (ice_servers are optional)
+      if (job.signaling_url && this.peerHandler && this.peerHandler.canAttemptWebRTC()) {
+        log('Job ' + jobId + ': attempting WebRTC via signaling relay');
         const result = await this.peerHandler.handleJobAssignment(job);
         if (result && result.success) {
           this.jobsProcessed++;
