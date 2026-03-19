@@ -2407,6 +2407,14 @@ function handleMeshStatus(meshConnector, res, config) {
       hollerName = config.db.getSetting('holler_name') || process.env.JIMBOMESH_HOLLER_NAME || '';
       autoConnect = config.db.getSetting('mesh_auto_connect') === 'true';
     }
+    if (!hollerName) {
+      hollerName = 'Holler-' + os.hostname();
+      hollerName = hollerName
+        .replace(/[^a-zA-Z0-9\-_]/g, '-')
+        .replace(/-{2,}/g, '-')
+        .replace(/^-+|-+$/g, '');
+      if (hollerName.length > 50) hollerName = hollerName.slice(0, 50).replace(/-+$/, '');
+    }
     json(res, 200, {
       state: 'disconnected',
       connected: false,

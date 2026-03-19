@@ -25,6 +25,18 @@ function maskKey(key) {
   return key.slice(0, 4) + '*'.repeat(key.length - 8) + key.slice(-4);
 }
 
+function defaultHollerName() {
+  return sanitizeHollerName('Holler-' + os.hostname());
+}
+
+function sanitizeHollerName(name) {
+  if (!name) return 'Holler-Unknown';
+  var sanitized = name.replace(/[^a-zA-Z0-9\-_]/g, '-').replace(/-{2,}/g, '-');
+  sanitized = sanitized.replace(/^-+|-+$/g, '');
+  if (sanitized.length > 50) sanitized = sanitized.slice(0, 50).replace(/-+$/, '');
+  return sanitized || 'Holler-Unknown';
+}
+
 function log(msg) {
   console.log('[mesh] ' + msg);
 }
@@ -171,6 +183,16 @@ class MeshConnector {
     // Job dedup — prevent double-processing from WS + poll overlap
     this._processedJobs = new Set();
 
+    // Escalating recovery (JIM-594): tracks unstable WS connections that open
+    // then close quickly, triggering full teardown after repeated failures.
+    this._mgmtWsUnstableCount = 0;
+    this._mgmtWsLastOpenAt = 0;
+    this._fullTeardownAttempts = 0;
+    this._httpPollingFallback = false;
+    this._wsPromotionTimer = null;
+    // Threshold: WS open→close within this window counts as unstable
+    this._mgmtWsUnstableThresholdMs = 30000;
+
     // Intervals
     this._heartbeatInterval = null;
     this._pollInterval = null;
@@ -200,6 +222,8 @@ class MeshConnector {
     this._aborted = false;
     this._state = 'connecting';
     this.errorMessage = null;
+    this._mgmtWsUnstableCount = 0;
+    this._mgmtWsLastOpenAt = 0;
     this._addLog('info', 'Initializing mesh connection...');
     this._addLog('info', 'Coordinator: ' + this.meshUrl);
     this._addLog('info', 'Authenticating with API key (' + maskKey(this.apiKey) + ')');
@@ -246,6 +270,9 @@ class MeshConnector {
     }
     this._mgmtReconnectAttempt = 0;
     this._mgmtNextRetryAt = null;
+    this._mgmtWsUnstableCount = 0;
+    this._fullTeardownAttempts = 0;
+    this._httpPollingFallback = false;
     this.connectionMode = 'HTTP Polling';
     this._state = 'disconnected';
     this.errorMessage = null;
@@ -283,6 +310,9 @@ class MeshConnector {
     }
     this._mgmtReconnectAttempt = 0;
     this._mgmtNextRetryAt = null;
+    this._mgmtWsUnstableCount = 0;
+    this._fullTeardownAttempts = 0;
+    this._httpPollingFallback = false;
     this.connectionMode = 'HTTP Polling';
 
     // Close all WebRTC peer connections
@@ -335,7 +365,7 @@ class MeshConnector {
             process.env.HOLLER_SERVER_NAME ||
             null
           : process.env.JIMBOMESH_HOLLER_NAME || process.env.HOLLER_SERVER_NAME || null) ||
-        os.hostname(),
+        defaultHollerName(),
       lastHeartbeat: this.lastHeartbeat,
       jobsProcessed: this.jobsProcessed,
       moonshineEarned: this.moonshineEarned,
@@ -344,6 +374,8 @@ class MeshConnector {
       connectionMode: this.connectionMode,
       reconnectAttempt: this._mgmtReconnectAttempt || 0,
       nextReconnectAt: this._mgmtNextRetryAt,
+      httpPollingFallback: this._httpPollingFallback || false,
+      fullTeardownAttempts: this._fullTeardownAttempts || 0,
       log: this._log.slice(),
     };
     if (this.peerHandler) {
@@ -364,6 +396,33 @@ class MeshConnector {
     } catch (err) {
       this._addLog('warning', 'WebRTC not available (wrtc not installed): ' + err.message);
     }
+  }
+
+  /**
+   * Proactively announce WebRTC capability to the SaaS.
+   * Sends a status message on the management WebSocket and forces an
+   * immediate heartbeat so the SaaS includes signaling_url with
+   * subsequent job assignments without waiting for the next heartbeat cycle.
+   */
+  _announceWebRTCReadiness() {
+    const webrtcCapable = this.peerHandler ? this.peerHandler.canAttemptWebRTC() : false;
+    const statusMsg = webrtcCapable
+      ? 'WebRTC P2P ready — proactively announcing to mesh'
+      : 'WebRTC not available — staying on HTTP Polling (WebRTC promotion pending)';
+    this._addLog('info', statusMsg);
+
+    // Notify SaaS via management WebSocket
+    this._sendMgmtMessage({
+      type: 'webrtc_status',
+      hollerId: this.hollerId,
+      webrtcCapable: webrtcCapable,
+      webrtcFailures: this.peerHandler ? this.peerHandler.failureCount : 0,
+    });
+
+    // Force an immediate heartbeat to update the SaaS registration record
+    this._heartbeatLoop().catch(function (err) {
+      log('Proactive heartbeat after WebRTC announcement failed: ' + ((err && err.message) || String(err)));
+    });
   }
 
   // ── Management WebSocket ─────────────────────────────────────────
@@ -408,16 +467,31 @@ class MeshConnector {
         this._mgmtNextRetryAt = null;
         this._mgmtWsDisconnectedAt = null;
         this._mgmtLastHeartbeatAck = Date.now();
+        this._mgmtWsLastOpenAt = Date.now();
         this._mgmtWs = ws;
         if (this._state === 'reconnecting') this._state = 'connected';
         this.errorMessage = null;
         this.connectionMode = 'WebSocket';
+        if (this._httpPollingFallback) {
+          this._httpPollingFallback = false;
+          this._addLog('success', 'WebSocket re-established — exiting HTTP Polling fallback mode');
+          if (this._wsPromotionTimer) {
+            clearInterval(this._wsPromotionTimer);
+            this._wsPromotionTimer = null;
+          }
+        }
         this._startMgmtPing();
+
+        // After reconnect, immediately announce WebRTC capability and force a heartbeat
+        // so the SaaS knows to include signaling_url with subsequent job assignments.
+        this._announceWebRTCReadiness();
         this._mgmtStableTimer = setTimeout(() => {
           if (!this._stopped && !this._aborted && this._mgmtWs && this._mgmtWs.readyState === 1) {
             this._mgmtWsRetries = 0;
             this._mgmtReconnectAttempt = 0;
-            this._addLog('info', 'Connection stable for 300s, resetting backoff');
+            this._mgmtWsUnstableCount = 0;
+            this._fullTeardownAttempts = 0;
+            this._addLog('info', 'Connection stable for 300s, resetting all recovery counters');
           }
         }, MGMT_WS_STABLE_MS);
       });
@@ -449,6 +523,52 @@ class MeshConnector {
           this._state = 'reconnecting';
           if (!this._mgmtWsDisconnectedAt) this._mgmtWsDisconnectedAt = Date.now();
 
+          // Track unstable connections: opened then closed quickly
+          const openDuration = this._mgmtWsLastOpenAt ? Date.now() - this._mgmtWsLastOpenAt : Infinity;
+          if (openDuration < this._mgmtWsUnstableThresholdMs) {
+            this._mgmtWsUnstableCount++;
+            this._addLog(
+              'warning',
+              'Unstable connection detected (' +
+                this._mgmtWsUnstableCount +
+                '/5) — open for only ' +
+                Math.round(openDuration / 1000) +
+                's'
+            );
+          }
+
+          // LEVEL 3: After 3 full teardown failures, fall back to HTTP Polling
+          if (this._fullTeardownAttempts >= 3) {
+            if (!this._httpPollingFallback) {
+              this._httpPollingFallback = true;
+              this._addLog(
+                'warning',
+                'Falling back to HTTP Polling mode after ' + this._fullTeardownAttempts + ' failed teardowns'
+              );
+              this._addLog('info', 'Attempting WebSocket promotion from HTTP Polling every 5 minutes');
+              this._state = 'connected';
+              this.errorMessage = null;
+              this._startWsPromotionTimer();
+            }
+            return;
+          }
+
+          // LEVEL 2: After 5 unstable reconnects, full teardown + re-registration
+          if (this._mgmtWsUnstableCount >= 5) {
+            this._fullTeardownAttempts++;
+            this._mgmtWsUnstableCount = 0;
+            this._addLog(
+              'warning',
+              'Standard reconnect failed after 5 unstable connections — performing full teardown (attempt ' +
+                this._fullTeardownAttempts +
+                '/3)'
+            );
+            this._state = 'reconnecting';
+            this._clearTimers();
+            this._scheduleRetry();
+            return;
+          }
+
           // If management WS has been down > 5 min, do full re-registration
           if (Date.now() - this._mgmtWsDisconnectedAt > 5 * 60 * 1000) {
             this._addLog('warning', 'Management WebSocket down >5min — full reconnect');
@@ -458,6 +578,7 @@ class MeshConnector {
             return;
           }
 
+          // LEVEL 1: Standard reconnect with exponential backoff
           this._scheduleMgmtWsReconnect();
         }
       });
@@ -496,7 +617,8 @@ class MeshConnector {
 
   /**
    * Start ping/pong keepalive for the management WebSocket.
-   * Sends a ping every 25s, expects a pong within 10s.
+   * Sends a ping every 15s (reduced from 25s for Windows compatibility),
+   * expects a pong within 10s.
    */
   _startMgmtPing() {
     this._clearMgmtTimers();
@@ -530,7 +652,37 @@ class MeshConnector {
           }
         }, 10000);
       }
-    }, 25000);
+    }, 15000);
+  }
+
+  /**
+   * In HTTP Polling fallback mode, periodically attempt to re-establish the
+   * WebSocket connection. Runs every 5 minutes until successful.
+   */
+  _startWsPromotionTimer() {
+    if (this._wsPromotionTimer) {
+      clearInterval(this._wsPromotionTimer);
+      this._wsPromotionTimer = null;
+    }
+    this._wsPromotionTimer = setInterval(
+      () => {
+        if (this._stopped || this._aborted) {
+          clearInterval(this._wsPromotionTimer);
+          this._wsPromotionTimer = null;
+          return;
+        }
+        if (this._mgmtWs && this._mgmtWs.readyState === 1) {
+          this._addLog('info', 'WebSocket already open — cancelling promotion timer');
+          this._httpPollingFallback = false;
+          clearInterval(this._wsPromotionTimer);
+          this._wsPromotionTimer = null;
+          return;
+        }
+        this._addLog('info', 'Attempting WebSocket promotion from HTTP Polling');
+        this._connectManagementWebSocket();
+      },
+      5 * 60 * 1000
+    );
   }
 
   /**
@@ -552,6 +704,10 @@ class MeshConnector {
     if (this._mgmtStableTimer) {
       clearTimeout(this._mgmtStableTimer);
       this._mgmtStableTimer = null;
+    }
+    if (this._wsPromotionTimer) {
+      clearInterval(this._wsPromotionTimer);
+      this._wsPromotionTimer = null;
     }
   }
 
@@ -1028,13 +1184,23 @@ class MeshConnector {
           this._addLog('info', 'Job ' + jobId + ' started via WebRTC P2P');
           return;
         }
+        const reason = (result && result.reason) || 'unknown';
         this._addLog(
           'warning',
-          'WebRTC failed (' +
-            ((result && result.reason) || 'unknown') +
-            ', failures: ' +
+          'WebRTC promotion failed for job ' +
+            jobId +
+            ', reason: ' +
+            reason +
+            ' (failures: ' +
             this.peerHandler.failureCount +
-            ') — falling back to HTTP processing'
+            '/' +
+            parseInt(process.env.WEBRTC_MAX_FAILURES || '3', 10) +
+            ')'
+        );
+      } else if (!job.signaling_url) {
+        this._addLog(
+          'info',
+          'Job ' + jobId + ': no signaling URL — staying on HTTP Polling (WebRTC promotion pending)'
         );
       }
 
@@ -1106,7 +1272,7 @@ class MeshConnector {
           process.env.HOLLER_SERVER_NAME ||
           null
         : process.env.JIMBOMESH_HOLLER_NAME || process.env.HOLLER_SERVER_NAME || null) ||
-      os.hostname();
+      defaultHollerName();
     const gpuName = gpuInfo ? gpuInfo.name : 'CPU only';
     const vramMb = gpuInfo ? gpuInfo.vram_total_mb : 0;
     this._addLog(
@@ -1174,6 +1340,9 @@ class MeshConnector {
 
       // Connect management WebSocket for real-time job push
       this._connectManagementWebSocket();
+
+      // Proactive WebRTC promotion: immediately announce capability
+      this._announceWebRTCReadiness();
     } else {
       let errMsg = 'Authentication failed (' + result.status + ')';
       if (result.status === 401) errMsg += '. Check your API key.';

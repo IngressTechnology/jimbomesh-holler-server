@@ -304,7 +304,7 @@ Key Mesh environment variables:
 
 - `JIMBOMESH_COORDINATOR_URL` (preferred, takes precedence)
 - `JIMBOMESH_MESH_URL` (legacy fallback)
-- `JIMBOMESH_HOLLER_NAME` (defaults to `HOLLER_SERVER_NAME`)
+- `JIMBOMESH_HOLLER_NAME` (defaults to `HOLLER_SERVER_NAME`, then sanitized `Holler-<hostname>`)
 - `JIMBOMESH_AUTO_CONNECT`
 - `MAX_PEER_CONNECTIONS`
 

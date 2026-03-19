@@ -233,6 +233,8 @@ The desktop app supports:
 - Attach mode: connect to an already running Holler on port `1920`
 - Standalone mode: install or start local dependencies and manage its own Holler instance
 
+Standalone mode now persists a `setupComplete` flag in desktop config. After the first successful standalone setup, relaunches use a fast-path that starts Ollama + Holler directly (or attaches if the port is already occupied) without showing the first-run wizard again.
+
 ### Desktop Upgrade Regression Checklist
 
 Run this checklist before cutting desktop releases to validate server bundle upgrades.
@@ -251,7 +253,7 @@ Run this checklist before cutting desktop releases to validate server bundle upg
    - Existing documents/collections (if used) still work
 8. Confirm no repeated upgrade loop:
    - Quit and relaunch desktop app again
-   - Expected: setup does not re-download/re-extract the server bundle when versions already match
+   - Expected: setup does not re-download/re-extract the server bundle when versions already match, and standalone relaunch skips first-run wizard flow when setup is already complete
 
 Notes:
 - Desktop compares bundled server `package.json` version with desktop `CARGO_PKG_VERSION`.

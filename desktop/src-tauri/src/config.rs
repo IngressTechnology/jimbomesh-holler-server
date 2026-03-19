@@ -9,6 +9,8 @@ pub struct DesktopConfig {
     pub port: u16,
     #[serde(default, rename = "lastUsed")]
     pub last_used: String,
+    #[serde(default, rename = "setupComplete")]
+    pub setup_complete: bool,
 }
 
 fn default_port() -> u16 {

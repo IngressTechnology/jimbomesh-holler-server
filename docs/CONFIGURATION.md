@@ -152,9 +152,14 @@ Used when connecting this Holler to the JimboMesh coordinator. Leave unset for s
 | `JIMBOMESH_API_KEY` | (optional) | Mesh API key used for coordinator registration, heartbeats, and job polling |
 | `JIMBOMESH_COORDINATOR_URL` | (none) | Preferred coordinator URL override. If set, takes precedence over `JIMBOMESH_MESH_URL` |
 | `JIMBOMESH_MESH_URL` | `https://api.jimbomesh.ai` | Legacy coordinator URL variable kept for backward compatibility |
-| `JIMBOMESH_HOLLER_NAME` | (none) | Friendly Holler name shown in Mesh dashboards (falls back to `HOLLER_SERVER_NAME`, then hostname when unset) |
+| `JIMBOMESH_HOLLER_NAME` | (none) | Friendly Holler name shown in Mesh dashboards (falls back to `HOLLER_SERVER_NAME`, then sanitized `Holler-<hostname>` when unset) |
 | `JIMBOMESH_AUTO_CONNECT` | `true` | Auto-connect to Mesh on startup when `JIMBOMESH_API_KEY` exists. Set `false` for manual connect from Admin UI |
 | `MAX_PEER_CONNECTIONS` | `10` | Maximum concurrent WebRTC peer sessions for Mesh jobs. Set `0` to disable WebRTC and force HTTP polling |
+
+Mesh status responses also include resilience telemetry:
+
+- `httpPollingFallback`: `true` when the connector has temporarily fallen back to HTTP polling after repeated unstable management WebSocket reconnects.
+- `fullTeardownAttempts`: count of full teardown/re-registration attempts made during recovery before entering fallback mode.
 
 ### Installer Persistence Behavior
 

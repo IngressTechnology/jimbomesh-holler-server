@@ -1366,6 +1366,194 @@ paths:
         '403':
           $ref: '#/components/responses/Forbidden'
 
+  /api/pull:
+    post:
+      tags: [Ollama Proxy]
+      summary: Pull a model from registry
+      description: Native Ollama pull endpoint (supports JSON or NDJSON progress when `stream=true`).
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: llama3.2:1b
+                stream:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Pull started or completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+            application/x-ndjson:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/delete:
+    delete:
+      tags: [Ollama Proxy]
+      summary: Delete an installed model
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name]
+              properties:
+                name:
+                  type: string
+                  example: llama3.2:1b
+      responses:
+        '200':
+          description: Delete result
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/show:
+    post:
+      tags: [Ollama Proxy]
+      summary: Show model metadata and template
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ShowRequest'
+      responses:
+        '200':
+          description: Model metadata
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+        '400':
+          description: Missing model name
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuredError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/create:
+    post:
+      tags: [Ollama Proxy]
+      summary: Create a model from a Modelfile
+      description: Native Ollama create endpoint (supports progress stream for build/import steps).
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, modelfile]
+              properties:
+                name:
+                  type: string
+                  example: my-custom-model
+                modelfile:
+                  type: string
+                  example: "FROM llama3.2:1b\nSYSTEM You are concise."
+                stream:
+                  type: boolean
+                  default: true
+      responses:
+        '200':
+          description: Create started or completed
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: true
+            application/x-ndjson:
+              schema:
+                type: string
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+
+  /api/models/huggingface:
+    get:
+      tags: [Ollama Proxy]
+      summary: Search HuggingFace GGUF models (gateway proxy)
+      description: |
+        Authenticated proxy used by clients that are not using the admin namespace.
+        Query params are forwarded to HuggingFace search with GGUF filtering.
+      security:
+        - ApiKeyAuth: []
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: search
+          schema:
+            type: string
+        - in: query
+          name: task
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+            maximum: 100
+      responses:
+        '200':
+          description: HuggingFace model list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  additionalProperties: true
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '502':
+          description: HuggingFace upstream failure
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StructuredError'
+
   /v1/documents/search:
     post:
       tags: [Public Documents]

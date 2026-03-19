@@ -460,6 +460,9 @@ curl $BASE_URL/admin/api/mesh/status \
   "lastHeartbeat": 1709312400114,
   "jobsProcessed": 42,
   "moonshineEarned": 1.5,
+  "connectionMode": "WebSocket",
+  "httpPollingFallback": false,
+  "fullTeardownAttempts": 0,
   "errorMessage": null,
   "log": [],
   "peerConnections": {
@@ -470,7 +473,9 @@ curl $BASE_URL/admin/api/mesh/status \
 }
 ```
 
-`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect. Mesh registration/heartbeat model metadata is sourced from `GET /api/tags` with a short cache and falls back to `HOLLER_MODELS` when tags are temporarily unavailable.
+`state` is one of `disconnected`, `connecting`, `connected`, `error`, `reconnecting`. `meshUrl` resolves from `JIMBOMESH_COORDINATOR_URL` (preferred) or falls back to `JIMBOMESH_MESH_URL` in `.env`. `hollerName` resolves from saved Mesh settings, then `JIMBOMESH_HOLLER_NAME`, then `HOLLER_SERVER_NAME`, and finally a sanitized `Holler-<hostname>` fallback. `hasStoredMeshKey` indicates whether an API key is persisted in SQLite for one-click reconnect. Mesh registration/heartbeat model metadata is sourced from `GET /api/tags` with a short cache and falls back to `HOLLER_MODELS` when tags are temporarily unavailable.
+
+`httpPollingFallback=true` means the connector intentionally switched to HTTP polling after repeated unstable management WebSocket cycles. In that mode, it keeps trying to promote back to WebSocket periodically. `fullTeardownAttempts` tracks how many full teardown/re-registration attempts were made during that recovery cycle.
 
 ### Get latest published Mesh version
 

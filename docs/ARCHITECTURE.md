@@ -126,8 +126,9 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 │ - poll jobs                           │        │ - Signaling + billing    │
 │ - reconnect backoff (5/10/30/60/300s)│        └──────────────────────────┘
 │ - state/log buffer                    │
-│ - mgmt WS: ping/pong (25s/10s)      │
+│ - mgmt WS: ping/pong (15s/10s)      │
 │ - full re-register if WS down >5min │
+│ - unstable WS escalation + HTTP fallback │
 │ - model list cache (30s) + env fallback │
 │        │                              │
 │        ├─ 1. if signaling_url + ice_servers:
@@ -150,9 +151,13 @@ JimboMesh Holler Server is an on-prem embedding and LLM inference service for [J
 Connection state machine: `disconnected -> connecting -> connected -> reconnecting/error -> disconnected`.
 
 Management WebSocket resilience:
-- Ping every 25s with 10s pong timeout; missed pong tears down and reconnects.
+- Ping every 15s with 10s pong timeout; missed pong tears down and reconnects.
 - Stepped backoff on close: 5s → 10s → 30s → 60s → 300s.
 - If WS disconnected >5 minutes, triggers full re-registration (not just WS reconnect).
+- Escalation chain for unstable reconnect loops:
+  - Level 1: standard reconnect with backoff.
+  - Level 2: after 5 "opened then closed quickly" cycles, force full teardown/re-registration.
+  - Level 3: after 3 failed full teardowns, enter HTTP polling fallback and periodically attempt WS promotion.
 - Each heartbeat checks WS health and reconnects if dead.
 - Mesh model metadata comes from `GET /api/tags` with a shared 30s cache; if unavailable, `HOLLER_MODELS` is used as a fallback source.
 
