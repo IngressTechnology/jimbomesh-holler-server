@@ -129,6 +129,35 @@ log_error() {
     echo -e "${RED}✗${NC} $1"
 }
 
+build_image_with_diagnostics() {
+    local tmp_output
+    tmp_output="$(mktemp -t jimbomesh-build.XXXXXX)"
+
+    if $COMPOSE_CMD build jimbomesh-still >"$tmp_output" 2>&1; then
+        cat "$tmp_output"
+        rm -f "$tmp_output"
+        return 0
+    fi
+
+    cat "$tmp_output"
+
+    if grep -qiE 'failed to fetch oauth token|auth\.docker\.io|401 Unauthorized|incorrect username or password' "$tmp_output"; then
+        echo ""
+        log_error "Docker Hub authentication failed while pulling base image."
+        echo "  This usually means cached Docker credentials are stale."
+        echo ""
+        echo "  Try:"
+        echo "    1) docker logout"
+        echo "    2) docker login"
+        echo "    3) ./setup.sh"
+        echo ""
+        echo "  If login still fails in Docker Desktop, sign out/in there and retry."
+    fi
+
+    rm -f "$tmp_output"
+    return 1
+}
+
 check_command() {
     if command -v "$1" &> /dev/null; then
         log_success "$1 found"
@@ -1288,7 +1317,9 @@ fi
 
 log_step "Building JimboMesh Holler Server image..."
 cd "$SCRIPT_DIR"
-$COMPOSE_CMD build jimbomesh-still
+if ! build_image_with_diagnostics; then
+    exit 1
+fi
 log_success "Image built successfully!"
 
 if [ "$PULL_ONLY" = true ]; then
